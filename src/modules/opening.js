@@ -1,16 +1,22 @@
 /* =================================================================
    Secuencia de apertura — la pieza central.
-   Encadena: Vídeo 1 (lazo) → volteo CSS 3D → Vídeo 2 (apertura).
-   Cuidado especial en los cortes vídeo→código→vídeo (sin parpadeo).
+   Encadena: Vídeo 1 (lazo) → FUNDIDO a la cara trasera → Vídeo 2.
+   Sin rotación 3D: la trasera (detras.jpeg) aparece por fundido sobre
+   el último frame congelado del Vídeo 1, lo que es más fiable y evita
+   enganchar un frame que no corresponde.
+   Cuidado especial en los cortes para que no haya parpadeo.
    ================================================================= */
 
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Tiempos de la transición de la cara trasera (deben casar con el CSS).
+const FADE_MS = 800; // duración del fundido (= transition de .opening__envelope)
+const HOLD_MS = 250; // breve pausa antes de arrancar el Vídeo 2
+
 export function initOpening({ onFinish } = {}) {
   const opening = document.getElementById('opening');
   const videoLazo = document.getElementById('video-lazo');
-  const flipStage = document.getElementById('flip-stage');
-  const flipCard = document.getElementById('flip-card');
+  const envelopeBack = document.getElementById('envelope-back');
   const videoApertura = document.getElementById('video-apertura');
   const skipBtn = document.getElementById('skip-intro');
   const content = document.getElementById('content');
@@ -38,54 +44,49 @@ export function initOpening({ onFinish } = {}) {
 
   // --- prefers-reduced-motion: saltar directo al contenido con acuarela fija ---
   if (REDUCED) {
-    // No bloqueamos el scroll; mostramos el contenido directamente.
     finish();
     return;
   }
 
   body.classList.add('is-locked');
 
-  // --- Precarga explícita de ambos vídeos (refuerza el <link rel=preload>) ---
+  // --- Precarga explícita de los vídeos (la imagen trasera la precarga el navegador) ---
   videoLazo.load();
   videoApertura.load();
 
   // --- Parte 3: arrancar Vídeo 2 desde su primer frame ---
   function startApertura() {
+    if (finished) return;
     videoApertura.currentTime = 0;
     videoApertura.classList.add('is-active');
-    // El volteo deja de ser necesario una vez el vídeo cubre la pantalla
     const play = videoApertura.play();
     if (play && play.catch) play.catch(() => {});
-    // Ocultamos las capas inferiores cuando el vídeo ya está encima
+    // Ocultar las capas inferiores cuando el vídeo ya las cubre
     setTimeout(() => {
-      flipStage.classList.remove('is-active');
+      envelopeBack.classList.remove('is-active');
       videoLazo.classList.remove('is-active');
     }, 360);
     videoApertura.addEventListener('ended', finish, { once: true });
   }
 
-  // --- Parte 2: ejecutar el volteo CSS cuando termina el Vídeo 1 ---
-  function startFlip() {
-    // El Vídeo 1 queda congelado en su último frame por debajo.
-    // Mostramos la tarjeta (cara delantera) que coincide con ese frame.
-    flipStage.classList.add('is-active');
-    // En el frame siguiente, lanzamos la animación de giro.
+  // --- Parte 2: fundir la cara trasera sobre el último frame del Vídeo 1 ---
+  function startBackFade() {
+    // El Vídeo 1 queda congelado en su último frame (pausado al terminar),
+    // visible por debajo. Fundimos encima la cara trasera (detras.jpeg).
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => flipCard.classList.add('is-flipping'));
+      requestAnimationFrame(() => envelopeBack.classList.add('is-active'));
     });
-    flipCard.addEventListener('animationend', startApertura, { once: true });
+    // Al terminar el fundido (+ breve pausa) enlazamos con el Vídeo 2.
+    setTimeout(startApertura, FADE_MS + HOLD_MS);
   }
 
   // --- Parte 1: reproducir Vídeo 1 ---
   function startLazo() {
     videoLazo.classList.add('is-active');
-    videoLazo.addEventListener('ended', startFlip, { once: true });
+    videoLazo.addEventListener('ended', startBackFade, { once: true });
     const play = videoLazo.play();
     if (play && play.catch) {
-      play.catch(() => {
-        // Autoplay bloqueado: ofrecer arranque por toque.
-        showTapToStart();
-      });
+      play.catch(() => showTapToStart());
     }
   }
 

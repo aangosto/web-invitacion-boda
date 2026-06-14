@@ -29,22 +29,13 @@
       <source src="/lazo.mp4" type="video/mp4" />
     </video>
 
-    <!-- Capa 2: tarjeta 3D del volteo (CSS). Front = delante, Back = detrás con sello A&M -->
-    <div id="flip-stage" class="opening__layer flip-stage" aria-hidden="true">
-      <div id="flip-card" class="flip-card">
-        <div class="flip-card__face flip-card__front">
-          <img src="/delante.jpeg" alt="" decoding="async" />
-        </div>
-        <div class="flip-card__face flip-card__back">
-          <img src="/detras.jpeg" alt="" decoding="async" />
-        </div>
-        <!-- Canto/sombra del sobre durante el giro -->
-        <div class="flip-card__edge"></div>
-      </div>
-    </div>
+    <!-- Capa 2: cara trasera del sobre (sello A&M). Aparece por FUNDIDO sobre
+         el último frame del Vídeo 1 (sin rotación) y enlaza con el Vídeo 2. -->
+    <img id="envelope-back" class="opening__layer opening__envelope" src="/detras.jpeg"
+         alt="" decoding="async" aria-hidden="true" />
 
     <!-- Capa 3: Vídeo de apertura (emerge la acuarela) -->
-    <video id="video-apertura" class="opening__layer opening__video opening__video--apertura" muted playsinline preload="auto"
+    <video id="video-apertura" class="opening__layer opening__video" muted playsinline preload="auto"
            aria-hidden="true">
       <source src="/apertura.mp4" type="video/mp4" />
     </video>
