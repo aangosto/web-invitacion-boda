@@ -1,66 +1,87 @@
 # Invitación de boda · María & Alberto · 24·10·2026
 
-Web de invitación de una sola página, mobile-first, con una secuencia de
-apertura cinematográfica (el sobre se abre) como pieza central.
+Web de invitación **multipágina**, mobile-first, con una secuencia de apertura
+cinematográfica (el sobre se abre) como pieza central. Datos en **Firebase
+(Firestore)**.
+
+## Páginas
+
+- **`index.html`** — invitación: apertura, cuenta atrás, historia, ceremonia,
+  mapa, padres y accesos a las otras dos páginas.
+- **`cuestionario.html`** — formulario de confirmación (RSVP) multi-persona.
+  Escribe en la colección Firestore **`rsvp`**.
+- **`juego.html`** — juego de cesta "Team novia / Team novio" + ranking en vivo
+  (TOP 3 por equipo). Escribe/lee la colección **`scores`**.
 
 ## Arrancar el proyecto
 
 ```bash
 npm install
-npm run dev      # servidor de desarrollo (http://localhost:5173)
-npm run build    # build de producción en dist/
-npm run preview  # previsualizar el build
+npm run dev          # desarrollo
+npm run dev -- --host  # accesible desde el móvil en la red local
+npm run build        # build de producción (3 páginas) en dist/
+npm run preview      # previsualizar el build
 ```
 
-Requisitos: Node 18+.
+Requisitos: Node 18+. Sin `.env`, la web funciona en **modo local de respaldo**
+(localStorage) para poder desarrollar sin credenciales.
+
+## Configurar Firebase (lo haces tú)
+
+1. Copia `.env.example` a **`.env`** y rellena los valores reales (consola de
+   Firebase → ⚙ Configuración del proyecto → Tus apps → app web → Config).
+   Las claves `VITE_FIREBASE_*` son identificadores **públicos** del proyecto,
+   no secretos; la seguridad la dan las reglas.
+2. Publica las reglas de **`firestore.rules`** en la consola: Firestore Database
+   → pestaña **Reglas** → pega el contenido → **Publicar**.
 
 ## Estructura
 
 ```
-índex.html              # marcado de todas las secciones
+index.html · cuestionario.html · juego.html
+vite.config.js          # Vite multipágina (rollupOptions.input)
+firestore.rules         # reglas de seguridad (publicar a mano en la consola)
+.env.example            # nombres de las variables VITE_FIREBASE_*
 src/
-  main.js               # punto de entrada; orquesta la carga
-  style.css             # estilos (paleta, tipografías, animaciones)
+  main.js               # entrada index (apertura + secciones)
+  cuestionario.js       # entrada cuestionario (RSVP)
+  juego.js              # entrada juego (juego + ranking)
+  firebase.js           # init Firebase desde import.meta.env
+  style.css             # estilos
   modules/
-    opening.js          # secuencia de apertura: vídeo → volteo CSS → vídeo
+    opening.js          # apertura: lazo.mp4 → fundido a trasera → apertura.mp4
     countdown.js        # cuenta atrás hasta el 24·10·2026 12:30
-    nav.js              # navegación flotante + menú móvil
-    reveal.js           # reveals al scroll (IntersectionObserver)
-    parallax.js         # parallax sutil de la acuarela del hero
-    rsvp.js             # formulario de confirmación (submitRsvp)
-    minigame.js         # minijuego Team novio/novia (submitVote)
-    calendar.js         # generación de .ics "añadir al calendario"
-public/                 # assets servidos en la raíz
-  lazo.mp4, apertura.mp4 (comprimidos, H.264 CRF 26, sin audio, faststart)
-  delante.jpeg, detras.jpeg, acuarela.jpeg, favicon.svg
-assets/                 # originales sin comprimir (no se sirven)
+    nav.js · reveal.js · parallax.js · calendar.js
+    rsvp.js             # formulario RSVP → colección 'rsvp'
+    minigame.js         # juego de cesta (canvas)
+    scores.js           # capa de datos del ranking → colección 'scores'
+    ranking.js          # pinta el TOP 3 por equipo (en vivo)
+public/                 # vídeos comprimidos, imágenes, favicon
 ```
 
-## La secuencia de apertura
+## Modelo de datos (Firestore)
 
-Tres partes encadenadas sin cortes visibles (`src/modules/opening.js`):
+- **`scores`** → `{ name, team: 'novia'|'novio', points, createdAt }`
+- **`rsvp`** → `{ filledBy, people: [{ name, bus, allergies, menu, menuOther }], createdAt }`
 
-1. **`lazo.mp4`** — autoplay muted playsinline, sin controles. Al terminar se
-   congela en su último frame.
-2. **Fundido a la cara trasera** — `detras.jpeg` (sello A&M) aparece por fundido
-   (~0.8 s) sobre el último frame, con un levísimo asentado de escala. Sin
-   rotación 3D (más fiable: evita enganchar un frame que no corresponde).
-3. **`apertura.mp4`** — arranca desde su primer frame y enlaza con el fundido.
+## Seguridad
 
-Las tres capas usan `object-fit: contain` con bandas de color papel, de modo
-que en móvil vertical se ve el sobre completo sin necesidad de rotar. Los vídeos
-se precargan (`preload="auto"` + `.load()`). Botón "Saltar intro" siempre
-visible. Con `prefers-reduced-motion` se salta directo al contenido.
+- `scores`: lectura **pública** (el ranking se muestra en la web), solo `create`
+  con validación; no editable ni borrable desde el cliente.
+- `rsvp`: `create` permitido (para confirmar) pero **lectura DENEGADA** por
+  completo desde el cliente. Los formularios contienen datos sensibles
+  (alergias = salud) y **solo se consultan desde la consola de Firebase**.
 
-## Pendiente (backend)
+## Ver las confirmaciones (RSVP)
 
-La captura de datos está **desacoplada**; falta conectar un backend real:
+La web **no** tiene página de resultados (a propósito). Para verlas:
 
-- **RSVP** (multi-persona) → `submitRsvp({ filledBy, people: [...] })` en
-  `src/modules/rsvp.js`. Cada persona lleva `{ name, bus, allergies, menu,
-  menuOther }`. Hay un `TODO` con un ejemplo de Formspree usando
-  `import.meta.env.VITE_RSVP_ENDPOINT` (configúralo en `.env`, sin secretos).
-- **Minijuego** (juego de cesta) → `submitVote(team, points)` en
-  `src/modules/minigame.js`. Suma la puntuación al contador global del equipo;
-  ahora persiste en `localStorage` con una semilla para que el marcador se vea
-  vivo. Sustituir por la llamada al mismo backend.
+1. Entra en la **consola de Firebase** → proyecto **web-invitacion-boda**.
+2. Menú lateral → **Build → Firestore Database**.
+3. Pestaña **Data** (Datos) → colección **`rsvp`** → cada documento es una
+   confirmación.
+4. **Exportar**: Firestore no exporta a CSV desde la consola. Opciones:
+   - **Google Cloud console** → Firestore → *Import/Export* → *Export* a un
+     bucket de Cloud Storage (export nativo).
+   - O `gcloud firestore export gs://<bucket>` con la CLI.
+   - Para CSV rápido, una pequeña Cloud Function / script con el Admin SDK.
