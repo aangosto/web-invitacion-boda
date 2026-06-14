@@ -7,25 +7,28 @@
    backend, solo hay que rellenar esa función. No se hardcodean secretos.
    ================================================================= */
 
+import { db, isConfigured } from '../firebase.js';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
 /**
- * Envía la confirmación al backend.
- * TODO(backend): conectar con el servicio elegido. Ejemplo con Formspree:
- *
- *   const ENDPOINT = import.meta.env.VITE_RSVP_ENDPOINT; // configúralo en .env
- *   const res = await fetch(ENDPOINT, {
- *     method: 'POST',
- *     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
- *     body: JSON.stringify(data),
- *   });
- *   if (!res.ok) throw new Error('Error al enviar');
- *   return res.json();
- *
+ * Envía la confirmación a Firestore (colección "rsvp").
+ * Estos datos contienen información sensible (nombres, alergias=salud, menús):
+ * las reglas de Firestore permiten CREAR pero DENIEGAN la lectura desde el
+ * cliente; el organizador los consulta desde la consola de Firebase.
+ * Si Firebase no está configurado, se simula el envío (modo desarrollo).
  * @param {Object} data  { filledBy, people: [{name, bus, allergies, menu, menuOther}] }
  * @returns {Promise<{ok: boolean}>}
  */
 export async function submitRsvp(data) {
-  console.info('[RSVP] (sin backend) datos capturados:', data);
-  // Simulación de latencia de red. Reemplazar por la llamada real.
+  if (isConfigured) {
+    await addDoc(collection(db, 'rsvp'), {
+      filledBy: data.filledBy,
+      people: data.people,
+      createdAt: serverTimestamp(),
+    });
+    return { ok: true };
+  }
+  console.info('[RSVP] (sin Firebase) datos capturados:', data);
   await new Promise((r) => setTimeout(r, 600));
   return { ok: true };
 }

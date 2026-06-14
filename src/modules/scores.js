@@ -1,43 +1,73 @@
 /* =================================================================
-   Capa de datos del RANKING del juego.
-   Aísla la persistencia para que el resto del código no sepa si los
-   datos vienen de localStorage o de Firestore.
-   >>> En esta versión: localStorage (demo). En el CAMBIO 1 (Firebase)
-       estas dos funciones se reimplementan contra la colección "scores".
+   Capa de datos del RANKING del juego (colección "scores").
+   Si Firebase está configurado, lee/escribe en Firestore en vivo.
+   Si no, usa localStorage como respaldo para poder desarrollar sin
+   credenciales. El resto del código no necesita saber cuál se usa.
    ================================================================= */
 
-const KEY = 'ma-scores';
-const listeners = new Set();
+import { db, isConfigured } from '../firebase.js';
+import {
+  collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp,
+} from 'firebase/firestore';
 
-function read() {
-  try {
-    return JSON.parse(localStorage.getItem(KEY)) || [];
-  } catch (_) {
-    return [];
-  }
+// Se leen las mejores puntuaciones y se reparten por equipo en el cliente
+// (evita tener que crear un índice compuesto en Firestore).
+const TOP_LIMIT = 100;
+
+/* ---------- Firestore ---------- */
+async function saveFirestore(score) {
+  await addDoc(collection(db, 'scores'), {
+    name: score.name,
+    team: score.team,          // 'novia' | 'novio'
+    points: score.points,
+    createdAt: serverTimestamp(),
+  });
+  return true;
+}
+function watchFirestore(cb) {
+  const q = query(collection(db, 'scores'), orderBy('points', 'desc'), limit(TOP_LIMIT));
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => d.data())),
+    (err) => console.error('[scores] onSnapshot:', err)
+  );
 }
 
-/**
- * Guarda una puntuación.
- * @param {{name:string, team:'novia'|'novio', points:number}} score
- * @returns {Promise<boolean>}
- */
-export async function saveScore(score) {
-  const all = read();
+/* ---------- Respaldo local (sin Firebase) ---------- */
+const KEY = 'ma-scores';
+const listeners = new Set();
+function readLocal() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (_) { return []; }
+}
+async function saveLocal(score) {
+  const all = readLocal();
   all.push({ ...score, createdAt: Date.now() });
   localStorage.setItem(KEY, JSON.stringify(all));
   listeners.forEach((fn) => fn(all));
   await new Promise((r) => setTimeout(r, 150));
   return true;
 }
+function watchLocal(cb) {
+  listeners.add(cb);
+  cb(readLocal());
+  return () => listeners.delete(cb);
+}
+
+/* ---------- API pública ---------- */
+/**
+ * Guarda una puntuación en el ranking.
+ * @param {{name:string, team:'novia'|'novio', points:number}} score
+ * @returns {Promise<boolean>}
+ */
+export function saveScore(score) {
+  return isConfigured ? saveFirestore(score) : saveLocal(score);
+}
 
 /**
- * Suscribe un callback a los cambios del ranking (estilo "en vivo").
+ * Suscribe un callback a los cambios del ranking (en vivo).
  * @param {(scores:Array)=>void} cb
- * @returns {()=>void} función para cancelar la suscripción
+ * @returns {()=>void} cancela la suscripción
  */
 export function watchRanking(cb) {
-  listeners.add(cb);
-  cb(read());
-  return () => listeners.delete(cb);
+  return isConfigured ? watchFirestore(cb) : watchLocal(cb);
 }

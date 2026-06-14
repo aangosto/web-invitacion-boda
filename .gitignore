@@ -3,3 +3,8 @@ dist
 .DS_Store
 *.local
 .vite
+
+# Variables de entorno (config de Firebase) — NO subir
+.env
+.env.*
+!.env.example
