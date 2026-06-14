@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#6e2435" />
   <meta name="description" content="Nos casamos · María & Alberto · 24 de octubre de 2026 · Zaragoza" />
   <title>María & Alberto · 24·10·2026</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-  <!-- Precarga de los vídeos de la secuencia de apertura para evitar parpadeos en los cortes -->
-  <link rel="preload" as="video" href="/lazo.mp4" type="video/mp4" />
-  <link rel="preload" as="video" href="/apertura.mp4" type="video/mp4" />
+  <!-- Los vídeos de la apertura se precargan vía preload="auto" + .load() en JS
+       (rel=preload as=video no es un destino válido y el navegador lo ignora). -->
 
   <!-- Tipografías: caligráfica (titulares), serif (cuerpo) y sans (utilidad) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
