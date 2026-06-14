@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#6e2435" />
+  <meta name="description" content="Nos casamos · María & Alberto · 24 de octubre de 2026 · Zaragoza" />
+  <title>María & Alberto · 24·10·2026</title>
+
+  <!-- Precarga de los vídeos de la secuencia de apertura para evitar parpadeos en los cortes -->
+  <link rel="preload" as="video" href="/lazo.mp4" type="video/mp4" />
+  <link rel="preload" as="video" href="/apertura.mp4" type="video/mp4" />
+
+  <!-- Tipografías: caligráfica (titulares), serif (cuerpo) y sans (utilidad) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Parisienne&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ============================================================= -->
+  <!-- SECUENCIA DE APERTURA (pieza central · ocupa el primer viewport) -->
+  <!-- ============================================================= -->
+  <div id="opening" class="opening" aria-label="Apertura de la invitación">
+
+    <!-- Capa 1: Vídeo del lazo que se desata -->
+    <video id="video-lazo" class="opening__layer opening__video" muted playsinline preload="auto"
+           aria-hidden="true">
+      <source src="/lazo.mp4" type="video/mp4" />
+    </video>
+
+    <!-- Capa 2: tarjeta 3D del volteo (CSS). Front = delante, Back = detrás con sello A&M -->
+    <div id="flip-stage" class="opening__layer flip-stage" aria-hidden="true">
+      <div id="flip-card" class="flip-card">
+        <div class="flip-card__face flip-card__front">
+          <img src="/delante.jpeg" alt="" decoding="async" />
+        </div>
+        <div class="flip-card__face flip-card__back">
+          <img src="/detras.jpeg" alt="" decoding="async" />
+        </div>
+        <!-- Canto/sombra del sobre durante el giro -->
+        <div class="flip-card__edge"></div>
+      </div>
+    </div>
+
+    <!-- Capa 3: Vídeo de apertura (emerge la acuarela) -->
+    <video id="video-apertura" class="opening__layer opening__video opening__video--apertura" muted playsinline preload="auto"
+           aria-hidden="true">
+      <source src="/apertura.mp4" type="video/mp4" />
+    </video>
+
+    <!-- Botón discreto siempre visible -->
+    <button id="skip-intro" class="skip-intro" type="button">Saltar intro</button>
+  </div>
+
+
+  <!-- ============================================================= -->
+  <!-- NAVEGACIÓN FLOTANTE (aparece al hacer scroll) -->
+  <!-- ============================================================= -->
+  <nav id="floating-nav" class="floating-nav" aria-label="Navegación principal">
+    <a class="floating-nav__brand" href="#hero">M&nbsp;&amp;&nbsp;A</a>
+    <button id="nav-toggle" class="floating-nav__toggle" type="button" aria-expanded="false" aria-controls="nav-links">
+      <span></span><span></span><span></span>
+      <span class="sr-only">Abrir menú</span>
+    </button>
+    <ul id="nav-links" class="floating-nav__links">
+      <li><a href="#cuenta-atras">Cuenta atrás</a></li>
+      <li><a href="#historia">Historia</a></li>
+      <li><a href="#ceremonia">Ceremonia</a></li>
+      <li><a href="#mapa">Lugar</a></li>
+      <li><a href="#rsvp">Confirmar</a></li>
+      <li><a href="#minijuego">Team</a></li>
+    </ul>
+  </nav>
+
+
+  <!-- ============================================================= -->
+  <!-- CONTENIDO (oculto hasta que termina la apertura) -->
+  <!-- ============================================================= -->
+  <main id="content" class="content" hidden>
+
+    <!-- HERO -->
+    <header id="hero" class="hero">
+      <div class="hero__art" aria-hidden="true">
+        <img id="hero-img" src="/acuarela.jpeg" alt="" decoding="async" />
+        <div class="hero__veil"></div>
+      </div>
+      <div class="hero__inner reveal">
+        <p class="hero__eyebrow">Nos casamos</p>
+        <h1 class="hero__names">María <span class="amp">&amp;</span> Alberto</h1>
+        <p class="hero__date">24 · 10 · 2026</p>
+        <p class="hero__place">Zaragoza</p>
+      </div>
+      <a href="#cuenta-atras" class="scroll-hint" aria-label="Bajar">
+        <span class="scroll-hint__dot"></span>
+        <span class="scroll-hint__text">Desliza</span>
+      </a>
+    </header>
+
+    <!-- CUENTA ATRÁS -->
+    <section id="cuenta-atras" class="section section--countdown">
+      <div class="floral-rule reveal" aria-hidden="true">✿</div>
+      <h2 class="section__title reveal">Cuenta atrás</h2>
+      <div id="countdown" class="countdown reveal" role="timer" aria-live="off">
+        <div class="countdown__unit"><span class="countdown__num" data-unit="days">--</span><span class="countdown__label">días</span></div>
+        <div class="countdown__unit"><span class="countdown__num" data-unit="hours">--</span><span class="countdown__label">horas</span></div>
+        <div class="countdown__unit"><span class="countdown__num" data-unit="minutes">--</span><span class="countdown__label">min</span></div>
+        <div class="countdown__unit"><span class="countdown__num" data-unit="seconds">--</span><span class="countdown__label">seg</span></div>
+      </div>
+      <p id="countdown-done" class="countdown__done" hidden>¡Hoy es el gran día!</p>
+    </section>
+
+    <!-- NUESTRA HISTORIA -->
+    <section id="historia" class="section section--prose">
+      <div class="floral-rule reveal" aria-hidden="true">✿</div>
+      <h2 class="section__title reveal">Nuestra historia</h2>
+      <p class="prose reveal">Los hijos de María y Alberto.</p>
+      <p class="prose reveal">Cada paso que hemos dado juntos nos ha llevado a este momento tan esperado.
+        Nos gustaría que nos acompañases en el día de nuestra boda y pudieses formar parte
+        del comienzo de nuestra vida juntos bajo la mirada de Dios.</p>
+    </section>
+
+    <!-- CEREMONIA + CELEBRACIÓN -->
+    <section id="ceremonia" class="section section--events">
+      <div class="floral-rule reveal" aria-hidden="true">✿</div>
+      <div class="events">
+        <article class="event-card reveal">
+          <p class="event-card__kicker">La ceremonia</p>
+          <h3 class="event-card__title">Iglesia San Antonio de Padua</h3>
+          <p class="event-card__meta">24 de octubre de 2026 · 12:30 h</p>
+          <p class="event-card__meta">Zaragoza</p>
+        </article>
+        <article class="event-card reveal">
+          <p class="event-card__kicker">La celebración</p>
+          <h3 class="event-card__title">Finca Tierrabella</h3>
+          <p class="event-card__meta">A continuación de la ceremonia</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- MAPA + CALENDARIO -->
+    <section id="mapa" class="section section--map">
+      <div class="floral-rule reveal" aria-hidden="true">✿</div>
+      <h2 class="section__title reveal">Cómo llegar</h2>
+      <div class="map-actions reveal">
+        <a class="btn btn--ghost" id="map-ceremony" target="_blank" rel="noopener"
+           href="https://www.google.com/maps/search/?api=1&query=Iglesia+San+Antonio+de+Padua+Zaragoza">
+          Iglesia San Antonio de Padua →
+        </a>
+        <a class="btn btn--ghost" id="map-venue" target="_blank" rel="noopener"
+           href="https://www.google.com/maps/search/?api=1&query=Finca+Tierrabella+Zaragoza">
+          Finca Tierrabella →
+        </a>
+        <button class="btn btn--solid" id="add-calendar" type="button">Añadir al calendario</button>
+      </div>
+    </section>
+
+    <!-- LOS PADRES -->
+    <section id="padres" class="section section--parents">
+      <div class="floral-rule reveal" aria-hidden="true">✿</div>
+      <h2 class="section__title reveal">Los padres</h2>
+      <div class="parents reveal">
+        <div class="parents__col">
+          <p>Manuel Ruiz Urdiales</p>
+          <p>Lola Naranjo Cirauqui</p>
+        </div>
+        <div class="parents__amp" aria-hidden="true">✿</div>
+        <div class="parents__col">
+          <p>Ángel Angosto Fleta</p>
+          <p>Mª Carmen Sabroso González</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RSVP -->
+    <section id="rsvp" class="section section--rsvp">
+      <div class="floral-rule reveal" aria-hidden="true">✿</div>
+      <h2 class="section__title reveal">Confirma tu asistencia</h2>
+      <p class="section__lead reveal">Agradeceríamos confirmación lo antes posible.</p>
+
+      <form id="rsvp-form" class="rsvp-form reveal" novalidate>
+        <label class="field">
+          <span class="field__label">Nombre y apellidos</span>
+          <input class="field__input" type="text" name="name" autocomplete="name" required />
+        </label>
+
+        <fieldset class="field field--pills">
+          <legend class="field__label">¿Nos acompañas?</legend>
+          <div class="pills" role="radiogroup" aria-label="¿Asistes?">
+            <button type="button" class="pill" data-attend="si" aria-pressed="false">Sí, allí estaré</button>
+            <button type="button" class="pill" data-attend="no" aria-pressed="false">No podré ir</button>
+          </div>
+          <input type="hidden" name="attending" value="" required />
+        </fieldset>
+
+        <label class="field" data-only-yes>
+          <span class="field__label">Nº de acompañantes</span>
+          <input class="field__input" type="number" name="companions" min="0" max="10" step="1" value="0" inputmode="numeric" />
+        </label>
+
+        <label class="field" data-only-yes>
+          <span class="field__label">Alergias o intolerancias</span>
+          <input class="field__input" type="text" name="allergies" placeholder="Opcional" />
+        </label>
+
+        <label class="field" data-only-yes>
+          <span class="field__label">Una canción que no puede faltar</span>
+          <input class="field__input" type="text" name="song" placeholder="Opcional" />
+        </label>
+
+        <button type="submit" class="btn btn--solid btn--block" id="rsvp-submit">Enviar confirmación</button>
+        <p id="rsvp-feedback" class="form-feedback" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <!-- MINIJUEGO -->
+    <section id="minijuego" class="section section--game">
+      <div class="floral-rule reveal" aria-hidden="true">✿</div>
+      <h2 class="section__title reveal">Team novio o Team novia</h2>
+      <p class="section__lead reveal">¿De qué equipo eres? Responde y descúbrelo. ¡Y mira cómo va el marcador!</p>
+
+      <div id="quiz" class="quiz reveal">
+        <!-- Las preguntas se inyectan desde JS -->
+      </div>
+
+      <div id="quiz-result" class="quiz-result" hidden>
+        <p class="quiz-result__lead">Eres del…</p>
+        <p id="quiz-team" class="quiz-result__team">—</p>
+        <div class="meter" aria-hidden="true">
+          <div class="meter__bar">
+            <div id="meter-groom" class="meter__fill meter__fill--groom"></div>
+            <div id="meter-bride" class="meter__fill meter__fill--bride"></div>
+          </div>
+          <div class="meter__legend">
+            <span><b id="pct-groom">50%</b> Team Novio</span>
+            <span><b id="pct-bride">50%</b> Team Novia</span>
+          </div>
+        </div>
+        <button type="button" class="btn btn--ghost" id="quiz-replay">Volver a jugar</button>
+      </div>
+    </section>
+
+    <!-- CIERRE -->
+    <footer class="closing">
+      <div class="floral-rule" aria-hidden="true">✿</div>
+      <p class="closing__line">¡Os esperamos!</p>
+      <p class="closing__names">María &amp; Alberto</p>
+      <p class="closing__date">24 · 10 · 2026</p>
+    </footer>
+
+  </main>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
