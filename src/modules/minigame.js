@@ -1,80 +1,26 @@
 /* =================================================================
-   Minijuego "Team novio / Team novia" — JUEGO DE CESTA.
+   Minijuego "Team novia / Team novio" — JUEGO DE CESTA.
    El jugador elige equipo y mueve una cesta para atrapar los objetos
    que caen. Atrapar los de tu equipo suma; los del contrario restan.
    La caída acelera con el tiempo y aparecen boosters especiales.
-   Al terminar, la puntuación se suma al contador global del equipo
-   mediante submitVote(), desacoplado del backend (localStorage por ahora).
+   Al terminar, el jugador pone su nombre y guarda la puntuación en el
+   ranking (saveScore, desacoplado del backend en src/modules/scores.js).
    ================================================================= */
 
-const STORE_KEY = 'ma-team-score';
-
-// Semilla de puntos para que el marcador global "respire" desde el principio.
-// Cuando haya backend, estos números vendrán del servidor.
-const SEED = { groom: 1240, bride: 1310 };
-
-/* ---------------- Backend desacoplado ---------------- */
-/**
- * Suma la puntuación obtenida al contador global del equipo.
- * TODO(backend): conectar con el servicio elegido (mismo backend que el RSVP).
- * @param {'groom'|'bride'} team
- * @param {number} points
- * @returns {Promise<{groom:number, bride:number}>} totales (con semilla)
- */
-export async function submitVote(team, points = 0) {
-  console.info('[Minijuego] (sin backend) equipo:', team, '+', points, 'pts');
-  const local = readLocal();
-  local[team] = (local[team] || 0) + Math.max(0, Math.round(points));
-  writeLocal(local);
-  await new Promise((r) => setTimeout(r, 200));
-  return tallies();
-}
-
-function readLocal() {
-  try {
-    return JSON.parse(localStorage.getItem(STORE_KEY)) || { groom: 0, bride: 0 };
-  } catch (_) {
-    return { groom: 0, bride: 0 };
-  }
-}
-function writeLocal(obj) {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch (_) {}
-}
-function tallies() {
-  const local = readLocal();
-  return { groom: SEED.groom + (local.groom || 0), bride: SEED.bride + (local.bride || 0) };
-}
+import { saveScore } from './scores.js';
 
 /* ---------------- Definición de objetos ---------------- */
 // Objetos por equipo. Los boosters son neutrales (siempre conviene cogerlos).
 const ITEMS = {
-  lemon:  { team: 'bride', emoji: '🍋' },
-  vermut: { team: 'groom', emoji: '🍸' },
-  shield: { team: 'groom', shield: true }, // escudo Real Zaragoza (dibujado)
+  lemon:  { team: 'novia', emoji: '🍋' },
+  vermut: { team: 'novio', emoji: '🍸' },
+  shield: { team: 'novio', shield: true }, // escudo Real Zaragoza (dibujado)
 };
 const BOOSTERS = {
   x2:     { emoji: '✖️', label: '×2 puntos', color: '#6e2435' },
   slow:   { emoji: '🐌', label: 'Caída lenta', color: '#6f7d62' },
   magnet: { emoji: '🧲', label: 'Imán', color: '#561a28' },
 };
-
-/* ---------------- Helpers de pantalla ---------------- */
-function renderStandings(totals) {
-  const total = totals.groom + totals.bride || 1;
-  const g = Math.round((totals.groom / total) * 100);
-  const b = 100 - g;
-  document.querySelectorAll('[data-standings]').forEach((el) => {
-    el.innerHTML = `
-      <div class="meter__bar">
-        <div class="meter__fill meter__fill--groom" style="width:${g}%"></div>
-        <div class="meter__fill meter__fill--bride" style="width:${b}%"></div>
-      </div>
-      <div class="meter__legend">
-        <span><b>${g}%</b> Team Novio</span>
-        <span><b>${b}%</b> Team Novia</span>
-      </div>`;
-  });
-}
 
 export function initMinigame() {
   const root = document.getElementById('game');
@@ -91,14 +37,12 @@ export function initMinigame() {
   const boosterEl = document.getElementById('game-booster');
   const overTeamEl = document.getElementById('game-over-team');
   const finalEl = document.getElementById('game-final');
-
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  // Marcador global inicial
-  renderStandings(tallies());
+  const nameInput = document.getElementById('game-name');
+  const saveBtn = document.getElementById('game-save');
+  const saveFeedback = document.getElementById('game-save-feedback');
 
   /* ---------- Estado del juego ---------- */
-  let team = 'bride';
+  let team = 'novia';
   let running = false;
   let raf = 0;
   let lastT = 0;
@@ -188,10 +132,10 @@ export function initMinigame() {
     ctx.lineTo(x + w / 2 - 8, y + h);
     ctx.lineTo(x - w / 2 + 8, y + h);
     ctx.closePath();
-    ctx.fillStyle = team === 'groom' ? '#6e2435' : '#6f7d62';
+    ctx.fillStyle = team === 'novio' ? '#6e2435' : '#6f7d62';
     ctx.fill();
     // borde superior
-    ctx.fillStyle = team === 'groom' ? '#561a28' : '#5b6650';
+    ctx.fillStyle = team === 'novio' ? '#561a28' : '#5b6650';
     ctx.fillRect(x - w / 2 - 3, y - 7, w + 6, 9);
     // trama
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
@@ -286,23 +230,15 @@ export function initMinigame() {
   }
 
   function onCatch(o) {
-    if (o.isBooster) {
-      activateBooster(o.type);
-      return;
-    }
+    if (o.isBooster) { activateBooster(o.type); return; }
     if (o.def.team === team) {
       const mult = effects.x2 > 0 ? 2 : 1;
       score += 10 * mult;
-      flash('+', o.x, o.y);
     } else {
       score = Math.max(0, score - 5); // objeto contrario: resta
-      flash('-', o.x, o.y);
     }
     scoreEl.textContent = score;
   }
-
-  // El marcador en vivo ya da feedback suficiente al atrapar.
-  function flash() {}
 
   function activateBooster(type) {
     if (type === 'x2') effects.x2 = 6;
@@ -312,8 +248,9 @@ export function initMinigame() {
   }
   function updateBoosterHud() {
     const active = Object.keys(effects).filter((k) => effects[k] > 0);
-    if (!active.length) { boosterEl.textContent = ''; return; }
-    boosterEl.textContent = active.map((k) => `${BOOSTERS[k].emoji} ${BOOSTERS[k].label}`).join('  ');
+    boosterEl.textContent = active.length
+      ? active.map((k) => `${BOOSTERS[k].emoji} ${BOOSTERS[k].label}`).join('  ')
+      : '';
   }
 
   function loseLife() {
@@ -322,7 +259,6 @@ export function initMinigame() {
     if (lives <= 0) endGame();
   }
 
-  // Refrescar el HUD de boosters periódicamente (para que desaparezca al caducar)
   let hudTimer = 0;
 
   /* ---------- Arranque / fin ---------- */
@@ -341,16 +277,48 @@ export function initMinigame() {
     hudTimer = setInterval(updateBoosterHud, 500);
   }
 
-  async function endGame() {
+  function endGame() {
     running = false;
     cancelAnimationFrame(raf);
     clearInterval(hudTimer);
-    overTeamEl.textContent = team === 'groom' ? 'Team Novio' : 'Team Novia';
-    overTeamEl.style.color = team === 'groom' ? 'var(--burgundy)' : 'var(--sage-deep)';
+    overTeamEl.textContent = team === 'novio' ? 'Team Novio' : 'Team Novia';
+    overTeamEl.style.color = team === 'novio' ? 'var(--burgundy)' : 'var(--sage-deep)';
     finalEl.textContent = score;
+    // Reiniciar el formulario de guardado
+    saveBtn.disabled = false;
+    nameInput.disabled = false;
+    nameInput.value = '';
+    setSaveFeedback('', null);
     show(screenOver);
-    const totals = await submitVote(team, score);
-    renderStandings(totals);
+    nameInput.focus();
+  }
+
+  function setSaveFeedback(msg, type) {
+    saveFeedback.textContent = msg;
+    saveFeedback.classList.remove('is-ok', 'is-error');
+    if (type) saveFeedback.classList.add(type);
+  }
+
+  async function saveCurrentScore() {
+    const name = nameInput.value.trim();
+    if (!name) {
+      setSaveFeedback('Escribe tu nombre para entrar en el ranking.', 'is-error');
+      nameInput.focus();
+      return;
+    }
+    saveBtn.disabled = true;
+    nameInput.disabled = true;
+    setSaveFeedback('Guardando…', null);
+    try {
+      await saveScore({ name, team, points: score });
+      const equipo = team === 'novio' ? 'Novio' : 'Novia';
+      setSaveFeedback(`¡Guardado! Has sumado ${score} puntos al Team ${equipo}. ✿`, 'is-ok');
+    } catch (err) {
+      console.error(err);
+      saveBtn.disabled = false;
+      nameInput.disabled = false;
+      setSaveFeedback('No se pudo guardar. Inténtalo de nuevo.', 'is-error');
+    }
   }
 
   function show(screen) {
@@ -366,25 +334,18 @@ export function initMinigame() {
   canvas.addEventListener('pointerdown', (e) => { dragging = true; basket.x = pointerX(e); e.preventDefault(); });
   canvas.addEventListener('pointermove', (e) => { if (dragging) { basket.x = pointerX(e); e.preventDefault(); } });
   window.addEventListener('pointerup', () => { dragging = false; });
-  // Teclado (accesibilidad / escritorio)
   window.addEventListener('keydown', (e) => {
     if (!running) return;
     if (e.key === 'ArrowLeft') basket.x = Math.max(basket.w / 2, basket.x - 28);
     if (e.key === 'ArrowRight') basket.x = Math.min(W - basket.w / 2, basket.x + 28);
   });
-
   window.addEventListener('resize', () => { if (running) resize(); });
 
   /* ---------- Botones ---------- */
   root.querySelectorAll('.team-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      team = btn.dataset.team;
-      startGame();
-    });
+    btn.addEventListener('click', () => { team = btn.dataset.team; startGame(); });
   });
+  saveBtn.addEventListener('click', saveCurrentScore);
   document.getElementById('game-again').addEventListener('click', startGame);
-  document.getElementById('game-switch').addEventListener('click', () => {
-    renderStandings(tallies());
-    show(screenStart);
-  });
+  document.getElementById('game-switch').addEventListener('click', () => show(screenStart));
 }

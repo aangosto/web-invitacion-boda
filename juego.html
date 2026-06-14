@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#6e2435" />
+  <meta name="description" content="Team novia o Team novio · Juega y entra en el ranking" />
+  <title>Team novia o Team novio · María & Alberto</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Parisienne&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
+</head>
+<body class="subpage">
+
+  <header class="subpage-header">
+    <a class="subpage-header__brand" href="./index.html">María&nbsp;&amp;&nbsp;Alberto</a>
+    <a class="subpage-header__back" href="./index.html">← Volver</a>
+  </header>
+
+  <main class="subpage-main">
+    <section class="section section--game">
+      <div class="floral-rule reveal" aria-hidden="true">✿</div>
+      <h1 class="section__title reveal">Team novia o Team novio</h1>
+      <p class="section__lead reveal">Elige equipo y atrapa con la cesta los objetos que caen. ¡Acelera, cuidado!</p>
+
+      <div id="game" class="game reveal">
+
+        <!-- Pantalla 1: elegir equipo -->
+        <div id="game-start" class="game__screen">
+          <div class="game__teams">
+            <button type="button" class="team-btn" data-team="novia">
+              <span class="team-btn__emoji" aria-hidden="true">🍋</span>
+              <span class="team-btn__name">Team Novia</span>
+              <span class="team-btn__hint">Atrapa limones de Murcia</span>
+            </button>
+            <button type="button" class="team-btn" data-team="novio">
+              <span class="team-btn__emoji" aria-hidden="true">🍸</span>
+              <span class="team-btn__name">Team Novio</span>
+              <span class="team-btn__hint">Vermut y Real Zaragoza</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Pantalla 2: juego -->
+        <div id="game-play" class="game__screen" hidden>
+          <div class="game__hud">
+            <span class="game__hud-score">Puntos: <b id="game-score">0</b></span>
+            <span id="game-booster" class="game__hud-booster"></span>
+            <span id="game-lives" class="game__hud-lives" aria-label="Vidas">●●●</span>
+          </div>
+          <canvas id="game-canvas" class="game__canvas"
+                  aria-label="Juego de cesta: arrastra para mover y atrapar objetos"></canvas>
+          <p class="game__tip">Arrastra el dedo (o usa ← →) para mover la cesta</p>
+        </div>
+
+        <!-- Pantalla 3: fin -->
+        <div id="game-over" class="game__screen" hidden>
+          <p class="game__over-lead">Tu puntuación</p>
+          <p class="game__over-score"><b id="game-final">0</b> puntos · <span id="game-over-team">—</span></p>
+
+          <label class="field">
+            <span class="field__label">Tu nombre para el ranking</span>
+            <input id="game-name" class="field__input" type="text" maxlength="40" autocomplete="name" placeholder="Tu nombre" />
+          </label>
+          <button type="button" class="btn btn--solid btn--block" id="game-save">Guardar en el ranking</button>
+          <p id="game-save-feedback" class="form-feedback" role="status" aria-live="polite"></p>
+
+          <div class="game__over-actions">
+            <button type="button" class="btn btn--ghost" id="game-again">Jugar otra vez</button>
+            <button type="button" class="btn btn--ghost" id="game-switch">Cambiar de equipo</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Ranking en vivo (TOP 3 por equipo) -->
+      <div class="floral-rule reveal" aria-hidden="true">✿</div>
+      <h2 class="ranking__title reveal">Ranking</h2>
+      <div class="ranking reveal">
+        <div class="ranking__col">
+          <h3 class="ranking__team ranking__team--novia">Team Novia</h3>
+          <ol id="rank-novia" class="ranking__list">
+            <li class="ranking__empty">Aún no hay puntuaciones</li>
+          </ol>
+        </div>
+        <div class="ranking__col">
+          <h3 class="ranking__team ranking__team--novio">Team Novio</h3>
+          <ol id="rank-novio" class="ranking__list">
+            <li class="ranking__empty">Aún no hay puntuaciones</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="subpage-footer">
+    <p class="closing__names">María &amp; Alberto</p>
+    <p class="closing__date">24 · 10 · 2026</p>
+  </footer>
+
+  <script type="module" src="/src/juego.js"></script>
+</body>
+</html>

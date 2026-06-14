@@ -721,27 +721,51 @@ a { color: inherit; }
 .game__over-score b { color: var(--ink); font-size: 1.3rem; }
 .game__over-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
 
-/* --- Marcador global (medidor) --- */
-.standings { margin: 0.4rem 0; }
-.meter__bar {
-  display: flex;
-  height: 26px;
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid rgba(58,64,54,0.15);
+/* --- Ranking en vivo (TOP 3 por equipo) --- */
+.ranking__title { margin-top: 0.5rem; }
+.ranking {
+  display: grid;
+  gap: 1rem;
+  max-width: 30rem;
+  margin: 0 auto;
+  text-align: left;
 }
-.meter__fill { height: 100%; transition: width 0.8s var(--ease); }
-.meter__fill--groom { background: var(--burgundy); }
-.meter__fill--bride { background: var(--sage); }
-.meter__legend {
-  display: flex;
-  justify-content: space-between;
+@media (min-width: 30rem) { .ranking { grid-template-columns: 1fr 1fr; } }
+.ranking__col {
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(110,36,53,0.15);
+  border-radius: 10px;
+  padding: 0.9rem 1rem 1.1rem;
+}
+.ranking__team {
   font-family: var(--font-sans);
-  font-size: 0.8rem;
-  color: var(--ink-soft);
-  margin-top: 0.6rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: center;
+  margin-bottom: 0.7rem;
 }
-.meter__legend b { color: var(--ink); }
+.ranking__team--novia { color: var(--sage-deep); }
+.ranking__team--novio { color: var(--burgundy); }
+.ranking__list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.4rem; }
+.ranking__row {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+.ranking__pos { text-align: center; }
+.ranking__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ranking__pts { font-family: var(--font-sans); font-weight: 500; color: var(--burgundy); }
+.ranking__empty {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
 
 /* =================================================================
    13. CIERRE
@@ -770,6 +794,90 @@ a { color: inherit; }
   font-size: 0.85rem;
   color: var(--ink-soft);
   margin-top: 0.8rem;
+}
+
+/* =================================================================
+   13b. ACCESOS (tarjetas CTA en la home → cuestionario / juego)
+   ================================================================= */
+.cta-cards {
+  display: grid;
+  gap: 1rem;
+  max-width: 30rem;
+  margin: 0 auto;
+}
+@media (min-width: 34rem) { .cta-cards { grid-template-columns: 1fr 1fr; } }
+.cta-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1.6rem 1.2rem;
+  text-decoration: none;
+  color: var(--ink);
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(110,36,53,0.2);
+  border-radius: 10px;
+  transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+.cta-card:hover { border-color: var(--burgundy); background: rgba(255,255,255,0.9); box-shadow: 0 6px 20px rgba(110,36,53,0.1); }
+.cta-card:active { transform: scale(0.99); }
+.cta-card__icon { font-size: 2rem; line-height: 1; }
+.cta-card__title { font-family: var(--font-serif); font-weight: 600; font-size: 1.3rem; }
+.cta-card__text { font-family: var(--font-sans); font-size: 0.85rem; color: var(--ink-soft); }
+.cta-card__go { font-family: var(--font-sans); font-size: 0.85rem; color: var(--burgundy); margin-top: 0.3rem; }
+
+/* =================================================================
+   13c. SUBPÁGINAS (cuestionario.html / juego.html)
+   ================================================================= */
+.subpage-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem var(--gutter);
+  background: rgba(245, 241, 233, 0.9);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(58,64,54,0.08);
+}
+.subpage-header__brand {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--burgundy);
+  text-decoration: none;
+}
+.subpage-header__back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.subpage-header__back:hover { color: var(--burgundy); }
+.subpage-main { min-height: 60vh; }
+.subpage-footer {
+  text-align: center;
+  padding: 2.5rem var(--gutter) 3rem;
+  background: linear-gradient(180deg, transparent, rgba(110,36,53,0.05));
+}
+.subpage-footer .closing__names {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  color: var(--burgundy);
+  line-height: 1;
+}
+.subpage-footer .closing__date {
+  font-family: var(--font-sans);
+  letter-spacing: 0.3em;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  margin-top: 0.5rem;
 }
 
 /* =================================================================

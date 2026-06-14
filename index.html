@@ -59,8 +59,8 @@
       <li><a href="#historia">Historia</a></li>
       <li><a href="#ceremonia">Ceremonia</a></li>
       <li><a href="#mapa">Lugar</a></li>
-      <li><a href="#rsvp">Confirmar</a></li>
-      <li><a href="#minijuego">Team</a></li>
+      <li><a href="./cuestionario.html">Confirmar</a></li>
+      <li><a href="./juego.html">Team</a></li>
     </ul>
   </nav>
 
@@ -166,77 +166,23 @@
       </div>
     </section>
 
-    <!-- RSVP -->
-    <section id="rsvp" class="section section--rsvp">
+    <!-- ACCESOS: confirmación y juego (en sus propias páginas) -->
+    <section id="acciones" class="section section--cta">
       <div class="floral-rule reveal" aria-hidden="true">✿</div>
-      <h2 class="section__title reveal">Confirma tu asistencia</h2>
-      <p class="section__lead reveal">Agradeceríamos confirmación lo antes posible.</p>
-
-      <form id="rsvp-form" class="rsvp-form reveal" novalidate>
-        <label class="field">
-          <span class="field__label">¿Quién rellena la confirmación?</span>
-          <input class="field__input" type="text" name="filledBy" autocomplete="name" required placeholder="Tu nombre" />
-        </label>
-
-        <!-- Tarjetas de persona (se inyectan desde JS) -->
-        <div id="people-list" class="people-list"></div>
-
-        <button type="button" id="add-person" class="btn btn--ghost btn--block">+ Añadir persona</button>
-
-        <button type="submit" class="btn btn--solid btn--block" id="rsvp-submit">Enviar confirmación</button>
-        <p id="rsvp-feedback" class="form-feedback" role="status" aria-live="polite"></p>
-      </form>
-    </section>
-
-    <!-- MINIJUEGO: cesta que atrapa objetos -->
-    <section id="minijuego" class="section section--game">
-      <div class="floral-rule reveal" aria-hidden="true">✿</div>
-      <h2 class="section__title reveal">Team novio o Team novia</h2>
-      <p class="section__lead reveal">Elige equipo y atrapa con la cesta los objetos que caen. ¡Acelera, cuidado!</p>
-
-      <div id="game" class="game reveal">
-
-        <!-- Pantalla 1: elegir equipo -->
-        <div id="game-start" class="game__screen">
-          <div class="game__teams">
-            <button type="button" class="team-btn" data-team="bride">
-              <span class="team-btn__emoji" aria-hidden="true">🍋</span>
-              <span class="team-btn__name">Team Novia</span>
-              <span class="team-btn__hint">Atrapa limones de Murcia</span>
-            </button>
-            <button type="button" class="team-btn" data-team="groom">
-              <span class="team-btn__emoji" aria-hidden="true">🍸</span>
-              <span class="team-btn__name">Team Novio</span>
-              <span class="team-btn__hint">Vermut y Real Zaragoza</span>
-            </button>
-          </div>
-          <div class="standings" data-standings aria-hidden="true"></div>
-        </div>
-
-        <!-- Pantalla 2: juego -->
-        <div id="game-play" class="game__screen" hidden>
-          <div class="game__hud">
-            <span class="game__hud-score">Puntos: <b id="game-score">0</b></span>
-            <span id="game-booster" class="game__hud-booster"></span>
-            <span id="game-lives" class="game__hud-lives" aria-label="Vidas">●●●</span>
-          </div>
-          <canvas id="game-canvas" class="game__canvas"
-                  aria-label="Juego de cesta: arrastra para mover y atrapar objetos"></canvas>
-          <p class="game__tip">Arrastra el dedo (o usa ← →) para mover la cesta</p>
-        </div>
-
-        <!-- Pantalla 3: fin -->
-        <div id="game-over" class="game__screen" hidden>
-          <p class="game__over-lead">Has jugado para el…</p>
-          <p id="game-over-team" class="game__over-team">—</p>
-          <p class="game__over-score"><b id="game-final">0</b> puntos sumados a tu equipo</p>
-          <div class="standings" data-standings aria-hidden="true"></div>
-          <div class="game__over-actions">
-            <button type="button" class="btn btn--solid" id="game-again">Jugar otra vez</button>
-            <button type="button" class="btn btn--ghost" id="game-switch">Cambiar de equipo</button>
-          </div>
-        </div>
-
+      <h2 class="section__title reveal">Participa</h2>
+      <div class="cta-cards">
+        <a class="cta-card reveal" href="./cuestionario.html">
+          <span class="cta-card__icon" aria-hidden="true">✉️</span>
+          <span class="cta-card__title">Confirma tu asistencia</span>
+          <span class="cta-card__text">Rellena el cuestionario de confirmación</span>
+          <span class="cta-card__go">Ir al cuestionario →</span>
+        </a>
+        <a class="cta-card reveal" href="./juego.html">
+          <span class="cta-card__icon" aria-hidden="true">🍋</span>
+          <span class="cta-card__title">Team novia o Team novio</span>
+          <span class="cta-card__text">Juega y entra en el ranking</span>
+          <span class="cta-card__go">Jugar →</span>
+        </a>
       </div>
     </section>
 
