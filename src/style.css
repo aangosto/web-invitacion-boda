@@ -74,7 +74,10 @@ a { color: inherit; }
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: #000;
+  /* Fondo de papel: en vertical, los vídeos 16:9 se encajan con bandas
+     de este color (object-fit: contain) y se ve el sobre completo sin
+     necesidad de rotar el móvil. */
+  background: var(--paper);
   overflow: hidden;
 }
 
@@ -87,15 +90,14 @@ a { color: inherit; }
 }
 
 .opening__video {
-  object-fit: cover;
+  /* contain = se ve toda la composición 16:9 sin recortes ni deformar;
+     las bandas que sobran quedan en color papel (fondo de .opening). */
+  object-fit: contain;
   object-position: center;
   opacity: 0;
   transition: opacity 0.35s ease;
 }
 .opening__video.is-active { opacity: 1; }
-
-/* Reencuadre específico del Vídeo 2 (acuarela más arriba) */
-.opening__video--apertura { object-position: var(--video2-object-position); }
 
 /* ---- Tarjeta del volteo (CSS 3D) ---- */
 .flip-stage {
@@ -169,9 +171,12 @@ a { color: inherit; }
   bottom: max(1.25rem, env(safe-area-inset-bottom));
   right: 1.25rem;
   z-index: 10;
-  padding: 0.55rem 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* área táctil cómoda */
+  padding: 0.55rem 1.2rem;
   font-family: var(--font-sans);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   letter-spacing: 0.06em;
   color: #fff;
   background: rgba(0,0,0,0.35);
@@ -222,9 +227,10 @@ a { color: inherit; }
 .floating-nav__toggle {
   display: inline-flex;
   flex-direction: column;
+  justify-content: center;
   gap: 4px;
-  width: 38px; height: 34px;
-  padding: 8px 6px;
+  width: 44px; height: 44px; /* área táctil mínima */
+  padding: 10px 6px;
   background: none;
   border: 0;
 }
@@ -258,7 +264,7 @@ a { color: inherit; }
   transition: max-height 0.35s var(--ease), opacity 0.25s ease;
 }
 .floating-nav.nav-open .floating-nav__links { max-height: 60vh; opacity: 1; }
-.floating-nav__links a { display: block; padding: 0.5rem 0; text-decoration: none; color: var(--ink); }
+.floating-nav__links a { display: flex; align-items: center; min-height: 44px; padding: 0.5rem 0; text-decoration: none; color: var(--ink); }
 .floating-nav__links a:hover { color: var(--burgundy); }
 
 @media (min-width: 48rem) {
@@ -512,9 +518,12 @@ a { color: inherit; }
    8. BOTONES
    ================================================================= */
 .btn {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px; /* área táctil cómoda para dedo */
   font-family: var(--font-sans);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   letter-spacing: 0.06em;
   padding: 0.85rem 1.5rem;
   border-radius: 999px;
