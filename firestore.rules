@@ -1,0 +1,58 @@
+rules_version = '2';
+
+// =====================================================================
+// Reglas de seguridad de Firestore — Boda María & Alberto
+//
+// >>> IMPORTANTE: ESTE ARCHIVO NO SE APLICA SOLO. Debes revisarlo y
+//     PUBLICARLO tú en la consola de Firebase:
+//     Firebase → Firestore Database → pestaña "Reglas" (Rules) →
+//     pega este contenido → "Publicar" (Publish).
+//
+// Modelo:
+//  · scores (ranking del juego): lectura PÚBLICA, solo se puede CREAR
+//    (con validación). No se puede editar ni borrar desde el cliente.
+//  · rsvp (confirmaciones, DATOS SENSIBLES: nombres, alergias=salud, menús):
+//    se puede CREAR para confirmar, pero la LECTURA está TOTALMENTE
+//    DENEGADA desde la web. Las respuestas solo se ven desde la consola
+//    de Firebase (el panel de administración ignora estas reglas).
+// =====================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- RANKING DEL JUEGO ----------
+    match /scores/{scoreId} {
+      allow read: if true;                          // ranking público
+      allow create: if isValidScore(request.resource.data);
+      allow update, delete: if false;               // inmutable desde el cliente
+    }
+
+    // ---------- CONFIRMACIONES (RSVP) — SENSIBLE ----------
+    match /rsvp/{rsvpId} {
+      allow read: if false;                         // NADIE lee desde la web
+      allow create: if isValidRsvp(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // ---------- Validaciones ----------
+    function isValidScore(d) {
+      return d.keys().hasOnly(['name', 'team', 'points', 'createdAt'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 40
+        && d.team in ['novia', 'novio']
+        && d.points is number && d.points >= 0 && d.points <= 100000
+        && d.createdAt == request.time;             // obliga a serverTimestamp()
+    }
+
+    function isValidRsvp(d) {
+      return d.keys().hasOnly(['filledBy', 'people', 'createdAt'])
+        && d.filledBy is string && d.filledBy.size() >= 1 && d.filledBy.size() <= 120
+        && d.people is list && d.people.size() >= 1 && d.people.size() <= 30
+        && d.createdAt == request.time;             // obliga a serverTimestamp()
+    }
+
+    // ---------- Todo lo demás: denegado por defecto ----------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
