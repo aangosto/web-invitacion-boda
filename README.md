@@ -42,23 +42,25 @@ Tres partes encadenadas sin cortes visibles (`src/modules/opening.js`):
 
 1. **`lazo.mp4`** — autoplay muted playsinline, sin controles. Al terminar se
    congela en su último frame.
-2. **Volteo CSS 3D** — el sobre gira (`rotateY` 0→180°) de `delante.jpeg` a
-   `detras.jpeg`, con `backface-visibility`, leve arqueo (`scale` 1.06 en el
-   punto medio) y una sombra que recorre el canto. ~1.9 s.
-3. **`apertura.mp4`** — arranca desde su primer frame; reencuadrado con
-   `object-fit: cover` + `object-position` para subir la acuarela.
+2. **Fundido a la cara trasera** — `detras.jpeg` (sello A&M) aparece por fundido
+   (~0.8 s) sobre el último frame, con un levísimo asentado de escala. Sin
+   rotación 3D (más fiable: evita enganchar un frame que no corresponde).
+3. **`apertura.mp4`** — arranca desde su primer frame y enlaza con el fundido.
 
-Ambos vídeos se precargan (`preload="auto"` + `.load()`). Botón "Saltar intro"
-siempre visible. Con `prefers-reduced-motion` se salta directo al contenido con
-`acuarela.jpeg` fija.
+Las tres capas usan `object-fit: contain` con bandas de color papel, de modo
+que en móvil vertical se ve el sobre completo sin necesidad de rotar. Los vídeos
+se precargan (`preload="auto"` + `.load()`). Botón "Saltar intro" siempre
+visible. Con `prefers-reduced-motion` se salta directo al contenido.
 
 ## Pendiente (backend)
 
 La captura de datos está **desacoplada**; falta conectar un backend real:
 
-- **RSVP** → `submitRsvp(data)` en `src/modules/rsvp.js`. Hay un `TODO` con un
-  ejemplo de Formspree usando `import.meta.env.VITE_RSVP_ENDPOINT` (configúralo
-  en un archivo `.env`, sin hardcodear secretos).
-- **Minijuego** → `submitVote(team)` en `src/modules/minigame.js`. Ahora mismo
-  persiste en `localStorage` con una semilla de votos para que el medidor se vea
-  vivo; sustituir por la llamada al mismo backend.
+- **RSVP** (multi-persona) → `submitRsvp({ filledBy, people: [...] })` en
+  `src/modules/rsvp.js`. Cada persona lleva `{ name, bus, allergies, menu,
+  menuOther }`. Hay un `TODO` con un ejemplo de Formspree usando
+  `import.meta.env.VITE_RSVP_ENDPOINT` (configúralo en `.env`, sin secretos).
+- **Minijuego** (juego de cesta) → `submitVote(team, points)` en
+  `src/modules/minigame.js`. Suma la puntuación al contador global del equipo;
+  ahora persiste en `localStorage` con una semilla para que el marcador se vea
+  vivo. Sustituir por la llamada al mismo backend.
