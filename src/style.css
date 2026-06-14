@@ -550,40 +550,94 @@ a { color: inherit; }
   border-color: var(--burgundy);
   box-shadow: 0 0 0 3px rgba(110,36,53,0.12);
 }
-/* Campos visibles solo si asiste */
-.field[data-only-yes] {
-  max-height: 0; overflow: hidden; opacity: 0;
-  transition: max-height 0.4s var(--ease), opacity 0.3s ease, margin 0.3s ease;
-  margin: 0;
-}
-.rsvp-form.show-yes .field[data-only-yes] { max-height: 8rem; opacity: 1; }
+/* ---- Lista de personas ---- */
+.people-list { display: grid; gap: 0.9rem; }
 
-.pills { display: flex; gap: 0.6rem; }
-.pill {
+.person-card {
+  border: 1px solid rgba(110,36,53,0.18);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.45);
+  overflow: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.person-card.is-removing { opacity: 0; transform: scale(0.97); }
+
+.person-card__head { display: flex; align-items: stretch; }
+.person-card__toggle {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: 0;
   font-family: var(--font-sans);
-  font-size: 0.95rem;
-  padding: 0.85rem 0.5rem;
+  font-size: 1rem;
+  color: var(--ink);
+  text-align: left;
+}
+.person-card__name { font-weight: 500; }
+.person-card__chev {
+  color: var(--sage-deep);
+  transition: transform 0.25s var(--ease);
+}
+.person-card.is-collapsed .person-card__chev { transform: rotate(-90deg); }
+.person-card__remove {
+  width: 48px;
+  min-height: 48px;
+  background: none;
+  border: 0;
+  border-left: 1px solid rgba(110,36,53,0.12);
+  color: var(--ink-soft);
+  font-size: 1rem;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.person-card__remove:hover { color: var(--burgundy); background: rgba(110,36,53,0.05); }
+
+.person-card__body {
+  display: grid;
+  gap: 1rem;
+  padding: 0 1rem 1.1rem;
+  max-height: 60rem;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.35s var(--ease), opacity 0.25s ease, padding 0.35s var(--ease);
+}
+.person-card.is-collapsed .person-card__body {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* ---- Chips (selección única: bus, menú) ---- */
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.chip {
+  flex: 1 1 calc(50% - 0.25rem); /* 2 por fila en móvil */
+  min-height: 44px;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  padding: 0.6rem 0.6rem;
   background: rgba(255,255,255,0.7);
   border: 1px solid rgba(58,64,54,0.25);
   border-radius: 999px;
   color: var(--ink);
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 }
-.pill:active { transform: scale(0.97); }
-.pill[aria-pressed="true"] {
+.chip:active { transform: scale(0.97); }
+.chip[aria-pressed="true"] {
   background: var(--burgundy);
   border-color: var(--burgundy);
   color: #fff;
 }
-.pill[data-attend="no"][aria-pressed="true"] {
-  background: var(--sage-deep);
-  border-color: var(--sage-deep);
-}
+.person-card__menu-other { margin-top: 0.6rem; }
 
 .form-feedback {
   font-family: var(--font-sans);
   font-size: 0.95rem;
+  line-height: 1.5;
   text-align: center;
   min-height: 1.2em;
 }

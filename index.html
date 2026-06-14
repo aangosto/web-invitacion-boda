@@ -174,33 +174,14 @@
 
       <form id="rsvp-form" class="rsvp-form reveal" novalidate>
         <label class="field">
-          <span class="field__label">Nombre y apellidos</span>
-          <input class="field__input" type="text" name="name" autocomplete="name" required />
+          <span class="field__label">¿Quién rellena la confirmación?</span>
+          <input class="field__input" type="text" name="filledBy" autocomplete="name" required placeholder="Tu nombre" />
         </label>
 
-        <fieldset class="field field--pills">
-          <legend class="field__label">¿Nos acompañas?</legend>
-          <div class="pills" role="radiogroup" aria-label="¿Asistes?">
-            <button type="button" class="pill" data-attend="si" aria-pressed="false">Sí, allí estaré</button>
-            <button type="button" class="pill" data-attend="no" aria-pressed="false">No podré ir</button>
-          </div>
-          <input type="hidden" name="attending" value="" required />
-        </fieldset>
+        <!-- Tarjetas de persona (se inyectan desde JS) -->
+        <div id="people-list" class="people-list"></div>
 
-        <label class="field" data-only-yes>
-          <span class="field__label">Nº de acompañantes</span>
-          <input class="field__input" type="number" name="companions" min="0" max="10" step="1" value="0" inputmode="numeric" />
-        </label>
-
-        <label class="field" data-only-yes>
-          <span class="field__label">Alergias o intolerancias</span>
-          <input class="field__input" type="text" name="allergies" placeholder="Opcional" />
-        </label>
-
-        <label class="field" data-only-yes>
-          <span class="field__label">Una canción que no puede faltar</span>
-          <input class="field__input" type="text" name="song" placeholder="Opcional" />
-        </label>
+        <button type="button" id="add-person" class="btn btn--ghost btn--block">+ Añadir persona</button>
 
         <button type="submit" class="btn btn--solid btn--block" id="rsvp-submit">Enviar confirmación</button>
         <p id="rsvp-feedback" class="form-feedback" role="status" aria-live="polite"></p>
