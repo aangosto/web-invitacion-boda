@@ -78,45 +78,108 @@ a { color: inherit; }
   position: fixed;
   inset: 0;
   z-index: 100;
-  /* Fondo de papel: en vertical, los vídeos 16:9 se encajan con bandas
-     de este color (object-fit: contain) y se ve el sobre completo sin
-     necesidad de rotar el móvil. */
   background: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 }
 
-/* Todas las capas ocupan la pantalla y se apilan */
-.opening__layer {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+/* Escenario 16:9 centrado. El ancho se limita para que la altura nunca
+   supere el viewport; en móvil vertical ocupa todo el ancho y queda
+   centrado, con bandas del color de fondo arriba y abajo. */
+.stage {
+  position: relative;
+  width: min(100%, calc(100vh * 16 / 9));
+  aspect-ratio: 16 / 9;
+  background: var(--paper);
 }
+.stage__layer { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-.opening__video {
-  /* contain = se ve toda la composición 16:9 sin recortes ni deformar;
-     las bandas que sobran quedan en color papel (fondo de .opening). */
-  object-fit: contain;
+.stage__video {
+  /* El stage ya es 16:9, así que cover no recorta ni deforma. */
+  object-fit: cover;
   object-position: center;
   opacity: 0;
   transition: opacity 0.35s ease;
 }
-.opening__video.is-active { opacity: 1; }
+.stage__video.is-active { opacity: 1; }
 
-/* ---- Cara trasera del sobre (fundido, sin rotación) ----
-   Mismo encaje (contain) que los vídeos para que quede perfectamente
-   alineada sobre el último frame del Vídeo 1. Entra con un fundido suave
-   (~0.8s) y un levísimo "asentado" de escala para darle vida. */
-.opening__envelope {
-  object-fit: contain;
-  object-position: center;
-  opacity: 0;
-  transform: scale(1.04);
-  transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
+/* =================================================================
+   VOLTEO CSS 3D (lazo → volteo → apertura)
+   ================================================================= */
+.scene {
+  perspective: 1800px;
+  opacity: 0;          /* aparece justo al congelar el último frame del lazo */
+  pointer-events: none;
 }
-.opening__envelope.is-active {
-  opacity: 1;
-  transform: scale(1);
+.scene.is-active { opacity: 1; }
+
+.flipper {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateY(0deg);
+  will-change: transform;
+}
+.scene.is-flipping .flipper {
+  animation: envelope-flip 2.2s cubic-bezier(0.55, 0.04, 0.30, 1) forwards;
+}
+
+/* Giro con leve arqueo en el punto medio (que no parezca una tabla rígida) */
+@keyframes envelope-flip {
+  0%   { transform: rotateY(0deg)   scale(1)    translateY(0); }
+  50%  { transform: rotateY(90deg)  scale(1.04) translateY(-1%); }
+  100% { transform: rotateY(180deg) scale(1)    translateY(0); }
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+.face img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.face--front { transform: rotateY(0deg); }
+.face--back  { transform: rotateY(180deg); }
+
+/* Sombreado lateral sobre cada cara: aparece a mitad del giro y da volumen */
+.face__shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg,
+    rgba(0,0,0,0) 28%, rgba(0,0,0,0.38) 52%, rgba(0,0,0,0) 78%);
+  opacity: 0;
+}
+.scene.is-flipping .face__shade {
+  animation: envelope-shade 2.2s cubic-bezier(0.55, 0.04, 0.30, 1) forwards;
+}
+@keyframes envelope-shade { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+
+/* Sombra proyectada bajo el sobre: se encoge en el punto medio del giro */
+.flip-shadow {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -4%;
+  height: 8%;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.28), rgba(0,0,0,0) 72%);
+  transform: scaleX(1);
+}
+.scene.is-flipping .flip-shadow {
+  animation: envelope-drop 2.2s cubic-bezier(0.55, 0.04, 0.30, 1) forwards;
+}
+@keyframes envelope-drop {
+  0%, 100% { transform: scaleX(1);    opacity: 0.28; }
+  50%      { transform: scaleX(0.5);  opacity: 0.12; }
+}
+
+/* prefers-reduced-motion: sin animación, mostrar directamente el dorso */
+@media (prefers-reduced-motion: reduce) {
+  .scene.is-flipping .flipper { animation: none; }
+  .flipper { transform: rotateY(180deg); }
+  .face__shade, .flip-shadow { animation: none; opacity: 0; }
 }
 
 /* ---- Botón Saltar intro ---- */

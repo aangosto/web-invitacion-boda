@@ -23,22 +23,41 @@
   <!-- ============================================================= -->
   <div id="opening" class="opening" aria-label="Apertura de la invitación">
 
-    <!-- Capa 1: Vídeo del lazo que se desata -->
-    <video id="video-lazo" class="opening__layer opening__video" muted playsinline preload="auto"
-           aria-hidden="true">
-      <source src="/lazo.mp4" type="video/mp4" />
-    </video>
+    <!-- Escenario 16:9 centrado: los vídeos y el volteo comparten el MISMO
+         rectángulo, así el frente del volteo casa con el último frame del
+         Vídeo 1 y el dorso con el primer frame del Vídeo 2. -->
+    <div class="stage">
 
-    <!-- Capa 2: cara trasera del sobre (sello A&M). Aparece por FUNDIDO sobre
-         el último frame del Vídeo 1 (sin rotación) y enlaza con el Vídeo 2. -->
-    <img id="envelope-back" class="opening__layer opening__envelope" src="/detras.jpeg"
-         alt="" decoding="async" aria-hidden="true" />
+      <!-- Capa 1: Vídeo del lazo que se desata -->
+      <video id="video-lazo" class="stage__layer stage__video" muted playsinline preload="auto"
+             aria-hidden="true">
+        <source src="/lazo.mp4" type="video/mp4" />
+      </video>
 
-    <!-- Capa 3: Vídeo de apertura (emerge la acuarela) -->
-    <video id="video-apertura" class="opening__layer opening__video" muted playsinline preload="auto"
-           aria-hidden="true">
-      <source src="/apertura.mp4" type="video/mp4" />
-    </video>
+      <!-- Capa 2: VOLTEO CSS 3D — frente = último frame del lazo (sobre limpio),
+           dorso = detras.jpeg (sello A&M). -->
+      <div id="flip-scene" class="stage__layer scene" aria-hidden="true">
+        <div id="flipper" class="flipper">
+          <div class="face face--front">
+            <img src="/sobre_frente.jpg" alt="" decoding="async" />
+            <div class="face__shade"></div>
+          </div>
+          <div class="face face--back">
+            <img src="/detras.jpeg" alt="" decoding="async" />
+            <div class="face__shade"></div>
+          </div>
+        </div>
+        <!-- Sombra proyectada bajo el sobre -->
+        <div class="flip-shadow" aria-hidden="true"></div>
+      </div>
+
+      <!-- Capa 3: Vídeo de apertura (emerge la acuarela) -->
+      <video id="video-apertura" class="stage__layer stage__video" muted playsinline preload="auto"
+             aria-hidden="true">
+        <source src="/apertura.mp4" type="video/mp4" />
+      </video>
+
+    </div>
 
     <!-- Botón discreto siempre visible -->
     <button id="skip-intro" class="skip-intro" type="button">Saltar intro</button>
