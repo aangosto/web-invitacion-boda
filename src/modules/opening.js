@@ -73,10 +73,14 @@ export function initOpening({ onFinish } = {}) {
     startApertura();
   }
   function startFlip() {
-    // El Vídeo 1 queda congelado en su último frame (pausado al terminar),
-    // visible por debajo. Mostramos la escena: el FRENTE coincide con ese
-    // frame, así que el cambio es imperceptible.
+    // El Vídeo 1 queda congelado en su último frame. Mostramos la escena:
+    // el FRENTE del flipper coincide con ese frame, así que el cambio es
+    // imperceptible.
     scene.classList.add('is-active');
+    // OCULTAR YA el Vídeo 1: detrás del flipper que gira solo debe quedar el
+    // fondo blanco. Si no, su último frame asoma como "sobre fantasma" cuando
+    // el flipper pasa de perfil (~90°). El frente lo cubre, así que es seamless.
+    videoLazo.style.visibility = 'hidden';
     flipper.addEventListener('animationend', onFlipEnd);
     // En el frame siguiente lanzamos el giro.
     requestAnimationFrame(() => {
