@@ -23,25 +23,35 @@
 
   <main class="subpage-main">
     <section class="section section--rsvp">
-      <div class="floral-rule reveal" aria-hidden="true">✿</div>
-      <h1 class="section__title reveal">Confirma tu asistencia</h1>
-      <p class="section__lead reveal">Agradeceríamos confirmación lo antes posible. Puedes
-        confirmar por varias personas a la vez.</p>
+      <div class="floral-rule" aria-hidden="true">✿</div>
+      <h1 class="section__title">Confirma tu asistencia</h1>
 
-      <form id="rsvp-form" class="rsvp-form reveal" novalidate>
-        <label class="field">
-          <span class="field__label">¿Quién rellena la confirmación?</span>
-          <input class="field__input" type="text" name="filledBy" autocomplete="name" required placeholder="Tu nombre" />
-        </label>
+      <!-- =========================================================
+           ASISTENTE POR PASOS (wizard). Cada pregunta es una pantalla;
+           el contenido de cada paso se pinta desde JS (src/modules/rsvp.js)
+           a partir del estado guardado en memoria + sessionStorage.
+           ========================================================= -->
+      <div id="wizard" class="wizard">
 
-        <!-- Tarjetas de persona (se inyectan desde JS) -->
-        <div id="people-list" class="people-list"></div>
+        <!-- Indicador de progreso -->
+        <div class="wizard__progress" role="progressbar" aria-label="Progreso del cuestionario"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="wizard-bar" class="wizard__progress-bar"></div>
+        </div>
+        <p id="wizard-count" class="wizard__count">Paso 1</p>
 
-        <button type="button" id="add-person" class="btn btn--ghost btn--block">+ Añadir persona</button>
+        <!-- Pantalla del paso actual (contenido inyectado desde JS) -->
+        <div id="wizard-screen" class="wizard__screen"></div>
 
-        <button type="submit" class="btn btn--solid btn--block" id="rsvp-submit">Enviar confirmación</button>
-        <p id="rsvp-feedback" class="form-feedback" role="status" aria-live="polite"></p>
-      </form>
+        <!-- Mensajes de validación / estado -->
+        <p id="wizard-feedback" class="form-feedback" role="status" aria-live="polite"></p>
+
+        <!-- Navegación Atrás / Siguiente -->
+        <div class="wizard__nav">
+          <button type="button" id="wizard-back" class="btn btn--ghost wizard__back">← Atrás</button>
+          <button type="button" id="wizard-next" class="btn btn--solid wizard__next">Siguiente →</button>
+        </div>
+      </div>
     </section>
   </main>
 

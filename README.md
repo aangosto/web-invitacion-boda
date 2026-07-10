@@ -7,8 +7,9 @@ cinematográfica (el sobre se abre) como pieza central. Datos en **Firebase
 ## Páginas
 
 - **`index.html`** — invitación: apertura, cuenta atrás, historia, ceremonia,
-  mapa, padres y accesos a las otras dos páginas.
-- **`cuestionario.html`** — formulario de confirmación (RSVP) multi-persona.
+  mapa y accesos a las otras dos páginas.
+- **`cuestionario.html`** — confirmación (RSVP): **asistente por pasos** (wizard)
+  multi-persona con progreso, Atrás/Siguiente y estado en sessionStorage.
   Escribe en la colección Firestore **`rsvp`**.
 - **`juego.html`** — juego de cesta "Team novia / Team novio" + ranking en vivo
   (TOP 3 por equipo). Escribe/lee la colección **`scores`**.
@@ -52,7 +53,7 @@ src/
     opening.js          # apertura: lazo.mp4 → fundido a trasera → apertura.mp4
     countdown.js        # cuenta atrás hasta el 24·10·2026 12:30
     nav.js · reveal.js · parallax.js · calendar.js
-    rsvp.js             # formulario RSVP → colección 'rsvp'
+    rsvp.js             # asistente RSVP por pasos → colección 'rsvp'
     minigame.js         # juego de cesta (canvas)
     scores.js           # capa de datos del ranking → colección 'scores'
     ranking.js          # pinta el TOP 3 por equipo (en vivo)
@@ -62,7 +63,22 @@ public/                 # vídeos comprimidos, imágenes, favicon
 ## Modelo de datos (Firestore)
 
 - **`scores`** → `{ name, team: 'novia'|'novio', points, createdAt }`
-- **`rsvp`** → `{ filledBy, people: [{ name, bus, allergies, menu, menuOther }], createdAt }`
+- **`rsvp`** →
+  ```
+  { filledBy, origin: 'fuera'|'zaragoza',
+    people: [{ name, allergies, menu, menuOther,
+               busIda, busVuelta, needsShoes, shoeSize }],
+    travel: {                       // solo si origin === 'fuera'
+      ida:    { mode: 'bus'|'ave'|'coche'|'otro', from,
+                arrivalDay, arrivalTime,   // solo bus/ave
+                canCarry },                // solo coche
+      vuelta: { day, mode, canCarry },
+    },
+    createdAt }
+  ```
+
+> Nota: al añadir `origin` y `travel` hay que **volver a publicar**
+> `firestore.rules` en la consola (la validación de campos cambió).
 
 ## Seguridad
 

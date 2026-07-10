@@ -578,15 +578,185 @@ a { color: inherit; }
 }
 
 /* =================================================================
-   11. RSVP
+   11. RSVP — ASISTENTE POR PASOS (wizard)
    ================================================================= */
-.rsvp-form {
+.wizard {
   max-width: 28rem;
   margin: 0 auto;
   text-align: left;
-  display: grid;
-  gap: 1.1rem;
+  /* Al cambiar de paso se hace scrollIntoView: dejar hueco para la
+     cabecera sticky de la subpágina. */
+  scroll-margin-top: 4.5rem;
 }
+
+/* ---- Indicador de progreso ---- */
+.wizard__progress {
+  height: 6px;
+  background: rgba(110,36,53,0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.wizard__progress-bar {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--burgundy), var(--burgundy-deep));
+  border-radius: 999px;
+  transition: width 0.4s var(--ease);
+}
+.wizard__count {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: center;
+  margin-top: 0.6rem;
+}
+
+/* ---- Pantalla del paso ---- */
+.wizard__screen {
+  display: grid;
+  gap: 1rem;
+  padding: 1.4rem 0 0.4rem;
+}
+.wizard__title {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.5rem;
+  color: var(--ink);
+  text-align: center;
+}
+.wizard__hint {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  text-align: center;
+  margin-top: -0.4rem;
+}
+.wizard__closing {
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--sage-deep);
+  text-align: center;
+}
+
+/* ---- Navegación Atrás / Siguiente ---- */
+.wizard__nav {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.wizard__back { flex: 0 0 auto; }
+.wizard__next { flex: 1; }
+
+/* ---- Editor de personas (paso 2) ---- */
+.people-editor { display: grid; gap: 0.6rem; }
+.people-editor__row { display: flex; gap: 0.5rem; align-items: stretch; }
+.people-editor__row .field__input { flex: 1; }
+.people-editor__remove {
+  flex: 0 0 48px;
+  min-height: 48px; /* área táctil cómoda */
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(58,64,54,0.25);
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+  font-size: 1rem;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.people-editor__remove:hover { color: var(--burgundy); border-color: var(--burgundy); }
+
+/* ---- Bloque por persona (pasos 3-6) ---- */
+.pblock {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  background: rgba(255,255,255,0.45);
+  border: 1px solid rgba(110,36,53,0.18);
+  border-radius: 8px;
+}
+.pblock__name {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: var(--burgundy);
+}
+
+/* ---- Tarjetas de opción (paso de origen) ---- */
+.option-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 1.1rem 1.2rem;
+  text-align: left;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(110,36,53,0.2);
+  border-radius: 10px;
+  color: var(--ink);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+.option-card:active { transform: scale(0.99); }
+.option-card[aria-pressed="true"] {
+  border-color: var(--burgundy);
+  background: rgba(110,36,53,0.08);
+  box-shadow: 0 0 0 1px var(--burgundy) inset;
+}
+.option-card__title { font-family: var(--font-serif); font-weight: 600; font-size: 1.2rem; }
+.option-card__text { font-family: var(--font-sans); font-size: 0.85rem; color: var(--ink-soft); }
+
+/* ---- Placeholder de alojamiento (paso 10) ---- */
+.placeholder-box {
+  display: grid;
+  gap: 0.5rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  background: rgba(255,255,255,0.45);
+  border: 1px dashed rgba(110,36,53,0.35);
+  border-radius: 10px;
+}
+.placeholder-box__icon { font-size: 2rem; line-height: 1; }
+.placeholder-box__text { font-family: var(--font-sans); font-size: 0.95rem; color: var(--ink-soft); }
+
+/* ---- Resumen final ---- */
+.summary {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 1.1rem 1.2rem;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(110,36,53,0.15);
+  border-radius: 10px;
+}
+.summary__label {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sage-deep);
+}
+.summary__value {
+  margin: 0.15rem 0 0;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+/* ---- Pantalla de éxito ---- */
+.wizard-success { display: grid; gap: 0.8rem; text-align: center; padding-top: 0.5rem; }
+.wizard-success__icon { font-size: 1.6rem; color: var(--sage-deep); }
+.wizard-success__text { color: var(--ink-soft); line-height: 1.6; }
+.wizard-success__names {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  color: var(--burgundy);
+  line-height: 1;
+  margin: 0.4rem 0 0.8rem;
+}
+
+/* ---- Campos de formulario (compartidos) ---- */
 .field { display: grid; gap: 0.4rem; border: 0; padding: 0; }
 .field__label {
   font-family: var(--font-sans);
@@ -610,69 +780,7 @@ a { color: inherit; }
   border-color: var(--burgundy);
   box-shadow: 0 0 0 3px rgba(110,36,53,0.12);
 }
-/* ---- Lista de personas ---- */
-.people-list { display: grid; gap: 0.9rem; }
-
-.person-card {
-  border: 1px solid rgba(110,36,53,0.18);
-  border-radius: 8px;
-  background: rgba(255,255,255,0.45);
-  overflow: hidden;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.person-card.is-removing { opacity: 0; transform: scale(0.97); }
-
-.person-card__head { display: flex; align-items: stretch; }
-.person-card__toggle {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  min-height: 48px;
-  padding: 0.75rem 1rem;
-  background: none;
-  border: 0;
-  font-family: var(--font-sans);
-  font-size: 1rem;
-  color: var(--ink);
-  text-align: left;
-}
-.person-card__name { font-weight: 500; }
-.person-card__chev {
-  color: var(--sage-deep);
-  transition: transform 0.25s var(--ease);
-}
-.person-card.is-collapsed .person-card__chev { transform: rotate(-90deg); }
-.person-card__remove {
-  width: 48px;
-  min-height: 48px;
-  background: none;
-  border: 0;
-  border-left: 1px solid rgba(110,36,53,0.12);
-  color: var(--ink-soft);
-  font-size: 1rem;
-  transition: color 0.2s ease, background 0.2s ease;
-}
-.person-card__remove:hover { color: var(--burgundy); background: rgba(110,36,53,0.05); }
-
-.person-card__body {
-  display: grid;
-  gap: 1rem;
-  padding: 0 1rem 1.1rem;
-  max-height: 60rem;
-  opacity: 1;
-  overflow: hidden;
-  transition: max-height 0.35s var(--ease), opacity 0.25s ease, padding 0.35s var(--ease);
-}
-.person-card.is-collapsed .person-card__body {
-  max-height: 0;
-  opacity: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-}
-
-/* ---- Chips (selección única: bus, menú) ---- */
+/* ---- Chips (selección única: menú, sí/no, modo de viaje) ---- */
 .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .chip {
   flex: 1 1 calc(50% - 0.25rem); /* 2 por fila en móvil */
@@ -692,8 +800,6 @@ a { color: inherit; }
   border-color: var(--burgundy);
   color: #fff;
 }
-.person-card__menu-other { margin-top: 0.6rem; }
-
 .form-feedback {
   font-family: var(--font-sans);
   font-size: 0.95rem;

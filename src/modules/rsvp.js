@@ -1,10 +1,22 @@
 /* =================================================================
-   RSVP — formulario de confirmación MULTI-PERSONA (modo demo).
-   Quien rellena indica su nombre y añade tantas personas como quiera
-   (hijos, familia, acompañantes…). Cada persona es una tarjeta plegable
-   con sus propios campos (bus, alergias, menú).
-   La lógica de envío está DESACOPLADA en submitRsvp(): cuando haya
-   backend, solo hay que rellenar esa función. No se hardcodean secretos.
+   RSVP — ASISTENTE POR PASOS (wizard) de confirmación de asistencia.
+
+   Cada pregunta (o grupo lógico pequeño) es una pantalla propia con
+   botones «Atrás / Siguiente», indicador de progreso y memoria de
+   estado: todo lo respondido se guarda en un objeto `state` y se
+   respalda en sessionStorage para sobrevivir a una recarga.
+
+   Flujo:
+     1. Quién rellena            6. Zapatos de recambio (por persona)
+     2. Personas                 7. Origen (fuera / Zaragoza)
+     3. Alergias (por persona)   8. Viaje de IDA        (solo fuera)
+     4. Menú (por persona)       9. Viaje de VUELTA     (solo fuera)
+     5. Autobús (por persona)   10. Alojamiento (placeholder, solo fuera)
+                                11. Resumen y confirmación
+
+   La lógica de envío sigue desacoplada en submitRsvp(). Los datos son
+   sensibles (alergias = salud): las reglas de Firestore permiten CREAR
+   pero deniegan la lectura desde el cliente.
    ================================================================= */
 
 import { db, isConfigured } from '../firebase.js';
@@ -12,20 +24,19 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 /**
  * Envía la confirmación a Firestore (colección "rsvp").
- * Estos datos contienen información sensible (nombres, alergias=salud, menús):
- * las reglas de Firestore permiten CREAR pero DENIEGAN la lectura desde el
- * cliente; el organizador los consulta desde la consola de Firebase.
+ * Estructura del documento:
+ *   { filledBy, origin: 'fuera'|'zaragoza',
+ *     people: [{ name, allergies, menu, menuOther, busIda, busVuelta,
+ *                needsShoes, shoeSize }],
+ *     travel: { ida: {...}, vuelta: {...} },   // solo si origin === 'fuera'
+ *     createdAt }
  * Si Firebase no está configurado, se simula el envío (modo desarrollo).
- * @param {Object} data  { filledBy, people: [{name, bus, allergies, menu, menuOther}] }
+ * @param {Object} data
  * @returns {Promise<{ok: boolean}>}
  */
 export async function submitRsvp(data) {
   if (isConfigured) {
-    await addDoc(collection(db, 'rsvp'), {
-      filledBy: data.filledBy,
-      people: data.people,
-      createdAt: serverTimestamp(),
-    });
+    await addDoc(collection(db, 'rsvp'), { ...data, createdAt: serverTimestamp() });
     return { ok: true };
   }
   console.info('[RSVP] (sin Firebase) datos capturados:', data);
@@ -33,232 +44,673 @@ export async function submitRsvp(data) {
   return { ok: true };
 }
 
-const BUS_OPTIONS = [
-  { value: 'no', label: 'No' },
-  { value: 'ida', label: 'Solo ida' },
-  { value: 'vuelta', label: 'Solo vuelta' },
-  { value: 'ambos', label: 'Ida y vuelta' },
-];
+/* ---------------- Estado ---------------- */
+
+const STORAGE_KEY = 'rsvpWizard.v1';
+
+/** Persona con todos sus campos por defecto. */
+function blankPerson() {
+  return {
+    name: '',
+    allergies: '',
+    menu: 'ninguno',   // ninguno | vegetariano | vegano | otro
+    menuOther: '',
+    busIda: null,      // true | false | null (sin responder)
+    busVuelta: null,
+    needsShoes: null,  // true | false | null
+    shoeSize: '',
+  };
+}
+
+/** Estado inicial del asistente. */
+function blankState() {
+  return {
+    filledBy: '',
+    people: [blankPerson()],
+    origin: '',        // '' | 'fuera' | 'zaragoza'
+    travel: {
+      ida:    { mode: '', from: '', arrivalDay: '', arrivalTime: '', canCarry: null },
+      vuelta: { day: '', mode: '', canCarry: null },
+    },
+  };
+}
+
+/* ---------------- Opciones ---------------- */
+
 const MENU_OPTIONS = [
   { value: 'ninguno', label: 'Ninguno' },
   { value: 'vegetariano', label: 'Vegetariano' },
   { value: 'vegano', label: 'Vegano' },
   { value: 'otro', label: 'Otro' },
 ];
+const MODE_OPTIONS = [
+  { value: 'bus', label: 'Bus' },
+  { value: 'ave', label: 'AVE (tren)' },
+  { value: 'coche', label: 'Coche' },
+  { value: 'otro', label: 'Otro' },
+];
+const MENU_LABELS = { ninguno: 'Sin menú especial', vegetariano: 'Vegetariano', vegano: 'Vegano', otro: 'Otro' };
+const MODE_LABELS = { bus: 'Bus', ave: 'AVE', coche: 'Coche', otro: 'Otro' };
+
+/* ---------------- Ayudantes de DOM ---------------- */
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+/** Campo de texto con etiqueta. onInput recibe el valor ya recortable. */
+function textField({ label, value, placeholder = '', type = 'text', autocomplete, onInput }) {
+  const wrap = el('label', 'field');
+  wrap.appendChild(el('span', 'field__label', label));
+  const input = el('input', 'field__input');
+  input.type = type;
+  input.value = value || '';
+  input.placeholder = placeholder;
+  if (autocomplete) input.autocomplete = autocomplete;
+  input.addEventListener('input', () => onInput(input.value));
+  wrap.appendChild(input);
+  return wrap;
+}
+
+/** Grupo de "chips" de selección única (rol radiogroup). */
+function chipGroup({ label, options, value, onSelect }) {
+  const wrap = el('fieldset', 'field');
+  if (label) wrap.appendChild(el('legend', 'field__label', label));
+  const group = el('div', 'chips');
+  group.setAttribute('role', 'radiogroup');
+  options.forEach((opt) => {
+    const b = el('button', 'chip', opt.label);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(opt.value === value));
+    b.addEventListener('click', () => onSelect(opt.value));
+    group.appendChild(b);
+  });
+  wrap.appendChild(group);
+  return wrap;
+}
+
+/** Pregunta Sí / No (value: true | false | null). */
+function yesNo({ label, value, onSelect }) {
+  return chipGroup({
+    label,
+    options: [{ value: 'si', label: 'Sí' }, { value: 'no', label: 'No' }],
+    value: value === true ? 'si' : value === false ? 'no' : '',
+    onSelect: (v) => onSelect(v === 'si'),
+  });
+}
+
+/** Fecha ISO (aaaa-mm-dd, del input type=date) → dd/mm/aaaa legible. */
+function formatDay(iso) {
+  const [y, m, d] = String(iso).split('-');
+  return y && m && d ? `${d}/${m}/${y}` : iso;
+}
+
+/** Bloque con el nombre de una persona (para pasos "por persona"). */
+function personBlock(person, idx) {
+  const block = el('div', 'pblock');
+  block.appendChild(el('p', 'pblock__name', person.name.trim() || `Persona ${idx + 1}`));
+  return block;
+}
+
+/* ---------------- Definición de pasos ----------------
+   Cada paso: { id, when?(state), render(screen, ctx), validate?(state) }.
+   `render` pinta la pantalla leyendo del estado; `validate` devuelve un
+   mensaje de error o null. `ctx.refresh()` repinta el paso actual (para
+   campos condicionales) y `ctx.save()` persiste el estado.            */
+
+const STEPS = [
+
+  /* ---- PASO 1 · Quién rellena ---- */
+  {
+    id: 'quien',
+    render(screen, { state, save }) {
+      screen.appendChild(el('h2', 'wizard__title', '¿Quién eres?'));
+      screen.appendChild(el('p', 'wizard__hint', 'Dinos tu nombre; en el siguiente paso podrás confirmar por ti y por más personas.'));
+      screen.appendChild(textField({
+        label: 'Tu nombre',
+        value: state.filledBy,
+        placeholder: 'Nombre y apellidos',
+        autocomplete: 'name',
+        onInput: (v) => { state.filledBy = v; save(); },
+      }));
+    },
+    validate(state) {
+      return state.filledBy.trim() ? null : 'Dinos tu nombre para empezar.';
+    },
+  },
+
+  /* ---- PASO 2 · Personas ---- */
+  {
+    id: 'personas',
+    render(screen, { state, save, refresh }) {
+      screen.appendChild(el('h2', 'wizard__title', '¿Por quién confirmas?'));
+      screen.appendChild(el('p', 'wizard__hint', 'Añade a cada persona que asistirá (tú incluido/a). Las siguientes preguntas se harán para cada una.'));
+
+      const list = el('div', 'people-editor');
+      state.people.forEach((person, idx) => {
+        const row = el('div', 'people-editor__row');
+        const input = el('input', 'field__input');
+        input.type = 'text';
+        input.placeholder = `Nombre de la persona ${idx + 1}`;
+        input.value = person.name;
+        input.setAttribute('aria-label', `Nombre de la persona ${idx + 1}`);
+        input.addEventListener('input', () => { person.name = input.value; save(); });
+        row.appendChild(input);
+
+        // Eliminar (siempre debe quedar al menos una persona)
+        if (state.people.length > 1) {
+          const rm = el('button', 'people-editor__remove', '✕');
+          rm.type = 'button';
+          rm.setAttribute('aria-label', `Eliminar a la persona ${idx + 1}`);
+          rm.addEventListener('click', () => { state.people.splice(idx, 1); save(); refresh(); });
+          row.appendChild(rm);
+        }
+        list.appendChild(row);
+      });
+      screen.appendChild(list);
+
+      const add = el('button', 'btn btn--ghost btn--block', '+ Añadir persona');
+      add.type = 'button';
+      add.addEventListener('click', () => {
+        state.people.push(blankPerson());
+        save();
+        refresh();
+        // Enfocar el nombre recién añadido
+        const inputs = screen.querySelectorAll('.people-editor__row input');
+        inputs[inputs.length - 1]?.focus();
+      });
+      screen.appendChild(add);
+    },
+    validate(state) {
+      if (state.people.length === 0) return 'Añade al menos una persona.';
+      if (state.people.some((p) => !p.name.trim())) return 'Cada persona necesita un nombre.';
+      return null;
+    },
+  },
+
+  /* ---- PASO 3 · Alergias e intolerancias (por persona) ---- */
+  {
+    id: 'alergias',
+    render(screen, { state, save }) {
+      screen.appendChild(el('h2', 'wizard__title', 'Alergias e intolerancias'));
+      screen.appendChild(el('p', 'wizard__hint', 'Queremos que todo el mundo coma tranquilo. Déjalo en blanco si no hay ninguna.'));
+      state.people.forEach((person, idx) => {
+        const block = personBlock(person, idx);
+        block.appendChild(textField({
+          label: 'Alergias o intolerancias',
+          value: person.allergies,
+          placeholder: 'Opcional (gluten, frutos secos…)',
+          onInput: (v) => { person.allergies = v; save(); },
+        }));
+        screen.appendChild(block);
+      });
+    },
+  },
+
+  /* ---- PASO 4 · Menú especial (por persona) ---- */
+  {
+    id: 'menu',
+    render(screen, { state, save, refresh }) {
+      screen.appendChild(el('h2', 'wizard__title', 'Menú especial'));
+      screen.appendChild(el('p', 'wizard__hint', 'Si alguien necesita un menú distinto, cuéntanoslo aquí.'));
+      state.people.forEach((person, idx) => {
+        const block = personBlock(person, idx);
+        block.appendChild(chipGroup({
+          options: MENU_OPTIONS,
+          value: person.menu,
+          onSelect: (v) => { person.menu = v; save(); refresh(); },
+        }));
+        if (person.menu === 'otro') {
+          block.appendChild(textField({
+            label: '¿Cuál?',
+            value: person.menuOther,
+            placeholder: 'Especifica el menú',
+            onInput: (v) => { person.menuOther = v; save(); },
+          }));
+        }
+        screen.appendChild(block);
+      });
+    },
+    validate(state) {
+      const falta = state.people.find((p) => p.menu === 'otro' && !p.menuOther.trim());
+      return falta ? `Especifica el menú de ${falta.name.trim() || 'cada persona'}.` : null;
+    },
+  },
+
+  /* ---- PASO 5 · Autobús a la finca (por persona) ---- */
+  {
+    id: 'bus',
+    render(screen, { state, save, refresh }) {
+      screen.appendChild(el('h2', 'wizard__title', 'Autobús a la finca'));
+      screen.appendChild(el('p', 'wizard__hint', 'Habrá autobús entre Zaragoza y la finca, a la ida y a la vuelta.'));
+      state.people.forEach((person, idx) => {
+        const block = personBlock(person, idx);
+        block.appendChild(yesNo({
+          label: '¿Usará el autobús para IR a la finca?',
+          value: person.busIda,
+          onSelect: (v) => { person.busIda = v; save(); refresh(); },
+        }));
+        block.appendChild(yesNo({
+          label: '¿Y para VOLVER de la finca?',
+          value: person.busVuelta,
+          onSelect: (v) => { person.busVuelta = v; save(); refresh(); },
+        }));
+        screen.appendChild(block);
+      });
+    },
+    validate(state) {
+      const falta = state.people.find((p) => p.busIda === null || p.busVuelta === null);
+      return falta ? `Responde al autobús de ${falta.name.trim() || 'cada persona'} (ida y vuelta).` : null;
+    },
+  },
+
+  /* ---- PASO 6 · Zapatos de recambio (por persona) ---- */
+  {
+    id: 'zapatos',
+    render(screen, { state, save, refresh }) {
+      screen.appendChild(el('h2', 'wizard__title', 'Zapatos de recambio'));
+      screen.appendChild(el('p', 'wizard__hint', 'Pensado sobre todo para ellas: nos encantaría ofrecer alpargatas para bailar cómodas hasta el final. 💃'));
+      state.people.forEach((person, idx) => {
+        const block = personBlock(person, idx);
+        block.appendChild(yesNo({
+          label: '¿Querrá zapatos de recambio?',
+          value: person.needsShoes,
+          onSelect: (v) => { person.needsShoes = v; save(); refresh(); },
+        }));
+        if (person.needsShoes === true) {
+          block.appendChild(textField({
+            label: 'Talla',
+            value: person.shoeSize,
+            placeholder: 'Ej.: 38',
+            onInput: (v) => { person.shoeSize = v; save(); },
+          }));
+        }
+        screen.appendChild(block);
+      });
+    },
+    validate(state) {
+      const sinResponder = state.people.find((p) => p.needsShoes === null);
+      if (sinResponder) return `Responde a los zapatos de ${sinResponder.name.trim() || 'cada persona'}.`;
+      const sinTalla = state.people.find((p) => p.needsShoes === true && !p.shoeSize.trim());
+      return sinTalla ? `Indica la talla de ${sinTalla.name.trim() || 'cada persona'}.` : null;
+    },
+  },
+
+  /* ---- PASO 7 · Origen: ¿de fuera o de Zaragoza? ---- */
+  {
+    id: 'origen',
+    render(screen, { state, save, refresh }) {
+      screen.appendChild(el('h2', 'wizard__title', '¿Vienes de fuera?'));
+      screen.appendChild(el('p', 'wizard__hint', 'Si vienes de fuera nos gustaría echarte una mano con el viaje.'));
+
+      const options = [
+        { value: 'fuera', title: 'Vengo de fuera', text: 'Me vendría bien ayuda con transporte y alojamiento.' },
+        { value: 'zaragoza', title: 'Soy de Zaragoza', text: 'Controlo la ciudad, no necesito nada más.' },
+      ];
+      options.forEach((opt) => {
+        const card = el('button', 'option-card');
+        card.type = 'button';
+        card.setAttribute('aria-pressed', String(state.origin === opt.value));
+        card.appendChild(el('span', 'option-card__title', opt.title));
+        card.appendChild(el('span', 'option-card__text', opt.text));
+        card.addEventListener('click', () => { state.origin = opt.value; save(); refresh(); });
+        screen.appendChild(card);
+      });
+    },
+    validate(state) {
+      return state.origin ? null : 'Elige una de las dos opciones.';
+    },
+  },
+
+  /* ---- PASO 8 · Viaje de IDA (solo si viene de fuera) ---- */
+  {
+    id: 'ida',
+    when: (state) => state.origin === 'fuera',
+    render(screen, { state, save, refresh }) {
+      const ida = state.travel.ida;
+      screen.appendChild(el('h2', 'wizard__title', 'Tu viaje de ida'));
+      screen.appendChild(el('p', 'wizard__hint', 'Cuéntanos cómo llegaréis a Zaragoza para poder organizaros mejor.'));
+
+      screen.appendChild(chipGroup({
+        label: '¿Cómo vais a venir?',
+        options: MODE_OPTIONS,
+        value: ida.mode,
+        onSelect: (v) => { ida.mode = v; save(); refresh(); },
+      }));
+
+      screen.appendChild(textField({
+        label: '¿Desde dónde salís?',
+        value: ida.from,
+        placeholder: 'Madrid, Murcia…',
+        onInput: (v) => { ida.from = v; save(); },
+      }));
+
+      // Bus o AVE → día y hora de llegada (hay gente que llega antes)
+      if (ida.mode === 'bus' || ida.mode === 'ave') {
+        screen.appendChild(textField({
+          label: '¿Qué día llegáis a Zaragoza?',
+          value: ida.arrivalDay,
+          type: 'date',
+          onInput: (v) => { ida.arrivalDay = v; save(); },
+        }));
+        screen.appendChild(textField({
+          label: '¿A qué hora?',
+          value: ida.arrivalTime,
+          type: 'time',
+          onInput: (v) => { ida.arrivalTime = v; save(); },
+        }));
+      }
+
+      // Coche → ¿plazas libres?
+      if (ida.mode === 'coche') {
+        screen.appendChild(yesNo({
+          label: '¿Os sobran plazas y no os importaría llevar a alguien?',
+          value: ida.canCarry,
+          onSelect: (v) => { ida.canCarry = v; save(); refresh(); },
+        }));
+      }
+    },
+    validate(state) {
+      return state.travel.ida.mode ? null : 'Dinos cómo vais a venir.';
+    },
+  },
+
+  /* ---- PASO 9 · Viaje de VUELTA (solo si viene de fuera) ---- */
+  {
+    id: 'vuelta',
+    when: (state) => state.origin === 'fuera',
+    render(screen, { state, save, refresh }) {
+      const vuelta = state.travel.vuelta;
+      screen.appendChild(el('h2', 'wizard__title', 'Tu viaje de vuelta'));
+      screen.appendChild(el('p', 'wizard__hint', 'Para cuadrar despedidas (y algún viaje compartido).'));
+
+      screen.appendChild(textField({
+        label: '¿Qué día planeáis iros?',
+        value: vuelta.day,
+        type: 'date',
+        onInput: (v) => { vuelta.day = v; save(); },
+      }));
+
+      screen.appendChild(chipGroup({
+        label: '¿Cómo os vais?',
+        options: MODE_OPTIONS,
+        value: vuelta.mode,
+        onSelect: (v) => { vuelta.mode = v; save(); refresh(); },
+      }));
+
+      if (vuelta.mode === 'coche') {
+        screen.appendChild(yesNo({
+          label: '¿Estaríais dispuestos a llevar a alguien de vuelta?',
+          value: vuelta.canCarry,
+          onSelect: (v) => { vuelta.canCarry = v; save(); refresh(); },
+        }));
+      }
+    },
+    validate(state) {
+      return state.travel.vuelta.mode ? null : 'Dinos cómo os vais.';
+    },
+  },
+
+  /* ---- PASO 10 · Alojamiento (solo si viene de fuera) ----
+     TODO(alojamiento): pantalla vacía a propósito. Cuando la pareja
+     cierre los detalles de alojamiento, sustituir este placeholder por
+     las preguntas reales (hotel recomendado, reservas de grupo, etc.). */
+  {
+    id: 'alojamiento',
+    when: (state) => state.origin === 'fuera',
+    render(screen) {
+      screen.appendChild(el('h2', 'wizard__title', 'Alojamiento'));
+      const box = el('div', 'placeholder-box');
+      box.appendChild(el('p', 'placeholder-box__icon', '🏡'));
+      box.appendChild(el('p', 'placeholder-box__text', 'Próximamente os daremos información de alojamiento. ¡Estamos en ello!'));
+      screen.appendChild(box);
+    },
+  },
+
+  /* ---- PASO FINAL · Resumen y confirmación ---- */
+  {
+    id: 'resumen',
+    isFinal: true,
+    render(screen, { state }) {
+      screen.appendChild(el('h2', 'wizard__title', 'Un último vistazo'));
+      screen.appendChild(el('p', 'wizard__hint', 'Revisa que esté todo bien y confirma. ¡Ya casi está!'));
+
+      const summary = el('dl', 'summary');
+      const row = (dt, dd) => {
+        summary.appendChild(el('dt', 'summary__label', dt));
+        summary.appendChild(el('dd', 'summary__value', dd));
+      };
+
+      row('Rellena', state.filledBy.trim());
+
+      state.people.forEach((p) => {
+        const partes = [];
+        partes.push(MENU_LABELS[p.menu] + (p.menu === 'otro' && p.menuOther.trim() ? ` (${p.menuOther.trim()})` : ''));
+        if (p.allergies.trim()) partes.push(`Alergias: ${p.allergies.trim()}`);
+        partes.push(`Bus ida: ${p.busIda ? 'sí' : 'no'} · vuelta: ${p.busVuelta ? 'sí' : 'no'}`);
+        partes.push(p.needsShoes ? `Zapatos de recambio: talla ${p.shoeSize.trim()}` : 'Sin zapatos de recambio');
+        row(p.name.trim(), partes.join(' · '));
+      });
+
+      if (state.origin === 'zaragoza') {
+        row('Origen', 'De Zaragoza, controla la ciudad');
+      } else {
+        const ida = state.travel.ida;
+        const vuelta = state.travel.vuelta;
+        const idaParts = [MODE_LABELS[ida.mode] || '—'];
+        if (ida.from.trim()) idaParts.push(`desde ${ida.from.trim()}`);
+        // La llegada solo aplica si se viene en bus o AVE (igual que el envío)
+        if ((ida.mode === 'bus' || ida.mode === 'ave') && ida.arrivalDay) {
+          idaParts.push(`llegada ${formatDay(ida.arrivalDay)}${ida.arrivalTime ? ` a las ${ida.arrivalTime}` : ''}`);
+        }
+        if (ida.mode === 'coche' && ida.canCarry !== null) idaParts.push(ida.canCarry ? 'con plazas libres' : 'sin plazas libres');
+        row('Ida', idaParts.join(' · '));
+
+        const vueltaParts = [MODE_LABELS[vuelta.mode] || '—'];
+        if (vuelta.day) vueltaParts.push(`el ${formatDay(vuelta.day)}`);
+        if (vuelta.mode === 'coche' && vuelta.canCarry !== null) vueltaParts.push(vuelta.canCarry ? 'puede llevar a alguien' : 'sin plazas');
+        row('Vuelta', vueltaParts.join(' · '));
+      }
+
+      screen.appendChild(summary);
+      screen.appendChild(el('p', 'wizard__closing', 'Gracias por tomarte este ratito. Nos hace muchísima ilusión contar contigo. — María & Alberto ✿'));
+    },
+  },
+];
+
+/* ---------------- Motor del asistente ---------------- */
 
 export function initRsvp() {
-  const form = document.getElementById('rsvp-form');
-  if (!form) return;
+  const wizard = document.getElementById('wizard');
+  if (!wizard) return;
 
-  const list = document.getElementById('people-list');
-  const addBtn = document.getElementById('add-person');
-  const submitBtn = document.getElementById('rsvp-submit');
-  const feedback = document.getElementById('rsvp-feedback');
-  const filledByInput = form.querySelector('input[name="filledBy"]');
+  const screen = document.getElementById('wizard-screen');
+  const bar = document.getElementById('wizard-bar');
+  const progress = wizard.querySelector('.wizard__progress');
+  const count = document.getElementById('wizard-count');
+  const backBtn = document.getElementById('wizard-back');
+  const nextBtn = document.getElementById('wizard-next');
+  const feedback = document.getElementById('wizard-feedback');
 
-  let counter = 0; // nº de personas creadas (para títulos por defecto)
+  let state = blankState();
+  let stepId = STEPS[0].id;
+  let sending = false;
 
-  // ---- Construye un grupo de "chips" (selección única tipo radio) ----
-  function buildChips(field, options, selected) {
-    const wrap = document.createElement('div');
-    wrap.className = 'chips';
-    wrap.dataset.field = field;
-    wrap.setAttribute('role', 'radiogroup');
-    options.forEach((opt) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'chip';
-      b.dataset.value = opt.value;
-      b.textContent = opt.label;
-      b.setAttribute('aria-pressed', String(opt.value === selected));
-      wrap.appendChild(b);
-    });
-    return wrap;
-  }
-
-  function getChipValue(card, field) {
-    const active = card.querySelector(`.chips[data-field="${field}"] .chip[aria-pressed="true"]`);
-    return active ? active.dataset.value : '';
-  }
-
-  // ---- Crea una tarjeta de persona ----
-  function addPerson() {
-    counter += 1;
-    const idx = counter;
-
-    const card = document.createElement('div');
-    card.className = 'person-card';
-
-    // Cabecera: nombre/resumen + plegar + eliminar
-    const head = document.createElement('div');
-    head.className = 'person-card__head';
-    head.innerHTML = `
-      <button type="button" class="person-card__toggle" aria-expanded="true">
-        <span class="person-card__name">Persona ${idx}</span>
-        <span class="person-card__chev" aria-hidden="true">▾</span>
-      </button>
-      <button type="button" class="person-card__remove" aria-label="Eliminar esta persona">✕</button>
-    `;
-
-    // Cuerpo: campos de la persona
-    const body = document.createElement('div');
-    body.className = 'person-card__body';
-
-    // Nombre
-    const nameField = document.createElement('label');
-    nameField.className = 'field';
-    nameField.innerHTML = `<span class="field__label">Nombre</span>`;
-    const nameInput = document.createElement('input');
-    nameInput.className = 'field__input';
-    nameInput.type = 'text';
-    nameInput.dataset.field = 'name';
-    nameInput.placeholder = 'Nombre de la persona';
-    nameField.appendChild(nameInput);
-
-    // Bus
-    const busField = document.createElement('fieldset');
-    busField.className = 'field';
-    busField.innerHTML = `<legend class="field__label">¿Usará el autobús a la finca?</legend>`;
-    busField.appendChild(buildChips('bus', BUS_OPTIONS, 'no'));
-
-    // Alergias
-    const allergyField = document.createElement('label');
-    allergyField.className = 'field';
-    allergyField.innerHTML = `<span class="field__label">Alergias o intolerancias</span>`;
-    const allergyInput = document.createElement('input');
-    allergyInput.className = 'field__input';
-    allergyInput.type = 'text';
-    allergyInput.dataset.field = 'allergies';
-    allergyInput.placeholder = 'Opcional';
-    allergyField.appendChild(allergyInput);
-
-    // Menú
-    const menuField = document.createElement('fieldset');
-    menuField.className = 'field';
-    menuField.innerHTML = `<legend class="field__label">Menú especial</legend>`;
-    menuField.appendChild(buildChips('menu', MENU_OPTIONS, 'ninguno'));
-    const menuOther = document.createElement('input');
-    menuOther.className = 'field__input person-card__menu-other';
-    menuOther.type = 'text';
-    menuOther.dataset.field = 'menuOther';
-    menuOther.placeholder = 'Especifica el menú';
-    menuOther.hidden = true;
-    menuField.appendChild(menuOther);
-
-    body.append(nameField, busField, allergyField, menuField);
-    card.append(head, body);
-    list.appendChild(card);
-
-    // --- Interacciones de la tarjeta ---
-    const nameLabel = head.querySelector('.person-card__name');
-    const toggle = head.querySelector('.person-card__toggle');
-    const remove = head.querySelector('.person-card__remove');
-
-    // El título refleja el nombre escrito
-    nameInput.addEventListener('input', () => {
-      nameLabel.textContent = nameInput.value.trim() || `Persona ${idx}`;
-    });
-
-    // Plegar / desplegar
-    toggle.addEventListener('click', () => {
-      const collapsed = card.classList.toggle('is-collapsed');
-      toggle.setAttribute('aria-expanded', String(!collapsed));
-    });
-
-    // Eliminar
-    remove.addEventListener('click', () => {
-      card.classList.add('is-removing');
-      setTimeout(() => card.remove(), 200);
-    });
-
-    // Chips (selección única por grupo)
-    card.querySelectorAll('.chips').forEach((group) => {
-      group.addEventListener('click', (e) => {
-        const chip = e.target.closest('.chip');
-        if (!chip) return;
-        group.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
-        chip.setAttribute('aria-pressed', 'true');
-        // Mostrar el campo "Otro" del menú cuando proceda
-        if (group.dataset.field === 'menu') {
-          menuOther.hidden = chip.dataset.value !== 'otro';
-        }
-      });
-    });
-
-    // Enfocar el nombre al añadir
-    nameInput.focus();
-    return card;
-  }
-
-  // ---- Lectura de datos al enviar ----
-  function collectPeople() {
-    return Array.from(list.querySelectorAll('.person-card')).map((card) => {
-      const menu = getChipValue(card, 'menu');
-      return {
-        name: card.querySelector('[data-field="name"]').value.trim(),
-        bus: getChipValue(card, 'bus'),
-        allergies: card.querySelector('[data-field="allergies"]').value.trim(),
-        menu,
-        menuOther: menu === 'otro' ? card.querySelector('[data-field="menuOther"]').value.trim() : '',
+  // --- Restaurar estado de sessionStorage (si hay una sesión a medias) ---
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY));
+    if (saved && saved.state && Array.isArray(saved.state.people)) {
+      state = { ...blankState(), ...saved.state };
+      state.people = saved.state.people.map((p) => ({ ...blankPerson(), ...p }));
+      state.travel = {
+        ida: { ...blankState().travel.ida, ...(saved.state.travel?.ida || {}) },
+        vuelta: { ...blankState().travel.vuelta, ...(saved.state.travel?.vuelta || {}) },
       };
-    });
+      if (STEPS.some((s) => s.id === saved.stepId)) stepId = saved.stepId;
+    }
+  } catch { /* respaldo corrupto o sessionStorage no disponible: se ignora */ }
+
+  function save() {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ state, stepId }));
+    } catch { /* sin sessionStorage (modo privado): la memoria JS basta */ }
+  }
+
+  /** Pasos visibles según el estado (p. ej. viaje solo si viene de fuera). */
+  function visibleSteps() {
+    return STEPS.filter((s) => !s.when || s.when(state));
   }
 
   function setFeedback(msg, type) {
-    feedback.textContent = msg;
+    feedback.textContent = msg || '';
     feedback.classList.remove('is-ok', 'is-error');
     if (type) feedback.classList.add(type);
   }
 
-  // ---- Eventos ----
-  addBtn.addEventListener('click', addPerson);
+  /** Pinta el paso actual y actualiza progreso y botones. */
+  function render() {
+    const steps = visibleSteps();
+    let index = steps.findIndex((s) => s.id === stepId);
+    if (index === -1) { index = 0; stepId = steps[0].id; }
+    const step = steps[index];
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+    // Progreso (el paso actual cuenta como en curso)
+    const pct = Math.round(((index + 1) / steps.length) * 100);
+    bar.style.width = `${pct}%`;
+    progress.setAttribute('aria-valuenow', String(pct));
+    count.textContent = `Paso ${index + 1} de ${steps.length}`;
 
-    const filledBy = filledByInput.value.trim();
-    if (!filledBy) {
-      setFeedback('Dinos quién rellena la confirmación.', 'is-error');
-      filledByInput.focus();
-      return;
+    // Pantalla
+    screen.innerHTML = '';
+    step.render(screen, { state, save, refresh: render });
+
+    // Botones
+    backBtn.hidden = index === 0;
+    nextBtn.textContent = step.isFinal ? 'Confirmar asistencia' : 'Siguiente →';
+
+    // Subir al inicio del asistente al cambiar de paso (móvil)
+    setFeedback('');
+  }
+
+  function goTo(id) {
+    stepId = id;
+    save();
+    render();
+    wizard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ---- Construcción del documento que se envía a Firestore ---- */
+  function buildPayload() {
+    const payload = {
+      filledBy: state.filledBy.trim(),
+      origin: state.origin,
+      people: state.people.map((p) => ({
+        name: p.name.trim(),
+        allergies: p.allergies.trim(),
+        menu: p.menu,
+        menuOther: p.menu === 'otro' ? p.menuOther.trim() : '',
+        busIda: p.busIda === true,
+        busVuelta: p.busVuelta === true,
+        needsShoes: p.needsShoes === true,
+        shoeSize: p.needsShoes === true ? p.shoeSize.trim() : '',
+      })),
+    };
+    // Los datos de viaje solo tienen sentido si viene de fuera
+    if (state.origin === 'fuera') {
+      const ida = state.travel.ida;
+      const vuelta = state.travel.vuelta;
+      payload.travel = {
+        ida: {
+          mode: ida.mode,
+          from: ida.from.trim(),
+          arrivalDay: (ida.mode === 'bus' || ida.mode === 'ave') ? ida.arrivalDay : '',
+          arrivalTime: (ida.mode === 'bus' || ida.mode === 'ave') ? ida.arrivalTime : '',
+          canCarry: ida.mode === 'coche' ? ida.canCarry === true : null,
+        },
+        vuelta: {
+          day: vuelta.day,
+          mode: vuelta.mode,
+          canCarry: vuelta.mode === 'coche' ? vuelta.canCarry === true : null,
+        },
+      };
     }
+    return payload;
+  }
 
-    const people = collectPeople();
-    if (people.length === 0) {
-      setFeedback('Añade al menos una persona con el botón "+ Añadir persona".', 'is-error');
-      return;
-    }
-    if (people.some((p) => !p.name)) {
-      setFeedback('Cada persona necesita un nombre.', 'is-error');
-      return;
-    }
+  /** Pantalla de éxito: sustituye el asistente entero. */
+  function renderSuccess() {
+    const firstName = state.filledBy.trim().split(' ')[0];
+    const n = state.people.length;
+    const quien = n === 1 ? 'tu confirmación' : `vuestra confirmación (${n} personas)`;
 
-    const data = { filledBy, people };
+    screen.innerHTML = '';
+    const done = el('div', 'wizard-success');
+    done.appendChild(el('p', 'wizard-success__icon', '✿'));
+    done.appendChild(el('h2', 'wizard__title', `¡Gracias, ${firstName}!`));
+    done.appendChild(el('p', 'wizard-success__text',
+      `Hemos recibido ${quien}. Nos hace muchísima ilusión que forméis parte de nuestro día. ¡Nos vemos el 24 de octubre!`));
+    done.appendChild(el('p', 'wizard-success__names', 'María & Alberto'));
+    const home = el('a', 'btn btn--ghost btn--block', '← Volver a la invitación');
+    home.href = './index.html';
+    done.appendChild(home);
+    screen.appendChild(done);
 
-    submitBtn.disabled = true;
-    addBtn.disabled = true;
-    setFeedback('Enviando…', null);
+    bar.style.width = '100%';
+    progress.setAttribute('aria-valuenow', '100');
+    count.textContent = 'Confirmado';
+    backBtn.hidden = true;
+    nextBtn.hidden = true;
+    setFeedback('');
+  }
 
+  async function submit() {
+    if (sending) return;
+    sending = true;
+    nextBtn.disabled = true;
+    backBtn.disabled = true;
+    setFeedback('Enviando…');
     try {
-      await submitRsvp(data);
-      // Bloquear el formulario tras confirmar
-      form.querySelectorAll('input, button').forEach((el) => (el.disabled = true));
-      const firstName = filledBy.split(' ')[0];
-      const n = people.length;
-      const quien = n === 1 ? '1 persona' : `${n} personas`;
-      setFeedback(
-        `¡Gracias, ${firstName}! Hemos recibido vuestra confirmación (${quien}). ` +
-        `Nos hace muchísima ilusión que forméis parte de nuestro día. — María & Alberto ✿`,
-        'is-ok'
-      );
+      await submitRsvp(buildPayload());
+      // Limpiar el respaldo: la confirmación ya está enviada
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* sin storage */ }
+      renderSuccess();
     } catch (err) {
       console.error(err);
-      submitBtn.disabled = false;
-      addBtn.disabled = false;
       setFeedback('No hemos podido enviar la confirmación. Inténtalo de nuevo.', 'is-error');
+      nextBtn.disabled = false;
+      backBtn.disabled = false;
+    } finally {
+      sending = false;
     }
+  }
+
+  /* ---- Navegación ---- */
+  backBtn.addEventListener('click', () => {
+    const steps = visibleSteps();
+    const index = steps.findIndex((s) => s.id === stepId);
+    if (index > 0) goTo(steps[index - 1].id);
   });
 
-  // Empezar con una persona ya visible
-  addPerson();
+  nextBtn.addEventListener('click', () => {
+    const steps = visibleSteps();
+    const index = steps.findIndex((s) => s.id === stepId);
+    const step = steps[index];
+
+    // Validar el paso actual antes de avanzar
+    const error = step.validate ? step.validate(state) : null;
+    if (error) { setFeedback(error, 'is-error'); return; }
+
+    if (step.isFinal) { submit(); return; }
+
+    // OJO: recalcular los visibles DESPUÉS de validar (elegir "Zaragoza"
+    // en el paso de origen oculta los pasos de viaje y salta al resumen).
+    const nextSteps = visibleSteps();
+    const nextIndex = nextSteps.findIndex((s) => s.id === stepId) + 1;
+    if (nextIndex < nextSteps.length) goTo(nextSteps[nextIndex].id);
+  });
+
+  render();
 }
