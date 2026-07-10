@@ -94,9 +94,8 @@ a { color: inherit; }
   overflow: hidden;
 }
 
-/* Escenario 16:9 centrado. El ancho se limita para que la altura nunca
-   supere el viewport; en móvil vertical ocupa todo el ancho y queda
-   centrado, con bandas BLANCAS arriba y abajo. */
+/* Escenario 16:9 centrado (escritorio/pantalla ancha). El ancho se limita
+   para que la altura nunca supere el viewport. */
 .stage {
   position: relative;
   width: min(100%, calc(100vh * 16 / 9));
@@ -104,27 +103,32 @@ a { color: inherit; }
   background: #ffffff;
 }
 
-/* MÓVIL EN VERTICAL: el escenario entero (vídeos + volteo) se muestra
-   ROTADO 90°, de modo que el lado largo del 16:9 recorre la pantalla a lo
-   alto y el sobre se ve tumbado ocupando casi todo el móvil.
-   Al rotar, ancho y alto visuales se intercambian: el "ancho" del stage
-   pasa a ser la ALTURA en pantalla, así que se dimensiona contra 100svh
-   (sin recortar el vídeo ni deformarlo; .opening lo centra en ambos ejes).
-   Se rota el stage completo para que los tres momentos sigan encajando. */
-@media (orientation: portrait) {
+/* MÓVIL (pantalla estrecha): la intro se ve SIEMPRE en horizontal y a
+   PANTALLA COMPLETA, gire o no el usuario el móvil (por eso max-width y
+   no orientation). Truco: el stage se dimensiona como la pantalla con los
+   ejes intercambiados (ancho = 100svh, alto = 100vw), se centra en el
+   viewport y se rota 90°: el rectángulo resultante encaja EXACTO en la
+   pantalla vertical. Los vídeos y las caras del volteo usan object-fit:
+   cover, así que llenan el stage recortando un poco los laterales largos
+   del 16:9 — sin bandas ni franjas. Se rota el stage completo para que
+   los tres momentos (lazo, volteo, apertura) sigan encajando entre sí. */
+@media (max-width: 48rem) {
   .stage {
-    /* .stage es flex item de .opening: sin esto, flex-shrink lo encogería
-       al ancho del móvil ANTES de rotar y quedaría diminuto. */
-    flex: none;
-    width: min(100vh, calc(100vw * 16 / 9));  /* respaldo sin svh */
-    width: min(100svh, calc(100vw * 16 / 9));
-    transform: rotate(90deg);
+    position: absolute;      /* respecto a .opening (fixed = viewport) */
+    top: 50%;
+    left: 50%;
+    width: 100vh;            /* respaldo para navegadores sin svh */
+    width: 100svh;
+    height: 100vw;
+    aspect-ratio: auto;      /* mandan width/height, ya no es 16:9 */
+    transform: translate(-50%, -50%) rotate(90deg);
   }
 }
 .stage__layer { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 .stage__video {
-  /* El stage ya es 16:9, así que cover no recorta ni deforma. */
+  /* En escritorio el stage es 16:9 (cover no recorta); en móvil el stage
+     rotado es más alargado y cover recorta los laterales para llenarlo. */
   object-fit: cover;
   object-position: center;
   opacity: 0;
@@ -231,6 +235,22 @@ a { color: inherit; }
 }
 .skip-intro:hover { background: rgba(0,0,0,0.55); }
 .skip-intro:active { transform: scale(0.96); }
+
+/* En móvil el vídeo va rotado 90° (ver .stage): el botón acompaña al giro
+   con texto en vertical (se lee derecho respecto al vídeo) y pasa a la
+   esquina inferior IZQUIERDA física, que tras el giro es la esquina
+   inferior derecha del vídeo. (Debe ir DESPUÉS de la regla base para
+   ganar la cascada a right/min-height/padding.) */
+@media (max-width: 48rem) {
+  .skip-intro {
+    right: auto;
+    left: max(1.25rem, env(safe-area-inset-left));
+    writing-mode: vertical-rl;
+    min-height: 0;
+    min-width: 44px;         /* área táctil cómoda también en vertical */
+    padding: 1.2rem 0.55rem;
+  }
+}
 
 /* Salida de la apertura */
 .opening.is-finished {
