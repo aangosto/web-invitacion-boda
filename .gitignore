@@ -8,3 +8,6 @@ dist
 .env
 .env.*
 !.env.example
+
+# Cache local de Firebase Hosting
+.firebase/
