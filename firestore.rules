@@ -3,10 +3,9 @@ rules_version = '2';
 // =====================================================================
 // Reglas de seguridad de Firestore — Boda María & Alberto
 //
-// >>> IMPORTANTE: ESTE ARCHIVO NO SE APLICA SOLO. Debes revisarlo y
-//     PUBLICARLO tú en la consola de Firebase:
-//     Firebase → Firestore Database → pestaña "Reglas" (Rules) →
-//     pega este contenido → "Publicar" (Publish).
+// >>> IMPORTANTE: ESTE ARCHIVO NO SE APLICA SOLO. Publícalo con:
+//       firebase deploy --only firestore:rules
+//     o pegándolo en la consola: Firestore Database → "Reglas" → Publicar.
 //
 // Modelo:
 //  · scores (ranking del juego): lectura PÚBLICA, solo se puede CREAR
