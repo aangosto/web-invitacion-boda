@@ -551,6 +551,120 @@ a { color: inherit; }
 }
 
 /* =================================================================
+   6b. NUESTROS LUGARES (ilustración interactiva)
+   Los lugares (posiciones % y textos) se editan en src/modules/lugares.js
+   ================================================================= */
+.places { max-width: 34rem; margin: 0 auto; }
+
+/* Marco con la MISMA proporción que acuarela.jpeg (2000x1410): así los
+   marcadores en % quedan alineados igual en cualquier tamaño de pantalla. */
+.places__frame {
+  position: relative;
+  aspect-ratio: 2000 / 1410;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(110,36,53,0.15);
+  background: rgba(255,255,255,0.4);
+}
+.places__frame img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---- Marcadores (botones pulsantes sobre la imagen) ---- */
+.place-marker {
+  position: absolute;
+  transform: translate(-50%, -50%); /* x/y en % apuntan al CENTRO del punto */
+  width: 44px;                      /* área táctil cómoda */
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+.place-marker__dot {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--burgundy);
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: 0 1px 6px rgba(63,58,50,0.35);
+  transition: transform 0.2s var(--ease), background 0.2s ease;
+}
+/* Anillo de pulso que invita a tocar */
+.place-marker__dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--burgundy);
+  opacity: 0;
+  animation: place-pulse 2.2s ease-out infinite;
+}
+@keyframes place-pulse {
+  0%   { transform: scale(0.6); opacity: 0.8; }
+  70%  { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+.place-marker:hover .place-marker__dot { transform: scale(1.2); }
+.place-marker.is-active .place-marker__dot {
+  transform: scale(1.35);
+  background: var(--burgundy-deep);
+}
+.place-marker.is-active .place-marker__dot::after { animation: none; opacity: 0; }
+
+/* ---- Tarjeta del lugar seleccionado ---- */
+.place-card {
+  position: relative;
+  margin-top: 0.9rem;
+  padding: 1.1rem 2.6rem 1.2rem 1.2rem; /* hueco a la derecha para la ✕ */
+  text-align: left;
+  background: rgba(255,255,255,0.75);
+  border: 1px solid rgba(110,36,53,0.25);
+  border-left: 3px solid var(--burgundy);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(63,58,50,0.08);
+  animation: place-card-in 0.25s var(--ease);
+}
+@keyframes place-card-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.place-card__close {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  width: 44px;                      /* área táctil cómoda */
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  transition: color 0.2s ease;
+}
+.place-card__close:hover { color: var(--burgundy); }
+.place-card__title {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.25rem;
+  color: var(--burgundy);
+  margin-bottom: 0.3rem;
+}
+.place-card__text {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+/* =================================================================
    7. EVENTOS (ceremonia / celebración)
    ================================================================= */
 .events {
@@ -1234,4 +1348,6 @@ a { color: inherit; }
   }
   .reveal { opacity: 1; transform: none; }
   .scroll-hint__dot::after { animation: none; }
+  /* Marcadores de "Nuestros lugares": sin pulso */
+  .place-marker__dot::after { animation: none; opacity: 0; }
 }

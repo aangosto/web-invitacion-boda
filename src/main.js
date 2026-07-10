@@ -13,11 +13,13 @@ import { initNav } from './modules/nav.js';
 import { initCalendar } from './modules/calendar.js';
 import { initReveal } from './modules/reveal.js';
 import { initParallax } from './modules/parallax.js';
+import { initLugares } from './modules/lugares.js';
 
 function boot() {
   initCountdown();
   initNav();
   initCalendar();
+  initLugares();
 
   // La apertura controla cuándo se muestra el contenido.
   initOpening({

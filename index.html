@@ -76,6 +76,7 @@
     <ul id="nav-links" class="floating-nav__links">
       <li><a href="#cuenta-atras">Cuenta atrás</a></li>
       <li><a href="#historia">Historia</a></li>
+      <li><a href="#lugares">Lugares</a></li>
       <li><a href="#ceremonia">Ceremonia</a></li>
       <li><a href="#mapa">Lugar</a></li>
       <li><a href="./cuestionario.html">Confirmar</a></li>
@@ -130,6 +131,30 @@
       <p class="prose reveal">Cada paso que hemos dado juntos nos ha llevado a este momento tan esperado.
         Nos gustaría que nos acompañases en el día de nuestra boda y pudieses formar parte
         del comienzo de nuestra vida juntos bajo la mirada de Dios.</p>
+    </section>
+
+    <!-- NUESTROS LUGARES (ilustración interactiva sobre la acuarela)
+         Los lugares (textos y posiciones) se editan en src/modules/lugares.js -->
+    <section id="lugares" class="section section--places">
+      <div class="floral-rule reveal" aria-hidden="true">✿</div>
+      <h2 class="section__title reveal">Nuestros lugares</h2>
+      <p class="section__lead reveal">Toca cada punto de la ilustración y descubre
+        por qué estos rincones son parte de nuestra historia.</p>
+      <div class="places reveal">
+        <div id="places-frame" class="places__frame">
+          <picture>
+            <source srcset="/acuarela.webp" type="image/webp" />
+            <img src="/acuarela.jpeg" alt="Ilustración en acuarela de María y Alberto con los lugares de Murcia y Zaragoza" decoding="async" loading="lazy" />
+          </picture>
+          <!-- Los marcadores se inyectan desde JS -->
+        </div>
+        <!-- Tarjeta del lugar seleccionado -->
+        <div id="place-card" class="place-card" role="region" aria-live="polite" hidden>
+          <button type="button" class="place-card__close" aria-label="Cerrar">✕</button>
+          <h3 class="place-card__title"></h3>
+          <p class="place-card__text"></p>
+        </div>
+      </div>
     </section>
 
     <!-- CEREMONIA + CELEBRACIÓN -->
