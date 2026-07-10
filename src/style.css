@@ -103,6 +103,24 @@ a { color: inherit; }
   aspect-ratio: 16 / 9;
   background: #ffffff;
 }
+
+/* MÓVIL EN VERTICAL: el escenario entero (vídeos + volteo) se muestra
+   ROTADO 90°, de modo que el lado largo del 16:9 recorre la pantalla a lo
+   alto y el sobre se ve tumbado ocupando casi todo el móvil.
+   Al rotar, ancho y alto visuales se intercambian: el "ancho" del stage
+   pasa a ser la ALTURA en pantalla, así que se dimensiona contra 100svh
+   (sin recortar el vídeo ni deformarlo; .opening lo centra en ambos ejes).
+   Se rota el stage completo para que los tres momentos sigan encajando. */
+@media (orientation: portrait) {
+  .stage {
+    /* .stage es flex item de .opening: sin esto, flex-shrink lo encogería
+       al ancho del móvil ANTES de rotar y quedaría diminuto. */
+    flex: none;
+    width: min(100vh, calc(100vw * 16 / 9));  /* respaldo sin svh */
+    width: min(100svh, calc(100vw * 16 / 9));
+    transform: rotate(90deg);
+  }
+}
 .stage__layer { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 .stage__video {
