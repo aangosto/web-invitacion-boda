@@ -1019,13 +1019,13 @@ a { color: inherit; }
 /* =================================================================
    13b. ACCESOS (tarjetas CTA en la home → cuestionario / juego)
    ================================================================= */
+/* Una tarjeta por sección (confirmación y juego van separados) */
 .cta-cards {
   display: grid;
   gap: 1rem;
   max-width: 30rem;
   margin: 0 auto;
 }
-@media (min-width: 34rem) { .cta-cards { grid-template-columns: 1fr 1fr; } }
 .cta-card {
   display: flex;
   flex-direction: column;
