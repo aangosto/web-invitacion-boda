@@ -689,7 +689,20 @@ a { color: inherit; }
 .wizard__back { flex: 0 0 auto; }
 .wizard__next { flex: 1; }
 
-/* ---- Editor de personas (paso 2) ---- */
+/* ---- Editor de acompañantes (paso 2) ---- */
+/* Quien rellena aparece como fila fija, ya contada (no se reescribe) */
+.people-editor__you {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 1.1rem;
+  color: var(--ink);
+  background: rgba(154,166,140,0.14);
+  border: 1px solid rgba(111,125,98,0.3);
+  border-radius: var(--radius);
+}
+.people-editor__you-check { color: var(--sage-deep); }
 .people-editor { display: grid; gap: 0.6rem; }
 .people-editor__row { display: flex; gap: 0.5rem; align-items: stretch; }
 .people-editor__row .field__input { flex: 1; }
@@ -768,18 +781,19 @@ a { color: inherit; }
   border: 1px solid rgba(110,36,53,0.15);
   border-radius: 10px;
 }
+/* Nombres y datos del resumen en granate/burdeos (color de acento) */
 .summary__label {
   font-family: var(--font-sans);
   font-size: 0.72rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--sage-deep);
+  color: var(--burgundy);
 }
 .summary__value {
   margin: 0.15rem 0 0;
   font-size: 1.05rem;
   line-height: 1.5;
-  color: var(--ink);
+  color: var(--burgundy);
 }
 
 /* ---- Pantalla de éxito ---- */

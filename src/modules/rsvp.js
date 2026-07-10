@@ -46,7 +46,8 @@ export async function submitRsvp(data) {
 
 /* ---------------- Estado ---------------- */
 
-const STORAGE_KEY = 'rsvpWizard.v1';
+/* v2: people[0] pasó a ser quien rellena (los respaldos v1 no encajan) */
+const STORAGE_KEY = 'rsvpWizard.v2';
 
 /** Persona con todos sus campos por defecto. */
 function blankPerson() {
@@ -62,7 +63,9 @@ function blankPerson() {
   };
 }
 
-/** Estado inicial del asistente. */
+/** Estado inicial del asistente.
+    people[0] es SIEMPRE quien rellena (su nombre se sincroniza desde el
+    paso 1); del people[1] en adelante van los acompañantes (paso 2). */
 function blankState() {
   return {
     filledBy: '',
@@ -168,13 +171,14 @@ const STEPS = [
     id: 'quien',
     render(screen, { state, save }) {
       screen.appendChild(el('h2', 'wizard__title', '¿Quién eres?'));
-      screen.appendChild(el('p', 'wizard__hint', 'Dinos tu nombre; en el siguiente paso podrás confirmar por ti y por más personas.'));
+      screen.appendChild(el('p', 'wizard__hint', 'Dinos tu nombre. Tú ya cuentas como asistente: en el siguiente paso solo añadirás a tus acompañantes.'));
       screen.appendChild(textField({
         label: 'Tu nombre',
         value: state.filledBy,
         placeholder: 'Nombre y apellidos',
         autocomplete: 'name',
-        onInput: (v) => { state.filledBy = v; save(); },
+        // Quien rellena ES people[0]: su nombre se mantiene sincronizado
+        onInput: (v) => { state.filledBy = v; state.people[0].name = v; save(); },
       }));
     },
     validate(state) {
@@ -182,37 +186,45 @@ const STEPS = [
     },
   },
 
-  /* ---- PASO 2 · Personas ---- */
+  /* ---- PASO 2 · Acompañantes ----
+     Quien rellena YA cuenta como asistente (people[0], nombre del paso 1):
+     aquí solo se añaden los demás. Las preguntas por persona posteriores
+     se aplican a TODOS, incluido quien rellena. */
   {
     id: 'personas',
     render(screen, { state, save, refresh }) {
-      screen.appendChild(el('h2', 'wizard__title', '¿Por quién confirmas?'));
-      screen.appendChild(el('p', 'wizard__hint', 'Añade a cada persona que asistirá (tú incluido/a). Las siguientes preguntas se harán para cada una.'));
+      screen.appendChild(el('h2', 'wizard__title', '¿Quién te acompaña?'));
+      screen.appendChild(el('p', 'wizard__hint', 'Tú ya estás en la lista. Añade solo a tus acompañantes; si vienes por tu cuenta, sigue adelante.'));
+
+      // Quien rellena, como primera "fila" fija (no editable aquí)
+      const you = el('p', 'people-editor__you');
+      you.appendChild(el('span', 'people-editor__you-check', '✓'));
+      you.appendChild(document.createTextNode(` ${state.filledBy.trim() || 'Tú'} (tú)`));
+      screen.appendChild(you);
 
       const list = el('div', 'people-editor');
-      state.people.forEach((person, idx) => {
+      // Solo los acompañantes: people[1] en adelante
+      state.people.slice(1).forEach((person, i) => {
+        const idx = i + 1; // índice real dentro de people[]
         const row = el('div', 'people-editor__row');
         const input = el('input', 'field__input');
         input.type = 'text';
-        input.placeholder = `Nombre de la persona ${idx + 1}`;
+        input.placeholder = `Nombre del acompañante ${i + 1}`;
         input.value = person.name;
-        input.setAttribute('aria-label', `Nombre de la persona ${idx + 1}`);
+        input.setAttribute('aria-label', `Nombre del acompañante ${i + 1}`);
         input.addEventListener('input', () => { person.name = input.value; save(); });
         row.appendChild(input);
 
-        // Eliminar (siempre debe quedar al menos una persona)
-        if (state.people.length > 1) {
-          const rm = el('button', 'people-editor__remove', '✕');
-          rm.type = 'button';
-          rm.setAttribute('aria-label', `Eliminar a la persona ${idx + 1}`);
-          rm.addEventListener('click', () => { state.people.splice(idx, 1); save(); refresh(); });
-          row.appendChild(rm);
-        }
+        const rm = el('button', 'people-editor__remove', '✕');
+        rm.type = 'button';
+        rm.setAttribute('aria-label', `Eliminar al acompañante ${i + 1}`);
+        rm.addEventListener('click', () => { state.people.splice(idx, 1); save(); refresh(); });
+        row.appendChild(rm);
         list.appendChild(row);
       });
       screen.appendChild(list);
 
-      const add = el('button', 'btn btn--ghost btn--block', '+ Añadir persona');
+      const add = el('button', 'btn btn--ghost btn--block', '+ Añadir acompañante');
       add.type = 'button';
       add.addEventListener('click', () => {
         state.people.push(blankPerson());
@@ -225,9 +237,10 @@ const STEPS = [
       screen.appendChild(add);
     },
     validate(state) {
-      if (state.people.length === 0) return 'Añade al menos una persona.';
-      if (state.people.some((p) => !p.name.trim())) return 'Cada persona necesita un nombre.';
-      return null;
+      // Los acompañantes (si los hay) necesitan nombre; ir solo/a es válido
+      return state.people.slice(1).some((p) => !p.name.trim())
+        ? 'Cada acompañante necesita un nombre.'
+        : null;
     },
   },
 
@@ -550,6 +563,9 @@ export function initRsvp() {
         vuelta: { ...blankState().travel.vuelta, ...(saved.state.travel?.vuelta || {}) },
       };
       if (STEPS.some((s) => s.id === saved.stepId)) stepId = saved.stepId;
+      // people[0] es quien rellena: mantener el nombre sincronizado
+      if (state.people.length === 0) state.people.push(blankPerson());
+      state.people[0].name = state.filledBy;
     }
   } catch { /* respaldo corrupto o sessionStorage no disponible: se ignora */ }
 
