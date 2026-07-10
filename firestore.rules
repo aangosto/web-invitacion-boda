@@ -12,9 +12,9 @@ rules_version = '2';
 //  · scores (ranking del juego): lectura PÚBLICA, solo se puede CREAR
 //    (con validación). No se puede editar ni borrar desde el cliente.
 //  · rsvp (confirmaciones, DATOS SENSIBLES: nombres, alergias=salud, menús):
-//    se puede CREAR para confirmar, pero la LECTURA está TOTALMENTE
-//    DENEGADA desde la web. Las respuestas solo se ven desde la consola
-//    de Firebase (el panel de administración ignora estas reglas).
+//    se puede CREAR para confirmar; la LECTURA exige autenticación
+//    (request.auth != null): la usa la página privada /resultados vía
+//    inicio de sesión ANÓNIMO tras introducir la contraseña.
 // =====================================================================
 
 service cloud.firestore {
@@ -28,8 +28,11 @@ service cloud.firestore {
     }
 
     // ---------- CONFIRMACIONES (RSVP) — SENSIBLE ----------
+    // Lectura SOLO para peticiones autenticadas: la página privada
+    // /resultados hace signInAnonymously() tras la contraseña.
+    // (Requiere activar el proveedor "Anónimo" en Firebase Auth.)
     match /rsvp/{rsvpId} {
-      allow read: if false;                         // NADIE lee desde la web
+      allow read: if request.auth != null;
       allow create: if isValidRsvp(request.resource.data);
       allow update, delete: if false;
     }
@@ -44,13 +47,18 @@ service cloud.firestore {
     }
 
     function isValidRsvp(d) {
-      // `travel` es opcional: solo se envía si origin == 'fuera'.
-      return d.keys().hasOnly(['filledBy', 'origin', 'people', 'travel', 'createdAt'])
+      // Si NO asiste basta { filledBy, attending:false, createdAt }.
+      // Si asiste: origin obligatorio, people 1..30 y travel opcional
+      // (solo se envía si viene de fuera).
+      return d.keys().hasOnly(['filledBy', 'attending', 'origin', 'people', 'travel', 'createdAt'])
         && d.filledBy is string && d.filledBy.size() >= 1 && d.filledBy.size() <= 120
-        && d.origin in ['fuera', 'zaragoza']
-        && d.people is list && d.people.size() >= 1 && d.people.size() <= 30
-        && (!('travel' in d.keys()) || d.travel is map)
-        && d.createdAt == request.time;             // obliga a serverTimestamp()
+        && d.attending is bool
+        && d.createdAt == request.time              // obliga a serverTimestamp()
+        && (d.attending == false || (
+             d.origin in ['fuera', 'zaragoza']
+             && d.people is list && d.people.size() >= 1 && d.people.size() <= 30
+             && (!('travel' in d.keys()) || d.travel is map)
+           ));
     }
 
     // ---------- Todo lo demás: denegado por defecto ----------

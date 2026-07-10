@@ -7,12 +7,14 @@
    respalda en sessionStorage para sobrevivir a una recarga.
 
    Flujo:
-     1. Quién rellena            6. Zapatos de recambio (por persona)
-     2. Personas                 7. Origen (fuera / Zaragoza)
-     3. Alergias (por persona)   8. Viaje de IDA        (solo fuera)
-     4. Menú (por persona)       9. Viaje de VUELTA     (solo fuera)
-     5. Autobús (por persona)   10. Alojamiento (placeholder, solo fuera)
-                                11. Resumen y confirmación
+     1. Quién rellena            7. Zapatos de recambio (por persona)
+     2. ¿Asistirás? (sí/no)      8. Origen (fuera / Zaragoza)
+     3. Acompañantes             9. Viaje de IDA        (solo fuera)
+     4. Alergias (por persona)  10. Viaje de VUELTA     (solo fuera)
+     5. Menú (por persona)      11. Alojamiento (placeholder, solo fuera)
+     6. Autobús (por persona)   12. Resumen y confirmación
+   Si NO asiste (paso 2), se salta directo al resumen: no se pregunta
+   nada más y se guarda attending: false.
 
    La lógica de envío sigue desacoplada en submitRsvp(). Los datos son
    sensibles (alergias = salud): las reglas de Firestore permiten CREAR
@@ -25,10 +27,11 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 /**
  * Envía la confirmación a Firestore (colección "rsvp").
  * Estructura del documento:
- *   { filledBy, origin: 'fuera'|'zaragoza',
+ *   { filledBy, attending: true|false,
+ *     origin: 'fuera'|'zaragoza',            // solo si asiste
  *     people: [{ name, allergies, menu, menuOther, busIda, busVuelta,
- *                needsShoes, shoeSize }],
- *     travel: { ida: {...}, vuelta: {...} },   // solo si origin === 'fuera'
+ *                needsShoes, shoeSize }],    // solo si asiste
+ *     travel: { ida: {...}, vuelta: {...} }, // solo si asiste y es de fuera
  *     createdAt }
  * Si Firebase no está configurado, se simula el envío (modo desarrollo).
  * @param {Object} data
@@ -46,8 +49,8 @@ export async function submitRsvp(data) {
 
 /* ---------------- Estado ---------------- */
 
-/* v2: people[0] pasó a ser quien rellena (los respaldos v1 no encajan) */
-const STORAGE_KEY = 'rsvpWizard.v2';
+/* v3: se añadió `attending` (los respaldos anteriores no encajan) */
+const STORAGE_KEY = 'rsvpWizard.v3';
 
 /** Persona con todos sus campos por defecto. */
 function blankPerson() {
@@ -69,6 +72,7 @@ function blankPerson() {
 function blankState() {
   return {
     filledBy: '',
+    attending: null,   // true | false | null (sin responder)
     people: [blankPerson()],
     origin: '',        // '' | 'fuera' | 'zaragoza'
     travel: {
@@ -171,7 +175,7 @@ const STEPS = [
     id: 'quien',
     render(screen, { state, save }) {
       screen.appendChild(el('h2', 'wizard__title', '¿Quién eres?'));
-      screen.appendChild(el('p', 'wizard__hint', 'Dinos tu nombre. Tú ya cuentas como asistente: en el siguiente paso solo añadirás a tus acompañantes.'));
+      screen.appendChild(el('p', 'wizard__hint', 'Dinos tu nombre para empezar; el resto va paso a paso.'));
       screen.appendChild(textField({
         label: 'Tu nombre',
         value: state.filledBy,
@@ -186,12 +190,41 @@ const STEPS = [
     },
   },
 
-  /* ---- PASO 2 · Acompañantes ----
+  /* ---- PASO 2 · ¿Asistirás? ----
+     Si NO asiste, el resto de pasos se oculta (when) y se salta directo
+     al resumen para enviar attending: false. */
+  {
+    id: 'asistencia',
+    render(screen, { state, save, refresh }) {
+      screen.appendChild(el('h2', 'wizard__title', '¿Podrás acompañarnos?'));
+      screen.appendChild(el('p', 'wizard__hint', 'Nos encantaría contar contigo el 24 de octubre.'));
+
+      const options = [
+        { value: true, title: '¡Sí, allí estaré!', text: 'Cuenta conmigo (y con los míos).' },
+        { value: false, title: 'No podré asistir', text: 'Me encantaría, pero no puedo.' },
+      ];
+      options.forEach((opt) => {
+        const card = el('button', 'option-card');
+        card.type = 'button';
+        card.setAttribute('aria-pressed', String(state.attending === opt.value));
+        card.appendChild(el('span', 'option-card__title', opt.title));
+        card.appendChild(el('span', 'option-card__text', opt.text));
+        card.addEventListener('click', () => { state.attending = opt.value; save(); refresh(); });
+        screen.appendChild(card);
+      });
+    },
+    validate(state) {
+      return state.attending === null ? 'Dinos si podrás venir.' : null;
+    },
+  },
+
+  /* ---- PASO 3 · Acompañantes ----
      Quien rellena YA cuenta como asistente (people[0], nombre del paso 1):
      aquí solo se añaden los demás. Las preguntas por persona posteriores
      se aplican a TODOS, incluido quien rellena. */
   {
     id: 'personas',
+    when: (state) => state.attending === true,
     render(screen, { state, save, refresh }) {
       screen.appendChild(el('h2', 'wizard__title', '¿Quién te acompaña?'));
       screen.appendChild(el('p', 'wizard__hint', 'Tú ya estás en la lista. Añade solo a tus acompañantes; si vienes por tu cuenta, sigue adelante.'));
@@ -247,6 +280,7 @@ const STEPS = [
   /* ---- PASO 3 · Alergias e intolerancias (por persona) ---- */
   {
     id: 'alergias',
+    when: (state) => state.attending === true,
     render(screen, { state, save }) {
       screen.appendChild(el('h2', 'wizard__title', 'Alergias e intolerancias'));
       screen.appendChild(el('p', 'wizard__hint', 'Queremos que todo el mundo coma tranquilo. Déjalo en blanco si no hay ninguna.'));
@@ -266,6 +300,7 @@ const STEPS = [
   /* ---- PASO 4 · Menú especial (por persona) ---- */
   {
     id: 'menu',
+    when: (state) => state.attending === true,
     render(screen, { state, save, refresh }) {
       screen.appendChild(el('h2', 'wizard__title', 'Menú especial'));
       screen.appendChild(el('p', 'wizard__hint', 'Si alguien necesita un menú distinto, cuéntanoslo aquí.'));
@@ -296,6 +331,7 @@ const STEPS = [
   /* ---- PASO 5 · Autobús a la finca (por persona) ---- */
   {
     id: 'bus',
+    when: (state) => state.attending === true,
     render(screen, { state, save, refresh }) {
       screen.appendChild(el('h2', 'wizard__title', 'Autobús a la finca'));
       screen.appendChild(el('p', 'wizard__hint', 'Habrá autobús entre Zaragoza y la finca, a la ida y a la vuelta.'));
@@ -323,6 +359,7 @@ const STEPS = [
   /* ---- PASO 6 · Zapatos de recambio (por persona) ---- */
   {
     id: 'zapatos',
+    when: (state) => state.attending === true,
     render(screen, { state, save, refresh }) {
       screen.appendChild(el('h2', 'wizard__title', 'Zapatos de recambio'));
       screen.appendChild(el('p', 'wizard__hint', 'Pensado sobre todo para ellas: nos encantaría ofrecer alpargatas para bailar cómodas hasta el final. 💃'));
@@ -355,6 +392,7 @@ const STEPS = [
   /* ---- PASO 7 · Origen: ¿de fuera o de Zaragoza? ---- */
   {
     id: 'origen',
+    when: (state) => state.attending === true,
     render(screen, { state, save, refresh }) {
       screen.appendChild(el('h2', 'wizard__title', '¿Vienes de fuera?'));
       screen.appendChild(el('p', 'wizard__hint', 'Si vienes de fuera nos gustaría echarte una mano con el viaje.'));
@@ -381,7 +419,7 @@ const STEPS = [
   /* ---- PASO 8 · Viaje de IDA (solo si viene de fuera) ---- */
   {
     id: 'ida',
-    when: (state) => state.origin === 'fuera',
+    when: (state) => state.attending === true && state.origin === 'fuera',
     render(screen, { state, save, refresh }) {
       const ida = state.travel.ida;
       screen.appendChild(el('h2', 'wizard__title', 'Tu viaje de ida'));
@@ -434,7 +472,7 @@ const STEPS = [
   /* ---- PASO 9 · Viaje de VUELTA (solo si viene de fuera) ---- */
   {
     id: 'vuelta',
-    when: (state) => state.origin === 'fuera',
+    when: (state) => state.attending === true && state.origin === 'fuera',
     render(screen, { state, save, refresh }) {
       const vuelta = state.travel.vuelta;
       screen.appendChild(el('h2', 'wizard__title', 'Tu viaje de vuelta'));
@@ -473,7 +511,7 @@ const STEPS = [
      las preguntas reales (hotel recomendado, reservas de grupo, etc.). */
   {
     id: 'alojamiento',
-    when: (state) => state.origin === 'fuera',
+    when: (state) => state.attending === true && state.origin === 'fuera',
     render(screen) {
       screen.appendChild(el('h2', 'wizard__title', 'Alojamiento'));
       const box = el('div', 'placeholder-box');
@@ -488,6 +526,20 @@ const STEPS = [
     id: 'resumen',
     isFinal: true,
     render(screen, { state }) {
+      // --- Rama "no asisto": despedida cálida, sin más preguntas ---
+      if (state.attending === false) {
+        screen.appendChild(el('h2', 'wizard__title', 'Te echaremos de menos'));
+        screen.appendChild(el('p', 'wizard__hint',
+          `Qué pena no poder verte ese día, ${state.filledBy.trim().split(' ')[0]}. ` +
+          'Gracias de corazón por avisarnos; brindaremos por ti.'));
+        const summary = el('dl', 'summary');
+        summary.appendChild(el('dt', 'summary__label', 'Respuesta'));
+        summary.appendChild(el('dd', 'summary__value', `${state.filledBy.trim()} · No podrá asistir`));
+        screen.appendChild(summary);
+        screen.appendChild(el('p', 'wizard__closing', 'Un abrazo enorme. — María & Alberto ✿'));
+        return;
+      }
+
       screen.appendChild(el('h2', 'wizard__title', 'Un último vistazo'));
       screen.appendChild(el('p', 'wizard__hint', 'Revisa que esté todo bien y confirma. ¡Ya casi está!'));
 
@@ -529,7 +581,7 @@ const STEPS = [
       }
 
       screen.appendChild(summary);
-      screen.appendChild(el('p', 'wizard__closing', 'Gracias por tomarte este ratito. Nos hace muchísima ilusión contar contigo. — María & Alberto ✿'));
+      screen.appendChild(el('p', 'wizard__closing', 'Gracias por tomarte este ratico. Nos hace muchísima ilusión contar contigo. — María & Alberto ✿'));
     },
   },
 ];
@@ -603,9 +655,11 @@ export function initRsvp() {
     screen.innerHTML = '';
     step.render(screen, { state, save, refresh: render });
 
-    // Botones
+    // Botones (en la rama "no asisto" el cierre no es una confirmación)
     backBtn.hidden = index === 0;
-    nextBtn.textContent = step.isFinal ? 'Confirmar asistencia' : 'Siguiente →';
+    nextBtn.textContent = step.isFinal
+      ? (state.attending === false ? 'Enviar respuesta' : 'Confirmar asistencia')
+      : 'Siguiente →';
 
     // Subir al inicio del asistente al cambiar de paso (móvil)
     setFeedback('');
@@ -620,8 +674,14 @@ export function initRsvp() {
 
   /* ---- Construcción del documento que se envía a Firestore ---- */
   function buildPayload() {
+    // Si NO asiste, basta con quién responde y su negativa
+    if (state.attending === false) {
+      return { filledBy: state.filledBy.trim(), attending: false };
+    }
+
     const payload = {
       filledBy: state.filledBy.trim(),
+      attending: true,
       origin: state.origin,
       people: state.people.map((p) => ({
         name: p.name.trim(),
@@ -667,7 +727,9 @@ export function initRsvp() {
     done.appendChild(el('p', 'wizard-success__icon', '✿'));
     done.appendChild(el('h2', 'wizard__title', `¡Gracias, ${firstName}!`));
     done.appendChild(el('p', 'wizard-success__text',
-      `Hemos recibido ${quien}. Nos hace muchísima ilusión que forméis parte de nuestro día. ¡Nos vemos el 24 de octubre!`));
+      state.attending === false
+        ? 'Hemos recibido tu respuesta. Sentimos mucho que no puedas acompañarnos: te tendremos presente ese día.'
+        : `Hemos recibido ${quien}. Nos hace muchísima ilusión que forméis parte de nuestro día. ¡Nos vemos el 24 de octubre!`));
     done.appendChild(el('p', 'wizard-success__names', 'María & Alberto'));
     const home = el('a', 'btn btn--ghost btn--block', '← Volver a la invitación');
     home.href = './index.html';
@@ -676,7 +738,7 @@ export function initRsvp() {
 
     bar.style.width = '100%';
     progress.setAttribute('aria-valuenow', '100');
-    count.textContent = 'Confirmado';
+    count.textContent = state.attending === false ? 'Enviado' : 'Confirmado';
     backBtn.hidden = true;
     nextBtn.hidden = true;
     setFeedback('');
