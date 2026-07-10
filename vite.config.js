@@ -12,6 +12,7 @@ export default defineConfig({
         main: 'index.html',
         cuestionario: 'cuestionario.html',
         juego: 'juego.html',
+        resultados: 'resultados.html', // privada (solo por URL directa)
       },
     },
   },

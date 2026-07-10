@@ -1101,6 +1101,114 @@ a { color: inherit; }
 }
 
 /* =================================================================
+   13d. RESULTADOS (página privada de los novios · resultados.html)
+   ================================================================= */
+.results-gate {
+  max-width: 22rem;
+  margin: 0 auto;
+  text-align: left;
+  display: grid;
+  gap: 1rem;
+}
+
+.results { text-align: left; max-width: 34rem; margin: 0 auto; }
+
+/* Contadores (asistentes / respuestas / no asisten) */
+.res-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 1.2rem;
+}
+.res-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.9rem 0.4rem;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(110,36,53,0.15);
+  border-radius: 8px;
+}
+.res-stat__num {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.8rem;
+  line-height: 1;
+  color: var(--burgundy);
+}
+.res-stat__label {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-top: 0.4rem;
+}
+
+/* Tarjeta por confirmación */
+.res-list { display: grid; gap: 0.9rem; }
+.res-card {
+  padding: 1rem 1.1rem 1.1rem;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(110,36,53,0.18);
+  border-radius: 8px;
+}
+.res-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.res-card__who {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+.res-badge {
+  flex: 0 0 auto;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--burgundy);
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+}
+.res-badge--no { background: var(--taupe-deep); }
+.res-card__date {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  margin: 0.15rem 0 0.6rem;
+}
+.res-person {
+  padding: 0.5rem 0;
+  border-top: 1px dashed rgba(63,58,50,0.2);
+}
+.res-person__name { font-weight: 600; color: var(--burgundy); }
+.res-person__meta {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.res-card__travel {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--ink);
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed rgba(63,58,50,0.2);
+}
+.res-empty {
+  font-family: var(--font-sans);
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+/* =================================================================
    14. REVEALS AL SCROLL
    ================================================================= */
 .reveal {

@@ -25,9 +25,10 @@ const config = {
 // Consideramos Firebase "configurado" si están las claves esenciales.
 export const isConfigured = Boolean(config.apiKey && config.projectId && config.appId);
 
+let app = null;
 let db = null;
 if (isConfigured) {
-  const app = initializeApp(config);
+  app = initializeApp(config);
   db = getFirestore(app);
 } else {
   console.warn(
@@ -35,4 +36,5 @@ if (isConfigured) {
   );
 }
 
-export { db };
+// `app` lo necesita la página privada /resultados para Firebase Auth
+export { app, db };
