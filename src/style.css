@@ -15,8 +15,11 @@
      (≥4.5:1 sobre papel) en etiquetas y textos pequeños. */
   --taupe: #b6a894;
   --taupe-deep: #7a6b54;
-  --ink: #3a4036;
-  --ink-soft: #5c6354;
+  /* Tintas de texto en gris CÁLIDO (antes tenían dominante verde oliva,
+     el último resto de salvia). Mismo nivel de oscuridad: --ink >10:1 y
+     --ink-soft ~5.3:1 sobre papel (WCAG AA). */
+  --ink: #3f3a32;
+  --ink-soft: #6d6152;
 
   --font-display: 'Parisienne', cursive;
   --font-serif: 'Cormorant Garamond', Georgia, serif;
@@ -282,7 +285,7 @@ a { color: inherit; }
   transform: translateY(0);
   background: rgba(245, 241, 233, 0.82);
   backdrop-filter: blur(8px);
-  box-shadow: 0 1px 0 rgba(58,64,54,0.08);
+  box-shadow: 0 1px 0 rgba(63,58,50,0.08);
 }
 .floating-nav__brand {
   font-family: var(--font-display);
@@ -713,7 +716,7 @@ a { color: inherit; }
   flex: 0 0 48px;
   min-height: 48px; /* área táctil cómoda */
   background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(58,64,54,0.25);
+  border: 1px solid rgba(63,58,50,0.25);
   border-radius: var(--radius);
   color: var(--ink-soft);
   font-size: 1rem;
@@ -826,7 +829,7 @@ a { color: inherit; }
   color: var(--ink);
   padding: 0.75rem 0.9rem;
   background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(58,64,54,0.25);
+  border: 1px solid rgba(63,58,50,0.25);
   border-radius: var(--radius);
   width: 100%;
 }
@@ -844,7 +847,7 @@ a { color: inherit; }
   font-size: 0.9rem;
   padding: 0.6rem 0.6rem;
   background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(58,64,54,0.25);
+  border: 1px solid rgba(63,58,50,0.25);
   border-radius: 999px;
   color: var(--ink);
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
@@ -1057,7 +1060,7 @@ a { color: inherit; }
   padding: 0.7rem var(--gutter);
   background: rgba(245, 241, 233, 0.9);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(58,64,54,0.08);
+  border-bottom: 1px solid rgba(63,58,50,0.08);
 }
 .subpage-header__brand {
   font-family: var(--font-display);
