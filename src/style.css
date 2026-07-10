@@ -10,8 +10,11 @@
   --paper: #f5f1e9;
   --burgundy: #6e2435;
   --burgundy-deep: #561a28;
-  --sage: #9aa68c;
-  --sage-deep: #6f7d62;
+  /* Tierra/topo neutro (sustituye al antiguo verde salvia). El tono
+     profundo se oscureció de #8a7b64 a #7a6b54 para cumplir WCAG AA
+     (≥4.5:1 sobre papel) en etiquetas y textos pequeños. */
+  --taupe: #b6a894;
+  --taupe-deep: #7a6b54;
   --ink: #3a4036;
   --ink-soft: #5c6354;
 
@@ -369,7 +372,7 @@ a { color: inherit; }
 /* Filete floral separador */
 .floral-rule {
   font-size: 1rem;
-  color: var(--sage-deep);
+  color: var(--taupe-deep);
   margin-bottom: 1.5rem;
   position: relative;
 }
@@ -379,7 +382,7 @@ a { color: inherit; }
   top: 50%;
   width: clamp(2rem, 18vw, 5rem);
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--sage));
+  background: linear-gradient(90deg, transparent, var(--taupe));
 }
 .floral-rule::before { right: calc(50% + 1rem); }
 .floral-rule::after  { left: calc(50% + 1rem); transform: scaleX(-1); }
@@ -431,7 +434,7 @@ a { color: inherit; }
   color: var(--burgundy-deep);
   text-shadow: 0 2px 18px rgba(245,241,233,0.6);
 }
-.hero__names .amp { font-size: 0.6em; color: var(--sage-deep); }
+.hero__names .amp { font-size: 0.6em; color: var(--taupe-deep); }
 .hero__date {
   font-family: var(--font-sans);
   font-weight: 400;
@@ -541,7 +544,7 @@ a { color: inherit; }
 }
 .prose:first-of-type {
   font-style: italic;
-  color: var(--sage-deep);
+  color: var(--taupe-deep);
 }
 
 /* =================================================================
@@ -562,7 +565,7 @@ a { color: inherit; }
   font-size: 0.7rem;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: var(--sage-deep);
+  color: var(--taupe-deep);
   margin-bottom: 0.6rem;
 }
 .event-card__title {
@@ -676,7 +679,7 @@ a { color: inherit; }
   font-style: italic;
   font-size: 1.05rem;
   line-height: 1.6;
-  color: var(--sage-deep);
+  color: var(--taupe-deep);
   text-align: center;
 }
 
@@ -698,11 +701,11 @@ a { color: inherit; }
   padding: 0.7rem 0.9rem;
   font-size: 1.1rem;
   color: var(--ink);
-  background: rgba(154,166,140,0.14);
-  border: 1px solid rgba(111,125,98,0.3);
+  background: rgba(182,168,148,0.16);   /* --taupe al 16% */
+  border: 1px solid rgba(122,107,84,0.3); /* --taupe-deep al 30% */
   border-radius: var(--radius);
 }
-.people-editor__you-check { color: var(--sage-deep); }
+.people-editor__you-check { color: var(--taupe-deep); }
 .people-editor { display: grid; gap: 0.6rem; }
 .people-editor__row { display: flex; gap: 0.5rem; align-items: stretch; }
 .people-editor__row .field__input { flex: 1; }
@@ -798,7 +801,7 @@ a { color: inherit; }
 
 /* ---- Pantalla de éxito ---- */
 .wizard-success { display: grid; gap: 0.8rem; text-align: center; padding-top: 0.5rem; }
-.wizard-success__icon { font-size: 1.6rem; color: var(--sage-deep); }
+.wizard-success__icon { font-size: 1.6rem; color: var(--taupe-deep); }
 .wizard-success__text { color: var(--ink-soft); line-height: 1.6; }
 .wizard-success__names {
   font-family: var(--font-display);
@@ -859,7 +862,7 @@ a { color: inherit; }
   text-align: center;
   min-height: 1.2em;
 }
-.form-feedback.is-ok { color: var(--sage-deep); }
+.form-feedback.is-ok { color: var(--taupe-deep); }
 .form-feedback.is-error { color: var(--burgundy); }
 
 /* =================================================================
@@ -900,7 +903,7 @@ a { color: inherit; }
   color: var(--ink);
 }
 .game__hud-score b { color: var(--burgundy); }
-.game__hud-booster { flex: 1; text-align: center; font-size: 0.72rem; color: var(--sage-deep); min-height: 1.2em; }
+.game__hud-booster { flex: 1; text-align: center; font-size: 0.72rem; color: var(--taupe-deep); min-height: 1.2em; }
 .game__hud-lives { color: var(--burgundy); letter-spacing: 0.12em; }
 
 /* --- Canvas --- */
@@ -910,7 +913,7 @@ a { color: inherit; }
   height: 60vh;
   max-height: 460px;
   min-height: 320px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.65), rgba(154,166,140,0.12));
+  background: linear-gradient(180deg, rgba(255,255,255,0.65), rgba(182,168,148,0.14)); /* topo suave */
   border: 1px solid rgba(110,36,53,0.15);
   border-radius: 10px;
   touch-action: none; /* permite arrastrar la cesta sin hacer scroll */
@@ -959,7 +962,7 @@ a { color: inherit; }
   text-align: center;
   margin-bottom: 0.7rem;
 }
-.ranking__team--novia { color: var(--sage-deep); }
+.ranking__team--novia { color: var(--taupe-deep); }
 .ranking__team--novio { color: var(--burgundy); }
 .ranking__list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.4rem; }
 .ranking__row {

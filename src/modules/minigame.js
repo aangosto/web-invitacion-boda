@@ -18,7 +18,7 @@ const ITEMS = {
 };
 const BOOSTERS = {
   x2:     { emoji: '✖️', label: '×2 puntos', color: '#6e2435' },
-  slow:   { emoji: '🐌', label: 'Caída lenta', color: '#6f7d62' },
+  slow:   { emoji: '🐌', label: 'Caída lenta', color: '#7a6b54' }, // topo (--taupe-deep)
   magnet: { emoji: '🧲', label: 'Imán', color: '#561a28' },
 };
 
@@ -132,10 +132,11 @@ export function initMinigame() {
     ctx.lineTo(x + w / 2 - 8, y + h);
     ctx.lineTo(x - w / 2 + 8, y + h);
     ctx.closePath();
-    ctx.fillStyle = team === 'novio' ? '#6e2435' : '#6f7d62';
+    // burdeos (novio) / topo (novia), a juego con la paleta de la web
+    ctx.fillStyle = team === 'novio' ? '#6e2435' : '#7a6b54';
     ctx.fill();
     // borde superior
-    ctx.fillStyle = team === 'novio' ? '#561a28' : '#5b6650';
+    ctx.fillStyle = team === 'novio' ? '#561a28' : '#655741';
     ctx.fillRect(x - w / 2 - 3, y - 7, w + 6, 9);
     // trama
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
@@ -282,7 +283,7 @@ export function initMinigame() {
     cancelAnimationFrame(raf);
     clearInterval(hudTimer);
     overTeamEl.textContent = team === 'novio' ? 'Team Novio' : 'Team Novia';
-    overTeamEl.style.color = team === 'novio' ? 'var(--burgundy)' : 'var(--sage-deep)';
+    overTeamEl.style.color = team === 'novio' ? 'var(--burgundy)' : 'var(--taupe-deep)';
     finalEl.textContent = score;
     // Reiniciar el formulario de guardado
     saveBtn.disabled = false;
