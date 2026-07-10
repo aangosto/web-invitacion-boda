@@ -916,7 +916,9 @@ a { color: inherit; }
   height: 60vh;
   max-height: 460px;
   min-height: 320px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.65), rgba(182,168,148,0.14)); /* topo suave */
+  /* Sin fondo propio: transparente, se ve el papel de la página (el JS
+     solo hace clearRect, no pinta fondo). El borde delimita el área. */
+  background: transparent;
   border: 1px solid rgba(110,36,53,0.15);
   border-radius: 10px;
   touch-action: none; /* permite arrastrar la cesta sin hacer scroll */
@@ -993,7 +995,8 @@ a { color: inherit; }
 .closing {
   text-align: center;
   padding: clamp(3.5rem, 14vw, 7rem) var(--gutter) clamp(3rem, 10vw, 5rem);
-  background: linear-gradient(180deg, transparent, rgba(110,36,53,0.05));
+  /* Sin degradado: el cierre ya no es el final de la página (el minijuego
+     va detrás) y el tinte creaba un corte de color con esa sección. */
 }
 .closing__line {
   font-family: var(--font-serif);
