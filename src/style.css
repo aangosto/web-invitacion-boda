@@ -1403,25 +1403,77 @@ a { color: inherit; }
 }
 .res-stats--two { grid-template-columns: repeat(2, 1fr); }
 
-/* ---- Pestaña Totales: secciones y desgloses ---- */
+/* ---- Pestaña Totales: secciones y desgloses (acordeón) ---- */
 .tot-section { margin-bottom: 1.4rem; }
+
+/* Tarjetas de número grande clicables */
+.res-stat--btn {
+  position: relative;
+  border: 1px solid rgba(110,36,53,0.15);
+  background: rgba(255,255,255,0.5);
+  font: inherit;
+  min-height: 44px;             /* área táctil */
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.res-stat--btn:hover { border-color: var(--burgundy); }
+.res-stat--btn.is-open {
+  border-color: var(--burgundy);
+  background: rgba(110,36,53,0.06);
+}
+.res-stat--btn .tot-exp__chev {
+  position: absolute;
+  right: 0.45rem;
+  top: 0.35rem;
+}
+
+/* Fila desplegable "etiqueta … número ▾" */
+.tot-exp { border-bottom: 1px dashed rgba(63,58,50,0.15); }
+.tot-exp__btn {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 44px;             /* área táctil */
+  padding: 0.45rem 0.2rem;
+  background: none;
+  border: 0;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+.tot-exp__chev {
+  color: var(--taupe-deep);
+  font-size: 0.8rem;
+  transition: transform 0.2s var(--ease);
+}
+.tot-exp.is-open .tot-exp__chev,
+.res-stat--btn.is-open .tot-exp__chev { transform: rotate(-180deg); }
+
+/* Lista de personas desplegada */
+.tot-detail {
+  margin: 0.2rem 0 0.7rem;
+  padding: 0.6rem 0.9rem;
+  background: rgba(182,168,148,0.12);   /* topo muy suave */
+  border-left: 3px solid var(--taupe);
+  border-radius: 0 6px 6px 0;
+  display: grid;
+  gap: 0.35rem;
+}
+.tot-person {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.tot-person__by { color: var(--ink-soft); font-size: 0.8rem; }
+.tot-person--empty { color: var(--ink-soft); }
 .tot-minititle {
   font-family: var(--font-sans);
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--ink);
   margin: 0.9rem 0 0.4rem;
-}
-.tot-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.8rem;
-  padding: 0.45rem 0.2rem;
-  border-bottom: 1px dashed rgba(63,58,50,0.15);
-  font-family: var(--font-sans);
-  font-size: 0.9rem;
-  color: var(--ink);
 }
 .tot-row__label { flex: 1; }
 .tot-row__num {

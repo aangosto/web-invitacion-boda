@@ -1,8 +1,9 @@
 /* =================================================================
    Panel → pestaña TOTALES.
-   Agregados de la colección "rsvp" calculados en el cliente: lo que
-   los novios necesitan de un vistazo (asistentes, catering, tallas
-   de alpargatas, autobús y logística de viaje). Solo visualización.
+   Agregados de la colección "rsvp" calculados en el cliente. Cada
+   total es DESPLEGABLE (acordeón): al pulsarlo muestra la lista de
+   personas que componen ese número, con quién envió el formulario
+   (filledBy) para saber a quién preguntar. Solo visualización.
 
    Tolerante con registros antiguos: si un campo no existe se trata
    como vacío/0 (p. ej. attending ausente = asiste; el formato viejo
@@ -21,67 +22,79 @@ function el(tag, className, text) {
   return node;
 }
 
-/* ---------- Agregación (recorre las confirmaciones y sus people[]) ---------- */
+/* ---------- Agregación ----------
+   Cada total se guarda como LISTA de miembros { nombre, por, extra? }
+   (el recuento es la longitud). `por` = filledBy del formulario.     */
 function aggregate(docs) {
   const t = {
-    confirmaciones: docs.length,
-    asisten: 0,
-    noAsisten: 0,          // respuestas "no podré ir" (1 persona por respuesta)
-    menus: { ninguno: 0, vegetariano: 0, vegano: 0, otro: 0 },
-    menusOtro: [],         // textos de "Otro: ¿cuál?"
-    alergias: [],          // { nombre, texto }
-    zapatos: 0,
-    tallas: new Map(),     // talla → nº de personas
-    busIda: 0,
-    busVuelta: 0,
-    fuera: 0,
-    zaragoza: 0,
-    coches: [],            // { quien, desde, ida, vuelta } con plazas libres
+    confirmaciones: [],  // una entrada por formulario enviado
+    asisten: [],
+    noAsisten: [],
+    menus: { ninguno: [], vegetariano: [], vegano: [], otro: [] },
+    alergias: [],
+    zapatos: [],
+    tallas: new Map(),   // talla → miembros
+    busIda: [],
+    busVuelta: [],
+    fuera: [],
+    zaragoza: [],
+    coches: [],
   };
 
   docs.forEach((data) => {
-    if (data.attending === false) { t.noAsisten += 1; return; }
+    const por = data.filledBy || '—';
+    const people = data.people || [];
+    t.confirmaciones.push({ nombre: por, extra: data.attending === false ? 'no asiste' : `${people.length} persona${people.length === 1 ? '' : 's'}` });
 
-    // Origen (solo lo indican los que asisten)
-    if (data.origin === 'fuera') t.fuera += 1;
-    else if (data.origin === 'zaragoza') t.zaragoza += 1;
+    if (data.attending === false) {
+      t.noAsisten.push({ nombre: por, por });
+      return;
+    }
 
-    (data.people || []).forEach((p) => {
-      t.asisten += 1;
+    // Origen: se responde una vez por formulario
+    const origenExtra = `${people.length} persona${people.length === 1 ? '' : 's'}`;
+    if (data.origin === 'fuera') t.fuera.push({ nombre: por, por, extra: origenExtra });
+    else if (data.origin === 'zaragoza') t.zaragoza.push({ nombre: por, por, extra: origenExtra });
 
-      // Menús
-      if (t.menus[p.menu] !== undefined) t.menus[p.menu] += 1;
-      if (p.menu === 'otro' && (p.menuOther || '').trim()) t.menusOtro.push(p.menuOther.trim());
+    people.forEach((p) => {
+      const nombre = p.name || '—';
+      const m = { nombre, por };
+      t.asisten.push(m);
 
-      // Alergias (solo las no vacías, con el nombre para el catering)
-      if ((p.allergies || '').trim()) t.alergias.push({ nombre: p.name || '—', texto: p.allergies.trim() });
-
-      // Zapatos de recambio, con desglose por talla
-      if (p.needsShoes === true) {
-        t.zapatos += 1;
-        const talla = String(p.shoeSize || '').trim() || 'sin talla';
-        t.tallas.set(talla, (t.tallas.get(talla) || 0) + 1);
+      // Menús (en "otro", el texto que escribieron como contexto)
+      if (t.menus[p.menu]) {
+        t.menus[p.menu].push(p.menu === 'otro'
+          ? { nombre, por, extra: (p.menuOther || '').trim() || 'sin especificar' }
+          : m);
       }
 
-      // Autobús (formato actual: busIda/busVuelta booleanos;
-      // formato antiguo: bus = 'no'|'ida'|'vuelta'|'ambos')
-      const ida = p.busIda === true || p.bus === 'ida' || p.bus === 'ambos';
-      const vuelta = p.busVuelta === true || p.bus === 'vuelta' || p.bus === 'ambos';
-      if (ida) t.busIda += 1;
-      if (vuelta) t.busVuelta += 1;
+      // Alergias no vacías, con el texto para el catering
+      if ((p.allergies || '').trim()) t.alergias.push({ nombre, por, extra: p.allergies.trim() });
+
+      // Zapatos de recambio + desglose por talla
+      if (p.needsShoes === true) {
+        const talla = String(p.shoeSize || '').trim() || 'sin talla';
+        t.zapatos.push({ nombre, por, extra: `talla ${talla}` });
+        if (!t.tallas.has(talla)) t.tallas.set(talla, []);
+        t.tallas.get(talla).push(m);
+      }
+
+      // Autobús (booleanos actuales o texto del formato antiguo)
+      if (p.busIda === true || p.bus === 'ida' || p.bus === 'ambos') t.busIda.push(m);
+      if (p.busVuelta === true || p.bus === 'vuelta' || p.bus === 'ambos') t.busVuelta.push(m);
     });
 
-    // Coches con plazas libres (para organizar viajes compartidos)
+    // Coches con plazas libres (viajes compartidos)
     const ida = data.travel?.ida || {};
     const vuelta = data.travel?.vuelta || {};
     const plazasIda = ida.mode === 'coche' && ida.canCarry === true;
     const plazasVuelta = vuelta.mode === 'coche' && vuelta.canCarry === true;
     if (plazasIda || plazasVuelta) {
+      const tramos = [plazasIda && 'ida', plazasVuelta && 'vuelta'].filter(Boolean).join(' y ');
       t.coches.push({
-        quien: data.filledBy || '—',
-        desde: (ida.from || '').trim(),
-        ida: plazasIda,
-        vuelta: plazasVuelta,
+        nombre: por,
+        por,
+        extra: `${ida.from ? `desde ${ida.from.trim()} · ` : ''}${tramos}`,
       });
     }
   });
@@ -89,26 +102,80 @@ function aggregate(docs) {
   return t;
 }
 
-/* ---------- Piezas de la vista ---------- */
-function statBox(num, label) {
-  const box = el('div', 'res-stat');
-  box.appendChild(el('span', 'res-stat__num', String(num)));
-  box.appendChild(el('span', 'res-stat__label', label));
-  return box;
+/* ---------- Piezas de acordeón ---------- */
+
+/** Lista de miembros de un total: nombre · contexto — por quién. */
+function memberList(members) {
+  const list = el('div', 'tot-detail');
+  if (members.length === 0) {
+    list.appendChild(el('p', 'tot-person tot-person--empty', 'Nadie todavía.'));
+    return list;
+  }
+  members.forEach((m) => {
+    const line = el('p', 'tot-person');
+    line.appendChild(el('span', null, m.nombre + (m.extra ? ` · ${m.extra}` : '')));
+    // "por X" solo si el formulario lo envió otra persona
+    if (m.por && m.por !== m.nombre) line.appendChild(el('span', 'tot-person__by', ` — por ${m.por}`));
+    list.appendChild(line);
+  });
+  return list;
+}
+
+/** Fila desplegable "etiqueta …… número ▾" con su lista debajo. */
+function expandableRow(label, members, numText) {
+  const wrap = el('div', 'tot-exp');
+  const btn = el('button', 'tot-exp__btn');
+  btn.type = 'button';
+  btn.setAttribute('aria-expanded', 'false');
+  btn.appendChild(el('span', 'tot-row__label', label));
+  btn.appendChild(el('span', 'tot-row__num', numText != null ? numText : String(members.length)));
+  btn.appendChild(el('span', 'tot-exp__chev', '▾'));
+  const detail = memberList(members);
+  detail.hidden = true;
+  btn.addEventListener('click', () => {
+    detail.hidden = !detail.hidden;
+    btn.setAttribute('aria-expanded', String(!detail.hidden));
+    wrap.classList.toggle('is-open', !detail.hidden);
+  });
+  wrap.append(btn, detail);
+  return wrap;
+}
+
+/** Grupo de tarjetas de número grande, también desplegables: al pulsar
+    una tarjeta, su lista aparece bajo la rejilla (pulsar de nuevo pliega). */
+function statGroup(stats) {
+  const group = el('div');
+  const grid = el('div', `res-stats${stats.length === 2 ? ' res-stats--two' : ''}`);
+  const detailArea = el('div');
+  let openIdx = -1;
+
+  stats.forEach((s, i) => {
+    const box = el('button', 'res-stat res-stat--btn');
+    box.type = 'button';
+    box.setAttribute('aria-expanded', 'false');
+    box.appendChild(el('span', 'res-stat__num', String(s.members.length)));
+    box.appendChild(el('span', 'res-stat__label', s.label));
+    box.appendChild(el('span', 'tot-exp__chev', '▾'));
+    box.addEventListener('click', () => {
+      openIdx = openIdx === i ? -1 : i;
+      detailArea.innerHTML = '';
+      grid.querySelectorAll('.res-stat--btn').forEach((b, j) => {
+        b.classList.toggle('is-open', j === openIdx);
+        b.setAttribute('aria-expanded', String(j === openIdx));
+      });
+      if (openIdx !== -1) detailArea.appendChild(memberList(stats[openIdx].members));
+    });
+    grid.appendChild(box);
+  });
+
+  group.append(grid, detailArea);
+  return group;
 }
 
 function section(title) {
   const s = el('section', 'tot-section');
   s.appendChild(el('h3', 'adm-subtitle', title));
   return s;
-}
-
-/** Fila "etiqueta …… número" para desgloses (menús, tallas, etc.). */
-function totRow(label, num) {
-  const r = el('div', 'tot-row');
-  r.appendChild(el('span', 'tot-row__label', label));
-  r.appendChild(el('span', 'tot-row__num', String(num)));
-  return r;
 }
 
 /* ---------- Init de la pestaña ---------- */
@@ -120,63 +187,48 @@ export async function initTotalesTab(container) {
   const t = aggregate(docs);
 
   container.textContent = '';
+  container.appendChild(el('p', 'adm-hint', 'Pulsa cualquier total para ver quiénes lo componen.'));
 
   /* --- 1 · General --- */
   const general = section('General');
-  const stats = el('div', 'res-stats');
-  stats.append(
-    statBox(t.asisten, 'asistentes'),
-    statBox(t.confirmaciones, 'confirmaciones'),
-    statBox(t.noAsisten, 'no asistirán'),
-  );
-  general.appendChild(stats);
+  general.appendChild(statGroup([
+    { label: 'asistentes', members: t.asisten },
+    { label: 'confirmaciones', members: t.confirmaciones },
+    { label: 'no asistirán', members: t.noAsisten },
+  ]));
   container.appendChild(general);
 
   /* --- 2 · Comida (catering) --- */
   const comida = section('Comida · catering');
-  Object.entries(t.menus).forEach(([key, n]) => comida.appendChild(totRow(MENU_LABELS[key], n)));
-  if (t.menusOtro.length) {
-    const otros = el('p', 'tot-note');
-    otros.textContent = `"Otro": ${t.menusOtro.join(' · ')}`;
-    comida.appendChild(otros);
-  }
-  comida.appendChild(el('h4', 'tot-minititle', `Alergias e intolerancias (${t.alergias.length})`));
-  if (t.alergias.length === 0) {
-    comida.appendChild(el('p', 'tot-note', 'Nadie ha indicado alergias.'));
-  } else {
-    t.alergias.forEach(({ nombre, texto }) => comida.appendChild(totRow(`${nombre} — ${texto}`, '')));
-  }
+  Object.entries(t.menus).forEach(([key, members]) => {
+    comida.appendChild(expandableRow(MENU_LABELS[key], members));
+  });
+  comida.appendChild(el('h4', 'tot-minititle', 'Alergias e intolerancias'));
+  comida.appendChild(expandableRow('Personas con alergias', t.alergias));
   container.appendChild(comida);
 
   /* --- 3 · Zapatos / alpargatas --- */
   const zapatos = section('Zapatos de recambio');
-  zapatos.appendChild(totRow('Personas que los necesitan', t.zapatos));
-  // Desglose por talla, ordenado numéricamente ("sin talla" al final)
+  zapatos.appendChild(expandableRow('Personas que los necesitan', t.zapatos));
   [...t.tallas.entries()]
     .sort((a, b) => (parseFloat(a[0]) || 999) - (parseFloat(b[0]) || 999))
-    .forEach(([talla, n]) => zapatos.appendChild(totRow(`Talla ${talla}`, n)));
+    .forEach(([talla, members]) => zapatos.appendChild(expandableRow(`Talla ${talla}`, members)));
   container.appendChild(zapatos);
 
   /* --- 4 · Autobús --- */
   const bus = section('Autobús');
-  const busStats = el('div', 'res-stats res-stats--two');
-  busStats.append(statBox(t.busIda, 'bus de ida'), statBox(t.busVuelta, 'bus de vuelta'));
-  bus.appendChild(busStats);
+  bus.appendChild(statGroup([
+    { label: 'bus de ida', members: t.busIda },
+    { label: 'bus de vuelta', members: t.busVuelta },
+  ]));
   container.appendChild(bus);
 
   /* --- 5 · Viaje / logística --- */
   const viaje = section('Viaje · los de fuera');
-  const viajeStats = el('div', 'res-stats res-stats--two');
-  viajeStats.append(statBox(t.fuera, 'vienen de fuera'), statBox(t.zaragoza, 'de Zaragoza'));
-  viaje.appendChild(viajeStats);
-  viaje.appendChild(el('h4', 'tot-minititle', `Coches con plazas libres (${t.coches.length})`));
-  if (t.coches.length === 0) {
-    viaje.appendChild(el('p', 'tot-note', 'Nadie ha ofrecido plazas de coche todavía.'));
-  } else {
-    t.coches.forEach((c) => {
-      const tramos = [c.ida && 'ida', c.vuelta && 'vuelta'].filter(Boolean).join(' y ');
-      viaje.appendChild(totRow(`${c.quien}${c.desde ? ` · desde ${c.desde}` : ''}`, tramos));
-    });
-  }
+  viaje.appendChild(statGroup([
+    { label: 'vienen de fuera', members: t.fuera },
+    { label: 'de Zaragoza', members: t.zaragoza },
+  ]));
+  viaje.appendChild(expandableRow('Coches con plazas libres', t.coches));
   container.appendChild(viaje);
 }
