@@ -38,13 +38,16 @@ service cloud.firestore {
     }
 
     // ---------- CONFIRMACIONES (RSVP) — SENSIBLE ----------
-    // Lectura SOLO para peticiones autenticadas: la página privada
-    // /resultados hace signInAnonymously() tras la contraseña.
-    // (Requiere activar el proveedor "Anónimo" en Firebase Auth.)
+    // Lectura, EDICIÓN y BORRADO solo para peticiones autenticadas: la
+    // página privada /resultados hace signInAnonymously() tras la
+    // contraseña. Los invitados solo pueden CREAR (con validación).
+    // El "borrar" del panel es un soft delete (update deleted:true) y el
+    // editar guarda un snapshot `original`; el delete real vacía la
+    // papelera. (Requiere el proveedor "Anónimo" en Firebase Auth.)
     match /rsvp/{rsvpId} {
       allow read: if request.auth != null;
       allow create: if isValidRsvp(request.resource.data);
-      allow update, delete: if false;
+      allow update, delete: if request.auth != null;
     }
 
     // ---------- LUGARES (ilustración interactiva) ----------
