@@ -8,8 +8,9 @@ rules_version = '2';
 //     o pegándolo en la consola: Firestore Database → "Reglas" → Publicar.
 //
 // Modelo:
-//  · scores (ranking del juego): lectura PÚBLICA, solo se puede CREAR
-//    (con validación). No se puede editar ni borrar desde el cliente.
+//  · scores (ranking del juego): lectura PÚBLICA, se puede CREAR (con
+//    validación) y BORRAR solo con sesión (el panel de los novios
+//    modera el ranking). No se puede editar desde el cliente.
 //  · rsvp (confirmaciones, DATOS SENSIBLES: nombres, alergias=salud, menús):
 //    se puede CREAR para confirmar; la LECTURA exige autenticación
 //    (request.auth != null): la usa la página privada /resultados vía
@@ -23,10 +24,13 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ---------- RANKING DEL JUEGO ----------
+    // delete con sesión (anónima): los novios moderan el ranking desde
+    // el panel /resultados (misma limitación asumida que en "lugares").
     match /scores/{scoreId} {
       allow read: if true;                          // ranking público
       allow create: if isValidScore(request.resource.data);
-      allow update, delete: if false;               // inmutable desde el cliente
+      allow update: if false;                       // inmutable desde el cliente
+      allow delete: if request.auth != null;
     }
 
     // ---------- CONFIRMACIONES (RSVP) — SENSIBLE ----------
