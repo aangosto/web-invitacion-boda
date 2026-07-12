@@ -16,7 +16,7 @@
 
 import { db, isConfigured } from '../firebase.js';
 import {
-  collection, doc, getDocs, setDoc, addDoc, deleteDoc, orderBy, query,
+  collection, doc, getDocs, setDoc, addDoc, deleteDoc, updateDoc, orderBy, query,
 } from 'firebase/firestore';
 
 /** Lugares de ejemplo: siembra inicial y respaldo sin Firebase. */
@@ -46,11 +46,38 @@ function toDoc(lugar) {
   };
 }
 
-/** Lee todos los lugares ordenados. Sin Firebase → SEED (respaldo). */
-export async function fetchLugares() {
-  if (!isConfigured) return [...SEED_LUGARES];
+/** Lee TODOS los documentos (activos y papelera), ordenados. */
+async function fetchTodos() {
   const snap = await getDocs(query(collection(db, 'lugares'), orderBy('orden')));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Lugares ACTIVOS (los que ve la web pública y la lista normal del
+    panel: se filtra la papelera). Sin Firebase → SEED (respaldo). */
+export async function fetchLugares() {
+  if (!isConfigured) return [...SEED_LUGARES];
+  return (await fetchTodos()).filter((l) => l.deleted !== true);
+}
+
+/** Lugares en la PAPELERA (deleted: true). */
+export async function fetchLugaresPapelera() {
+  if (!isConfigured) return [];
+  return (await fetchTodos()).filter((l) => l.deleted === true);
+}
+
+/** Soft delete: mueve el lugar a la papelera (recuperable). */
+export async function softDeleteLugar(id) {
+  await updateDoc(doc(db, 'lugares', id), { deleted: true });
+}
+
+/** Restaura un lugar de la papelera. */
+export async function restoreLugar(id) {
+  await updateDoc(doc(db, 'lugares', id), { deleted: false });
+}
+
+/** Borrado DEFINITIVO (irreversible): elimina el documento de verdad. */
+export async function deleteLugarForever(id) {
+  await deleteDoc(doc(db, 'lugares', id));
 }
 
 /** Crea (id = null) o actualiza (con id) un lugar. Devuelve su id. */
@@ -61,11 +88,6 @@ export async function saveLugar(id, lugar) {
   }
   const ref = await addDoc(collection(db, 'lugares'), toDoc(lugar));
   return ref.id;
-}
-
-/** Borra un lugar por id. */
-export async function deleteLugar(id) {
-  await deleteDoc(doc(db, 'lugares', id));
 }
 
 /** Siembra los lugares de ejemplo (para la primera vez, desde el panel). */

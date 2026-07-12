@@ -9,7 +9,7 @@
    ================================================================= */
 
 import {
-  fetchLugares, saveLugar, deleteLugar, seedLugares,
+  fetchLugares, saveLugar, softDeleteLugar, seedLugares,
 } from './lugares-data.js';
 
 function el(tag, className, text) {
@@ -211,9 +211,10 @@ export async function initLugaresTab(container) {
       const del = el('button', 'adm-row__btn adm-row__btn--danger', 'Borrar');
       del.type = 'button';
       del.addEventListener('click', async () => {
-        if (!window.confirm(`¿Borrar "${lugar.titulo}"? Esta acción no se puede deshacer.`)) return;
-        setFeedback('Borrando…');
-        try { await deleteLugar(lugar.id); setFeedback('Borrado ✓', 'is-ok'); await load(); }
+        // Soft delete: va a la papelera del panel, no se pierde nada
+        if (!window.confirm(`"${lugar.titulo}" se moverá a la papelera; podrás recuperarlo desde la pestaña Papelera. ¿Continuar?`)) return;
+        setFeedback('Moviendo a la papelera…');
+        try { await softDeleteLugar(lugar.id); setFeedback('Movido a la papelera ✓', 'is-ok'); await load(); }
         catch (err) { console.error(err); setFeedback('No se ha podido borrar.', 'is-error'); }
       });
       actions.append(edit, del);

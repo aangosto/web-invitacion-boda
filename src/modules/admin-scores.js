@@ -7,7 +7,7 @@
    ================================================================= */
 
 import { db } from '../firebase.js';
-import { collection, deleteDoc, doc, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, doc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -95,13 +95,14 @@ export async function initScoresTab(container) {
       const del = el('button', 'adm-row__btn adm-row__btn--danger', 'Borrar');
       del.type = 'button';
       del.addEventListener('click', async () => {
-        if (!window.confirm(`¿Seguro que quieres borrar esta puntuación?\n${s.name} · ${s.points} pts (Team ${s.team === 'novio' ? 'Novio' : 'Novia'})`)) return;
+        // Soft delete: la puntuación va a la papelera, recuperable
+        if (!window.confirm(`${s.name} · ${s.points} pts se moverá a la papelera; podrás recuperarla desde la pestaña Papelera. ¿Continuar?`)) return;
         del.disabled = true;
-        setFeedback('Borrando…');
+        setFeedback('Moviendo a la papelera…');
         try {
-          await deleteDoc(doc(db, 'scores', s.id));
+          await updateDoc(doc(db, 'scores', s.id), { deleted: true });
           scores = scores.filter((x) => x.id !== s.id);
-          setFeedback('Puntuación borrada ✓', 'is-ok');
+          setFeedback('Movida a la papelera ✓', 'is-ok');
           render();
         } catch (err) {
           console.error(err);
@@ -116,9 +117,11 @@ export async function initScoresTab(container) {
     });
   }
 
-  /* ---- Carga inicial: por puntos, de mayor a menor ---- */
+  /* ---- Carga inicial: por puntos desc, sin las de la papelera ---- */
   listEl.textContent = 'Cargando puntuaciones…';
   const snap = await getDocs(query(collection(db, 'scores'), orderBy('points', 'desc')));
-  scores = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  scores = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((s) => s.deleted !== true);
   render();
 }

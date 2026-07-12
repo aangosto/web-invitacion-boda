@@ -28,7 +28,8 @@ function watchFirestore(cb) {
   const q = query(collection(db, 'scores'), orderBy('points', 'desc'), limit(TOP_LIMIT));
   return onSnapshot(
     q,
-    (snap) => cb(snap.docs.map((d) => d.data())),
+    // Las puntuaciones en la papelera del panel (deleted) no se muestran
+    (snap) => cb(snap.docs.map((d) => d.data()).filter((s) => s.deleted !== true)),
     (err) => console.error('[scores] onSnapshot:', err)
   );
 }
