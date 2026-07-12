@@ -5,7 +5,8 @@
    ================================================================= */
 
 import { db } from '../firebase.js';
-import { collection, doc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, orderBy, query, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { createRsvpEditor } from './rsvp-editor.js';
 
 const MENU_LABELS = { ninguno: 'Menú normal', vegetariano: 'Vegetariano', vegano: 'Vegano', otro: 'Otro' };
 const MODE_LABELS = { bus: 'Bus', ave: 'AVE', coche: 'Coche', otro: 'Otro' };
@@ -63,6 +64,108 @@ function travelLines(data) {
   return lines;
 }
 
+/** Snapshot de los campos editables tal como están AHORA (para guardar
+    el "original" la primera vez que se edita). Sin valores undefined. */
+function editableSnapshot(d) {
+  if (d.attending === false) return { filledBy: d.filledBy || '', attending: false };
+  const snap = { filledBy: d.filledBy || '', attending: true, origin: d.origin || '', people: Array.isArray(d.people) ? d.people : [] };
+  if (d.travel) snap.travel = d.travel;
+  return snap;
+}
+
+/** Guarda una edición. La PRIMERA vez conserva el estado original en el
+    campo `original` (no se sobrescribe en ediciones posteriores). Se
+    reescribe el documento entero (setDoc) para no dejar campos obsoletos
+    al cambiar, p. ej., de "asiste" a "no asiste". */
+async function saveEdit(data, payload) {
+  const original = data.original || editableSnapshot(data);
+  const full = { ...payload, original, edited: true, editedAt: serverTimestamp() };
+  if (data.createdAt) full.createdAt = data.createdAt;
+  if (data.deleted === true) full.deleted = true;
+  await setDoc(doc(db, 'rsvp', data.id), full);
+}
+
+/** Devuelve el documento a los valores guardados en `original`. */
+async function restoreOriginal(data) {
+  const orig = data.original;
+  const full = { ...orig, original: orig, edited: false };
+  if (data.createdAt) full.createdAt = data.createdAt;
+  if (data.deleted === true) full.deleted = true;
+  await setDoc(doc(db, 'rsvp', data.id), full);
+}
+
+/** Caja de solo lectura con el original enviado por el invitado. */
+function originalBox(orig) {
+  const box = el('div', 'res-original');
+  box.appendChild(el('p', 'res-original__title', 'Original enviado por el invitado'));
+  box.appendChild(el('p', 'res-original__who', orig.filledBy || '—'));
+  if (orig.attending === false) {
+    box.appendChild(el('p', 'res-person__meta', 'No asiste'));
+    return box;
+  }
+  (orig.people || []).forEach((p) => {
+    box.appendChild(el('p', 'res-person__name', p.name || '—'));
+    box.appendChild(el('p', 'res-person__meta', personLine(p)));
+  });
+  travelLines(orig).forEach((line) => box.appendChild(el('p', 'res-card__travel', line)));
+  return box;
+}
+
+/** Pantalla de edición (ocupa la pestaña); al terminar, recarga la lista. */
+function renderEditor(container, data) {
+  container.innerHTML = '';
+  const wrap = el('div', 'adm-editor');
+  wrap.appendChild(el('h3', 'adm-editor__title', `Editar: ${data.filledBy || '—'}`));
+
+  const editor = createRsvpEditor(data);
+  wrap.appendChild(editor.element);
+
+  const fb = el('p', 'form-feedback');
+  fb.setAttribute('role', 'status');
+  fb.setAttribute('aria-live', 'polite');
+
+  const actions = el('div', 'adm-editor__actions');
+  const cancel = el('button', 'btn btn--ghost', 'Cancelar');
+  cancel.type = 'button';
+  cancel.addEventListener('click', () => initRsvpTab(container));
+  const save = el('button', 'btn btn--solid', 'Guardar');
+  save.type = 'button';
+  save.addEventListener('click', async () => {
+    const error = editor.validate();
+    if (error) { fb.textContent = error; fb.className = 'form-feedback is-error'; return; }
+    save.disabled = true;
+    fb.textContent = 'Guardando…'; fb.className = 'form-feedback';
+    try {
+      await saveEdit(data, editor.read());
+      await initRsvpTab(container);
+    } catch (err) {
+      console.error(err);
+      save.disabled = false;
+      fb.textContent = 'No se ha podido guardar. Inténtalo de nuevo.'; fb.className = 'form-feedback is-error';
+    }
+  });
+  actions.append(cancel, save);
+
+  // Restaurar original: solo si ya hay un original guardado
+  if (data.original) {
+    const restore = el('button', 'btn btn--ghost btn--block', 'Restaurar original');
+    restore.type = 'button';
+    restore.addEventListener('click', async () => {
+      if (!window.confirm('Se descartarán los cambios y volverá a lo que envió el invitado. ¿Continuar?')) return;
+      restore.disabled = true;
+      fb.textContent = 'Restaurando…'; fb.className = 'form-feedback';
+      try { await restoreOriginal(data); await initRsvpTab(container); }
+      catch (err) { console.error(err); restore.disabled = false; fb.textContent = 'No se ha podido restaurar.'; fb.className = 'form-feedback is-error'; }
+    });
+    wrap.append(actions, fb, restore);
+  } else {
+    wrap.append(actions, fb);
+  }
+
+  container.appendChild(wrap);
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 /** Init de la pestaña: descarga y pinta (re-llamable tras editar/borrar). */
 export async function initRsvpTab(container) {
   container.textContent = 'Cargando confirmaciones…';
@@ -116,6 +219,12 @@ export async function initRsvpTab(container) {
 
     const head = el('header', 'res-card__head');
     head.appendChild(el('span', 'res-card__who', data.filledBy || '—'));
+    // Marca "Editada" si el registro se modificó respecto al original
+    if (data.edited === true) {
+      const chip = el('span', 'res-badge res-badge--edited', '✎ Editada');
+      if (data.editedAt) chip.title = `Editada el ${formatDate(data.editedAt)}`;
+      head.appendChild(chip);
+    }
     head.appendChild(el('span',
       data.attending === false ? 'res-badge res-badge--no' : 'res-badge',
       data.attending === false ? 'No asiste' : 'Asiste'));
@@ -132,8 +241,28 @@ export async function initRsvpTab(container) {
       travelLines(data).forEach((line) => card.appendChild(el('p', 'res-card__travel', line)));
     }
 
-    // --- Acciones: borrar (soft delete → papelera) ---
+    // --- Acciones: editar · ver original · borrar (soft) ---
     const actions = el('div', 'res-card__actions');
+
+    const edit = el('button', 'adm-row__btn', 'Editar');
+    edit.type = 'button';
+    edit.addEventListener('click', () => renderEditor(container, data));
+    actions.appendChild(edit);
+
+    // "Ver original": solo si hay snapshot guardado (registro ya editado)
+    if (data.original) {
+      const seeOrig = el('button', 'adm-row__btn', 'Ver original');
+      seeOrig.type = 'button';
+      let box = null;
+      seeOrig.addEventListener('click', () => {
+        if (box) { box.remove(); box = null; seeOrig.textContent = 'Ver original'; return; }
+        box = originalBox(data.original);
+        card.insertBefore(box, actions);
+        seeOrig.textContent = 'Ocultar original';
+      });
+      actions.appendChild(seeOrig);
+    }
+
     const del = el('button', 'adm-row__btn adm-row__btn--danger', 'Borrar');
     del.type = 'button';
     del.addEventListener('click', async () => {

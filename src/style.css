@@ -1546,6 +1546,36 @@ a { color: inherit; }
   border-radius: 999px;
 }
 .res-badge--no { background: var(--taupe-deep); }
+.res-badge--edited { background: var(--taupe); color: var(--ink); }
+
+/* Caja de solo lectura con el original enviado por el invitado */
+.res-original {
+  margin: 0.7rem 0;
+  padding: 0.7rem 0.9rem;
+  background: rgba(182,168,148,0.14);
+  border-left: 3px solid var(--taupe-deep);
+  border-radius: 0 6px 6px 0;
+}
+.res-original__title {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--taupe-deep);
+  margin-bottom: 0.3rem;
+}
+.res-original__who { font-family: var(--font-serif); font-weight: 600; color: var(--ink); }
+
+/* Editor de confirmación: personas y cabecera de cada persona */
+.rsvp-editor { display: grid; gap: 1rem; }
+.rsvp-editor__people { display: grid; gap: 0.9rem; }
+.rsvp-editor__phead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
 .res-card__date {
   font-family: var(--font-sans);
   font-size: 0.75rem;
