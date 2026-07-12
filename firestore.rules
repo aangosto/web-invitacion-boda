@@ -14,6 +14,9 @@ rules_version = '2';
 //    se puede CREAR para confirmar; la LECTURA exige autenticación
 //    (request.auth != null): la usa la página privada /resultados vía
 //    inicio de sesión ANÓNIMO tras introducir la contraseña.
+//  · lugares (puntos de la ilustración interactiva): lectura PÚBLICA
+//    (la home los muestra); escritura solo autenticada + validación de
+//    forma (la gestiona el panel /resultados).
 // =====================================================================
 
 service cloud.firestore {
@@ -36,7 +39,34 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ---------- LUGARES (ilustración interactiva) ----------
+    // Lectura pública: la home pinta los marcadores para todo el mundo.
+    // Escritura: exige sesión (anónima) + validación estricta de campos.
+    //
+    // ⚠️ LIMITACIÓN ASUMIDA (léeme): el panel usa contraseña en cliente +
+    // Auth ANÓNIMA, así que cualquiera que abra la web puede obtener una
+    // sesión anónima válida y, con esfuerzo, escribir aquí. La validación
+    // de forma (tipos, rangos 0-100, longitudes) limita el daño posible a
+    // "vandalismo con formato correcto". Esto DIFICULTA, no impide. La
+    // solución fuerte sería login real de los novios (email/contraseña)
+    // y exigir request.auth.uid == '<uid-de-los-novios>'.
+    match /lugares/{lugarId} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && isValidLugar(request.resource.data);
+      allow delete: if request.auth != null;
+    }
+
     // ---------- Validaciones ----------
+    function isValidLugar(d) {
+      return d.keys().hasOnly(['x', 'y', 'titulo', 'texto', 'orden'])
+        && d.x is number && d.x >= 0 && d.x <= 100
+        && d.y is number && d.y >= 0 && d.y <= 100
+        && d.titulo is string && d.titulo.size() >= 1 && d.titulo.size() <= 80
+        && d.texto is string && d.texto.size() <= 1200
+        && d.orden is number && d.orden >= 0 && d.orden <= 999;
+    }
+
     function isValidScore(d) {
       return d.keys().hasOnly(['name', 'team', 'points', 'createdAt'])
         && d.name is string && d.name.size() >= 1 && d.name.size() <= 40
