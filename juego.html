@@ -33,14 +33,54 @@
             <button type="button" class="team-btn" data-team="novia">
               <span class="team-btn__emoji" aria-hidden="true">🍋</span>
               <span class="team-btn__name">Team Novia</span>
-              <span class="team-btn__hint">Atrapa limones de Murcia</span>
+              <span class="team-btn__hint">Limón, espeto, biznaga y marinera</span>
             </button>
             <button type="button" class="team-btn" data-team="novio">
               <span class="team-btn__emoji" aria-hidden="true">🍸</span>
               <span class="team-btn__name">Team Novio</span>
-              <span class="team-btn__hint">Vermut y Real Zaragoza</span>
+              <span class="team-btn__hint">Vermut, ternasco, cartas y Zaragoza</span>
             </button>
           </div>
+        </div>
+
+        <!-- Pantalla 1b: instrucciones (tras elegir equipo; contenido
+             de "atrapa/evita" rellenado desde JS según el equipo) -->
+        <div id="game-help" class="game__screen game-help" hidden>
+          <p id="game-help-team" class="game-help__team">Team Novia</p>
+
+          <ul class="game-help__list">
+            <li class="game-help__row">
+              <span class="game-help__icon" aria-hidden="true">🧺</span>
+              <span>Mueve la cesta arrastrando el dedo (o con ← →).</span>
+            </li>
+            <li class="game-help__row">
+              <span class="game-help__icon game-help__icon--ok" aria-hidden="true">+10</span>
+              <span>Atrapa los artículos de <b>tu equipo</b>:
+                <span id="game-help-catch" class="game-help__items"></span></span>
+            </li>
+            <li class="game-help__row">
+              <span class="game-help__icon game-help__icon--bad" aria-hidden="true">−5</span>
+              <span>Los del equipo contrario <b>restan</b>:
+                <span id="game-help-avoid" class="game-help__items"></span></span>
+            </li>
+            <li class="game-help__row">
+              <span class="game-help__icon" aria-hidden="true">●●●</span>
+              <span>Si se te escapa uno de los tuyos, pierdes una vida.
+                Con tres fallos, fin de la partida.</span>
+            </li>
+            <li class="game-help__row">
+              <span class="game-help__icon" aria-hidden="true">✨</span>
+              <span>Boosters (¡cógelos siempre!):
+                <span id="game-help-boosters" class="game-help__boosters"></span></span>
+            </li>
+            <li class="game-help__row">
+              <span class="game-help__icon" aria-hidden="true">⏱️</span>
+              <span>Cuanto más aguantes, más deprisa cae todo.</span>
+            </li>
+          </ul>
+
+          <button type="button" class="btn btn--solid btn--block" id="game-begin">¡Empezar!</button>
+          <button type="button" class="btn btn--ghost btn--block" id="game-help-back">← Cambiar de equipo</button>
         </div>
 
         <!-- Pantalla 2: juego -->

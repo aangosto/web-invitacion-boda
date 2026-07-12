@@ -41,6 +41,7 @@ export function initMinigame() {
   if (!root) return;
 
   const screenStart = document.getElementById('game-start');
+  const screenHelp = document.getElementById('game-help');
   const screenPlay = document.getElementById('game-play');
   const screenOver = document.getElementById('game-over');
   const canvas = document.getElementById('game-canvas');
@@ -324,7 +325,40 @@ export function initMinigame() {
   }
 
   function show(screen) {
-    [screenStart, screenPlay, screenOver].forEach((s) => (s.hidden = s !== screen));
+    [screenStart, screenHelp, screenPlay, screenOver].forEach((s) => (s.hidden = s !== screen));
+  }
+
+  /* ---------- Pantalla de instrucciones ---------- */
+  // Rellena las partes que dependen del equipo: nombre, artículos que
+  // suman (los tuyos) y los que restan (los contrarios), y los boosters.
+  function renderHelp() {
+    const teamEl = document.getElementById('game-help-team');
+    teamEl.textContent = team === 'novio' ? 'Team Novio' : 'Team Novia';
+    teamEl.style.color = team === 'novio' ? 'var(--burgundy)' : 'var(--taupe-deep)';
+
+    const fillItems = (elId, wanted) => {
+      const box = document.getElementById(elId);
+      box.innerHTML = '';
+      Object.values(ITEMS).filter((d) => (d.team === team) === wanted).forEach((d) => {
+        const img = document.createElement('img');
+        img.src = d.img;
+        img.alt = '';
+        img.className = 'game-help__item';
+        box.appendChild(img);
+      });
+    };
+    fillItems('game-help-catch', true);
+    fillItems('game-help-avoid', false);
+
+    const boostersBox = document.getElementById('game-help-boosters');
+    boostersBox.innerHTML = '';
+    const DESC = { x2: 'puntos dobles', slow: 'la caída se frena', magnet: 'atrae los tuyos' };
+    Object.entries(BOOSTERS).forEach(([key, b]) => {
+      const span = document.createElement('span');
+      span.className = 'game-help__booster';
+      span.textContent = `${b.emoji} ${b.label} (${DESC[key]})`;
+      boostersBox.appendChild(span);
+    });
   }
 
   /* ---------- Entrada (puntero + teclado) ---------- */
@@ -343,10 +377,18 @@ export function initMinigame() {
   });
   window.addEventListener('resize', () => { if (running) resize(); });
 
-  /* ---------- Botones ---------- */
+  /* ---------- Botones ----------
+     Elegir equipo → instrucciones → ¡Empezar! → partida.
+     "Jugar otra vez" salta las instrucciones (ya las ha visto). */
   root.querySelectorAll('.team-btn').forEach((btn) => {
-    btn.addEventListener('click', () => { team = btn.dataset.team; startGame(); });
+    btn.addEventListener('click', () => {
+      team = btn.dataset.team;
+      renderHelp();
+      show(screenHelp);
+    });
   });
+  document.getElementById('game-begin').addEventListener('click', startGame);
+  document.getElementById('game-help-back').addEventListener('click', () => show(screenStart));
   saveBtn.addEventListener('click', saveCurrentScore);
   document.getElementById('game-again').addEventListener('click', startGame);
   document.getElementById('game-switch').addEventListener('click', () => show(screenStart));

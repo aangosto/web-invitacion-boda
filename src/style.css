@@ -1009,6 +1009,46 @@ a { color: inherit; }
 .team-btn__name { font-family: var(--font-serif); font-weight: 600; font-size: 1.25rem; }
 .team-btn__hint { font-family: var(--font-sans); font-size: 0.78rem; color: var(--ink-soft); }
 
+/* --- Instrucciones (tras elegir equipo) --- */
+.game-help { text-align: left; }
+.game-help__team {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1;
+  text-align: center;
+  color: var(--burgundy);
+}
+.game-help__list {
+  list-style: none;
+  margin: 0;
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 0.7rem;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(110,36,53,0.15);
+  border-radius: 10px;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.game-help__row { display: flex; align-items: flex-start; gap: 0.6rem; }
+.game-help__icon {
+  flex: 0 0 2.4rem;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.game-help__icon--ok { color: var(--taupe-deep); }
+.game-help__icon--bad { color: var(--burgundy); }
+/* Miniaturas de los artículos que suman / restan */
+.game-help__items { display: inline-flex; gap: 0.25rem; vertical-align: middle; margin-left: 0.2rem; }
+.game-help__item { width: 30px; height: 30px; object-fit: contain; }
+/* Boosters: uno por línea, con su icono delante */
+.game-help__boosters { display: block; margin-top: 0.2rem; }
+.game-help__booster { display: block; color: var(--ink-soft); }
+
 /* --- HUD --- */
 .game__hud {
   display: flex;
