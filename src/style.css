@@ -1151,6 +1151,54 @@ a { color: inherit; }
 }
 
 /* =================================================================
+   12b. REGALO (frase + IBAN, contenido de Firestore)
+   ================================================================= */
+.gift {
+  max-width: 30rem;
+  margin: 0 auto;
+}
+.gift__frase {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.2rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+  margin-bottom: 1.6rem;
+}
+.gift__account {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.3rem 1.2rem;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(110,36,53,0.15);
+  border-radius: 10px;
+}
+.gift__iban-label {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--taupe-deep);
+}
+.gift__iban {
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  color: var(--burgundy);
+  /* Que un IBAN largo no rompa el layout en móvil */
+  word-break: break-word;
+}
+.gift__copy { min-height: 44px; padding: 0.5rem 1.4rem; margin-top: 0.3rem; }
+.gift__copied {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--taupe-deep);
+  min-height: 1em;
+}
+
+/* =================================================================
    13. CIERRE
    ================================================================= */
 .closing {

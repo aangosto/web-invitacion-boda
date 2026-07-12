@@ -14,12 +14,14 @@ import { initCalendar } from './modules/calendar.js';
 import { initReveal } from './modules/reveal.js';
 import { initParallax } from './modules/parallax.js';
 import { initLugares } from './modules/lugares.js';
+import { initRegalo } from './modules/regalo.js';
 
 function boot() {
   initCountdown();
   initNav();
   initCalendar();
   initLugares();
+  initRegalo();
 
   // La apertura controla cuándo se muestra el contenido.
   initOpening({

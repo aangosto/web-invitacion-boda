@@ -79,6 +79,7 @@
       <li><a href="#lugares">Lugares</a></li>
       <li><a href="#ceremonia">Ceremonia</a></li>
       <li><a href="#mapa">Lugar</a></li>
+      <li><a href="#regalo">Regalo</a></li>
       <li><a href="./cuestionario.html">Confirmar</a></li>
       <li><a href="./juego.html">Team</a></li>
     </ul>
@@ -217,6 +218,22 @@
           <span class="cta-card__text">Juega y entra en el ranking</span>
           <span class="cta-card__go">Jugar →</span>
         </a>
+      </div>
+    </section>
+
+    <!-- REGALO (frase + IBAN; el contenido se lee de Firestore:
+         config/regalo, editable desde el panel) -->
+    <section id="regalo" class="section section--gift">
+      <div class="floral-rule reveal" aria-hidden="true">✿</div>
+      <h2 class="section__title reveal">Un detalle</h2>
+      <div class="gift reveal">
+        <p id="gift-frase" class="gift__frase">Cargando…</p>
+        <div class="gift__account">
+          <span class="gift__iban-label">Nº de cuenta</span>
+          <span id="gift-iban" class="gift__iban"></span>
+          <button type="button" id="gift-copy" class="btn btn--ghost gift__copy" hidden>Copiar</button>
+          <span id="gift-copied" class="gift__copied" role="status" aria-live="polite"></span>
+        </div>
       </div>
     </section>
 
