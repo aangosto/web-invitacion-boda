@@ -10,17 +10,31 @@
 import { saveScore } from './scores.js';
 
 /* ---------------- Definición de objetos ---------------- */
-// Objetos por equipo. Los boosters son neutrales (siempre conviene cogerlos).
-const ITEMS = {
-  lemon:  { team: 'novia', emoji: '🍋' },
-  vermut: { team: 'novio', emoji: '🍸' },
-  shield: { team: 'novio', shield: true }, // escudo Real Zaragoza (dibujado)
+// Objetos por equipo, con su sprite PNG (transparencia real) en public/.
+// Si el sprite no carga, se dibuja el respaldo: círculo de color + emoji.
+export const ITEMS = {
+  limon:    { team: 'novia', img: '/nov_limon.png',    emoji: '🍋', color: '#e7cf6a' },
+  espeto:   { team: 'novia', img: '/nov_espeto.png',   emoji: '🐟', color: '#8a7b64' },
+  biznaga:  { team: 'novia', img: '/nov_biznaga.png',  emoji: '💮', color: '#efece3' },
+  marinera: { team: 'novia', img: '/nov_marinera.png', emoji: '🥖', color: '#d9a05b' },
+  vermut:   { team: 'novio', img: '/nio_vermut.png',   emoji: '🍸', color: '#6e2435' },
+  ternasco: { team: 'novio', img: '/nio_ternasco.png', emoji: '🍗', color: '#b0713a' },
+  cartas:   { team: 'novio', img: '/nio_cartas.png',   emoji: '🃏', color: '#f5f1e9' },
+  escudo:   { team: 'novio', img: '/nio_escudo.png',   emoji: '🛡️', color: '#1f3a6b' },
 };
-const BOOSTERS = {
+export const BOOSTERS = {
   x2:     { emoji: '✖️', label: '×2 puntos', color: '#6e2435' },
   slow:   { emoji: '🐌', label: 'Caída lenta', color: '#7a6b54' }, // topo (--taupe-deep)
   magnet: { emoji: '🧲', label: 'Imán', color: '#561a28' },
 };
+
+// Precarga de sprites: solo los cargados se usan al dibujar (fallback si no).
+const sprites = {};
+Object.entries(ITEMS).forEach(([key, def]) => {
+  const img = new Image();
+  img.onload = () => { sprites[key] = img; };
+  img.src = def.img;
+});
 
 export function initMinigame() {
   const root = document.getElementById('game');
@@ -95,33 +109,6 @@ export function initMinigame() {
   }
 
   /* ---------- Dibujo ---------- */
-  function drawShield(x, y, s) {
-    // Escudo blanquillo del Real Zaragoza (estilizado): blanco con perfil azul.
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.beginPath();
-    ctx.moveTo(-s, -s);
-    ctx.lineTo(s, -s);
-    ctx.lineTo(s, s * 0.35);
-    ctx.quadraticCurveTo(s, s, 0, s * 1.15);
-    ctx.quadraticCurveTo(-s, s, -s, s * 0.35);
-    ctx.closePath();
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = '#1f3a6b';
-    ctx.stroke();
-    // Barra vertical azul + letra
-    ctx.fillStyle = '#1f3a6b';
-    ctx.fillRect(-s * 0.18, -s * 0.7, s * 0.36, s * 1.5);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${Math.round(s)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Z', 0, s * 0.05);
-    ctx.restore();
-  }
-
   function drawBasket() {
     const x = basket.x, w = basket.w, y = H - 26, h = 30;
     ctx.save();
@@ -149,10 +136,6 @@ export function initMinigame() {
   }
 
   function drawObject(o) {
-    if (o.def.shield) {
-      drawShield(o.x, o.y, o.r * 0.95);
-      return;
-    }
     if (o.isBooster) {
       // halo del booster
       ctx.save();
@@ -165,13 +148,31 @@ export function initMinigame() {
       ctx.stroke();
       ctx.restore();
     }
+
     ctx.save();
     ctx.translate(o.x, o.y);
     ctx.rotate(o.rot);
-    ctx.font = `${o.r * 1.8}px serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(o.def.emoji, 0, 1);
+
+    // Sprite del artículo (tamaño uniforme para todos)
+    const img = !o.isBooster && sprites[o.type];
+    if (img) {
+      const s = o.r * 2.6; // caja de dibujo (los PNG vienen ya cuadrados)
+      ctx.drawImage(img, -s / 2, -s / 2, s, s);
+    } else {
+      // Respaldo si el sprite no ha cargado: círculo de color + emoji
+      if (!o.isBooster) {
+        ctx.beginPath();
+        ctx.arc(0, 0, o.r, 0, Math.PI * 2);
+        ctx.fillStyle = o.def.color || '#f5f1e9';
+        ctx.globalAlpha = 0.35;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.font = `${o.r * 1.8}px serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(o.def.emoji, 0, 1);
+    }
     ctx.restore();
   }
 
