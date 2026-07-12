@@ -24,6 +24,7 @@ import { app, isConfigured } from '../firebase.js';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 
 import { initRsvpTab } from './admin-rsvp.js';
+import { initTotalesTab } from './admin-totales.js';
 import { initLugaresTab } from './admin-lugares.js';
 import { initScoresTab } from './admin-scores.js';
 import { initPapeleraTab } from './admin-papelera.js';
@@ -31,6 +32,7 @@ import { initPapeleraTab } from './admin-papelera.js';
 /** Registro de pestañas del panel (añade aquí las futuras). */
 const TABS = [
   { id: 'rsvp', label: 'Confirmaciones', init: initRsvpTab },
+  { id: 'totales', label: 'Totales', init: initTotalesTab },
   { id: 'lugares', label: 'Lugares', init: initLugaresTab },
   { id: 'scores', label: 'Puntuaciones', init: initScoresTab },
   { id: 'papelera', label: 'Papelera', init: initPapeleraTab },
