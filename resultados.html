@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#6e2435" />
-  <!-- Página PRIVADA para los novios: no se enlaza desde el menú público
+  <!-- PANEL PRIVADO de los novios: no se enlaza desde el menú público
        y no debe indexarse. El acceso pide contraseña y, por debajo, se
-       autentica de forma anónima en Firebase para poder leer "rsvp". -->
+       autentica de forma anónima en Firebase (lee rsvp, gestiona lugares). -->
   <meta name="robots" content="noindex, nofollow" />
-  <title>Confirmaciones · María & Alberto</title>
+  <title>Panel · María & Alberto</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -25,7 +25,7 @@
   <main class="subpage-main">
     <section class="section section--results">
       <div class="floral-rule" aria-hidden="true">✿</div>
-      <h1 class="section__title">Confirmaciones</h1>
+      <h1 class="section__title">Panel de los novios</h1>
 
       <!-- Puerta de acceso: contraseña -->
       <form id="results-gate" class="results-gate" novalidate>
@@ -35,13 +35,13 @@
                  autocomplete="current-password" placeholder="Solo para los novios" />
         </label>
         <button type="submit" class="btn btn--solid btn--block">Entrar</button>
-        <p id="results-feedback" class="form-feedback" role="status" aria-live="polite"></p>
       </form>
+      <p id="results-feedback" class="form-feedback" role="status" aria-live="polite"></p>
 
-      <!-- Resultados (se rellenan desde JS tras autenticarse) -->
-      <div id="results" class="results" hidden>
-        <div id="results-stats" class="res-stats"></div>
-        <div id="results-list" class="res-list"></div>
+      <!-- Panel con pestañas (las genera src/modules/panel.js) -->
+      <div id="panel" class="panel" hidden>
+        <nav id="panel-tabs" class="panel-tabs" role="tablist" aria-label="Secciones del panel"></nav>
+        <div id="panel-view" class="panel-view"></div>
       </div>
     </section>
   </main>

@@ -1,14 +1,15 @@
 /* =================================================================
-   Punto de entrada de la página PRIVADA de resultados (resultados.html).
-   Lógica en modules/resultados.js.
+   Punto de entrada del PANEL PRIVADO de los novios (resultados.html).
+   Marco de pestañas en modules/panel.js; cada pestaña es un módulo
+   admin-*.js (confirmaciones, lugares…).
    ================================================================= */
 
 import './style.css';
 
-import { initResultados } from './modules/resultados.js';
+import { initPanel } from './modules/panel.js';
 
 function boot() {
-  initResultados();
+  initPanel();
 }
 
 if (document.readyState === 'loading') {

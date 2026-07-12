@@ -1230,6 +1230,99 @@ a { color: inherit; }
 
 .results { text-align: left; max-width: 34rem; margin: 0 auto; }
 
+/* ---- Marco del panel: pestañas ---- */
+.panel { max-width: 34rem; margin: 0 auto; text-align: left; }
+.panel-tabs {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;              /* si algún día hay muchas pestañas */
+  padding-bottom: 0.2rem;
+  margin-bottom: 1.2rem;
+  border-bottom: 1px solid rgba(110,36,53,0.15);
+}
+.panel-tab {
+  flex: 0 0 auto;
+  min-height: 44px;              /* área táctil cómoda */
+  padding: 0.5rem 1.1rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.panel-tab.is-active {
+  color: var(--burgundy);
+  border-bottom-color: var(--burgundy);
+  font-weight: 500;
+}
+
+/* ---- Pestaña Lugares: lista + editor ---- */
+.adm-hint {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-bottom: 0.9rem;
+}
+.adm-list { display: grid; gap: 0.6rem; margin-bottom: 0.9rem; }
+.adm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.6rem 0.4rem 0.6rem 0.9rem;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(110,36,53,0.15);
+  border-radius: 8px;
+}
+.adm-row__title { font-family: var(--font-serif); font-weight: 600; color: var(--ink); }
+.adm-row__meta { font-family: var(--font-sans); font-size: 0.75rem; color: var(--ink-soft); }
+.adm-row__actions { display: flex; flex-direction: column; gap: 0.2rem; }
+.adm-row__btn {
+  min-height: 40px;
+  padding: 0.3rem 0.9rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--burgundy);
+  background: none;
+  border: 1px solid rgba(110,36,53,0.3);
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+.adm-row__btn:hover { background: rgba(110,36,53,0.07); }
+.adm-row__btn--danger { color: var(--ink-soft); border-color: rgba(63,58,50,0.25); }
+.adm-row__btn--danger:hover { color: #8c2f2f; border-color: #8c2f2f; background: rgba(140,47,47,0.05); }
+
+.adm-editor {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1.2rem;
+  padding: 1.1rem;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(110,36,53,0.25);
+  border-left: 3px solid var(--burgundy);
+  border-radius: 8px;
+  /* que la cabecera pegajosa no lo tape al hacer scrollIntoView */
+  scroll-margin-top: 4.5rem;
+}
+.adm-editor__title {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.2rem;
+  color: var(--burgundy);
+}
+.adm-editor__frame { cursor: crosshair; }
+.adm-editor__textarea { min-height: 6.5rem; resize: vertical; }
+.adm-xy { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; }
+.adm-editor__actions { display: flex; gap: 0.6rem; }
+.adm-editor__actions .btn--solid { flex: 1; }
+
+/* Marcador de previsualización del editor: no captura los toques
+   (el clic debe llegar al marco para recolocar el punto) */
+.place-marker--preview { pointer-events: none; }
+
 /* Contadores (asistentes / respuestas / no asisten) */
 .res-stats {
   display: grid;

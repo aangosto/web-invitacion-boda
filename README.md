@@ -13,11 +13,12 @@ cinematográfica (el sobre se abre) como pieza central. Datos en **Firebase
   Escribe en la colección Firestore **`rsvp`**.
 - **`juego.html`** — juego de cesta "Team novia / Team novio" + ranking en vivo
   (TOP 3 por equipo). Escribe/lee la colección **`scores`**.
-- **`resultados.html`** — página PRIVADA para los novios (sin enlaces públicos,
-  `noindex`): pide la contraseña `VITE_RESULTS_PASSWORD`, hace
-  `signInAnonymously()` por debajo y lista todas las confirmaciones con
-  contador de asistentes. Requiere activar el proveedor **Anónimo** en
-  Firebase Authentication y publicar las reglas.
+- **`resultados.html`** — PANEL PRIVADO de los novios (sin enlaces públicos,
+  `noindex`): contraseña `VITE_RESULTS_PASSWORD` + `signInAnonymously()`.
+  Pestañas: **Confirmaciones** (lista de rsvp con contadores) y **Lugares**
+  (CRUD de los puntos de la ilustración; el punto se coloca tocando sobre
+  la miniatura). Para añadir pestañas futuras: módulo `admin-*.js` + una
+  entrada en el array `TABS` de `src/modules/panel.js`.
 
 ## Arrancar el proyecto
 
@@ -68,6 +69,9 @@ public/                 # vídeos comprimidos, imágenes, favicon
 ## Modelo de datos (Firestore)
 
 - **`scores`** → `{ name, team: 'novia'|'novio', points, createdAt }`
+- **`lugares`** → `{ x: 0-100, y: 0-100, titulo, texto, orden }` (id = id del
+  documento). Lectura pública (sección "Nuestros lugares" de la home);
+  escritura solo autenticada + validación de forma (pestaña Lugares del panel).
 - **`rsvp`** →
   ```
   { filledBy, attending: true|false,   // si false, solo filledBy+createdAt
