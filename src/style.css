@@ -1342,6 +1342,21 @@ a { color: inherit; }
 .adm-row__btn--danger { color: var(--ink-soft); border-color: rgba(63,58,50,0.25); }
 .adm-row__btn--danger:hover { color: #8c2f2f; border-color: #8c2f2f; background: rgba(140,47,47,0.05); }
 
+/* Etiqueta de equipo en la pestaña Puntuaciones */
+.adm-team {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fff;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+.adm-team--novio { background: var(--burgundy); }
+.adm-team--novia { background: var(--taupe-deep); }
+
 .adm-editor {
   display: grid;
   gap: 0.9rem;

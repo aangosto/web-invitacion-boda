@@ -23,11 +23,13 @@ import { getAuth, signInAnonymously } from 'firebase/auth';
 
 import { initRsvpTab } from './admin-rsvp.js';
 import { initLugaresTab } from './admin-lugares.js';
+import { initScoresTab } from './admin-scores.js';
 
 /** Registro de pestañas del panel (añade aquí las futuras). */
 const TABS = [
   { id: 'rsvp', label: 'Confirmaciones', init: initRsvpTab },
   { id: 'lugares', label: 'Lugares', init: initLugaresTab },
+  { id: 'scores', label: 'Puntuaciones', init: initScoresTab },
 ];
 
 export function initPanel() {
