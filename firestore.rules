@@ -18,6 +18,8 @@ rules_version = '2';
 //  · lugares (puntos de la ilustración interactiva): lectura PÚBLICA
 //    (la home los muestra); escritura solo autenticada + validación de
 //    forma (la gestiona el panel /resultados).
+//  · config (textos editables, p. ej. la frase y el IBAN del regalo):
+//    lectura PÚBLICA; escritura solo autenticada (panel /resultados).
 // =====================================================================
 
 service cloud.firestore {
@@ -68,7 +70,22 @@ service cloud.firestore {
       allow delete: if request.auth != null;
     }
 
+    // ---------- CONFIG (textos editables: regalo/IBAN…) ----------
+    // Lectura pública (la home muestra la frase y el IBAN); escritura
+    // solo con sesión + validación de forma (misma limitación asumida
+    // que en "lugares": disuade, no es seguridad fuerte).
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null && isValidConfig(request.resource.data);
+    }
+
     // ---------- Validaciones ----------
+    function isValidConfig(d) {
+      return d.keys().hasOnly(['frase', 'iban'])
+        && d.frase is string && d.frase.size() <= 2000
+        && d.iban is string && d.iban.size() <= 60;
+    }
+
     function isValidLugar(d) {
       // `deleted` es la papelera (soft delete); opcional y booleano.
       return d.keys().hasOnly(['x', 'y', 'titulo', 'texto', 'orden', 'deleted'])
