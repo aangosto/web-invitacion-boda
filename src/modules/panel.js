@@ -27,6 +27,7 @@ import { initRsvpTab } from './admin-rsvp.js';
 import { initTotalesTab } from './admin-totales.js';
 import { initLugaresTab } from './admin-lugares.js';
 import { initScoresTab } from './admin-scores.js';
+import { initRegaloTab } from './admin-regalo.js';
 import { initPapeleraTab } from './admin-papelera.js';
 
 /** Registro de pestañas del panel (añade aquí las futuras). */
@@ -35,6 +36,7 @@ const TABS = [
   { id: 'totales', label: 'Totales', init: initTotalesTab },
   { id: 'lugares', label: 'Lugares', init: initLugaresTab },
   { id: 'scores', label: 'Puntuaciones', init: initScoresTab },
+  { id: 'regalo', label: 'Regalo', init: initRegaloTab },
   { id: 'papelera', label: 'Papelera', init: initPapeleraTab },
 ];
 
