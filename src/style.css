@@ -1191,6 +1191,13 @@ a { color: inherit; }
   word-break: break-word;
 }
 .gift__copy { min-height: 44px; padding: 0.5rem 1.4rem; margin-top: 0.3rem; }
+/* Titular de la cuenta: informativo, pequeño y discreto (sin copiar) */
+.gift__titular {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin-top: 0.2rem;
+}
 .gift__copied {
   font-family: var(--font-sans);
   font-size: 0.8rem;

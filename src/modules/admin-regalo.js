@@ -21,6 +21,11 @@ export async function initRegaloTab(container) {
       <input id="adm-regalo-iban" class="field__input" type="text" maxlength="60"
         placeholder="ESXX XXXX XXXX XXXX XXXX XXXX" />
     </label>
+    <label class="field">
+      <span class="field__label">Titular de la cuenta</span>
+      <input id="adm-regalo-titular" class="field__input" type="text" maxlength="120"
+        placeholder="Nombre y apellidos (opcional)" />
+    </label>
     <div class="adm-editor__actions">
       <button type="button" id="adm-regalo-save" class="btn btn--solid btn--block">Guardar</button>
     </div>
@@ -29,6 +34,7 @@ export async function initRegaloTab(container) {
 
   const fraseEl = container.querySelector('#adm-regalo-frase');
   const ibanEl = container.querySelector('#adm-regalo-iban');
+  const titularEl = container.querySelector('#adm-regalo-titular');
   const saveBtn = container.querySelector('#adm-regalo-save');
   const feedback = container.querySelector('#adm-regalo-feedback');
 
@@ -39,15 +45,16 @@ export async function initRegaloTab(container) {
   }
 
   // Cargar los valores actuales
-  const { frase, iban } = await fetchRegalo();
+  const { frase, iban, titular } = await fetchRegalo();
   fraseEl.value = frase;
   ibanEl.value = iban;
+  titularEl.value = titular;
 
   saveBtn.addEventListener('click', async () => {
     saveBtn.disabled = true;
     setFeedback('Guardando…');
     try {
-      await saveRegalo({ frase: fraseEl.value, iban: ibanEl.value });
+      await saveRegalo({ frase: fraseEl.value, iban: ibanEl.value, titular: titularEl.value });
       setFeedback('Guardado ✓ (ya se ve en la portada)', 'is-ok');
     } catch (err) {
       console.error(err);

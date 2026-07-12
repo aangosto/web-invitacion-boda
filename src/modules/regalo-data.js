@@ -3,7 +3,7 @@
 
    La usan la sección pública "Regalo" de la home (solo lectura) y el
    panel /resultados, pestaña "Regalo" (edición). Campos:
-     { frase, iban }
+     { frase, iban, titular }   // titular: opcional (informativo)
    Si Firebase no está configurado o falla la lectura, se usa el
    respaldo DEFAULT_REGALO para no quedarse en blanco.
    ================================================================= */
@@ -15,6 +15,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 export const DEFAULT_REGALO = {
   frase: 'Vuestra presencia es nuestro mejor regalo. Si además queréis tener un detalle con nosotros, aquí os dejamos nuestra cuenta.',
   iban: 'ESXX XXXX XXXX XXXX XXXX XXXX',
+  titular: '', // opcional: si está vacío, no se muestra
 };
 
 const REF = () => doc(db, 'config', 'regalo');
@@ -28,10 +29,16 @@ export async function fetchRegalo() {
   return {
     frase: typeof d.frase === 'string' ? d.frase : DEFAULT_REGALO.frase,
     iban: typeof d.iban === 'string' ? d.iban : DEFAULT_REGALO.iban,
+    // titular puede no existir en documentos antiguos → vacío
+    titular: typeof d.titular === 'string' ? d.titular : '',
   };
 }
 
-/** Guarda la frase y el IBAN (documento completo). */
-export async function saveRegalo({ frase, iban }) {
-  await setDoc(REF(), { frase: String(frase).trim(), iban: String(iban).trim() });
+/** Guarda la frase, el IBAN y el titular (documento completo). */
+export async function saveRegalo({ frase, iban, titular }) {
+  await setDoc(REF(), {
+    frase: String(frase).trim(),
+    iban: String(iban).trim(),
+    titular: String(titular || '').trim(),
+  });
 }

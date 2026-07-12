@@ -81,9 +81,11 @@ service cloud.firestore {
 
     // ---------- Validaciones ----------
     function isValidConfig(d) {
-      return d.keys().hasOnly(['frase', 'iban'])
+      // `titular` (nombre del titular de la cuenta) es opcional.
+      return d.keys().hasOnly(['frase', 'iban', 'titular'])
         && d.frase is string && d.frase.size() <= 2000
-        && d.iban is string && d.iban.size() <= 60;
+        && d.iban is string && d.iban.size() <= 60
+        && (!('titular' in d.keys()) || (d.titular is string && d.titular.size() <= 120));
     }
 
     function isValidLugar(d) {
