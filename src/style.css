@@ -1006,6 +1006,13 @@ a { color: inherit; }
 .team-btn:hover { border-color: var(--burgundy); background: rgba(255,255,255,0.9); box-shadow: 0 4px 16px rgba(110,36,53,0.08); }
 .team-btn:active { transform: scale(0.98); }
 .team-btn__emoji { font-size: 2.2rem; line-height: 1; }
+/* Logo de equipo (sprites PNG de 256px: nítidos a este tamaño) */
+.team-btn__logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  margin-bottom: 0.2rem;
+}
 .team-btn__name { font-family: var(--font-serif); font-weight: 600; font-size: 1.25rem; }
 .team-btn__hint { font-family: var(--font-sans); font-size: 0.78rem; color: var(--ink-soft); }
 
