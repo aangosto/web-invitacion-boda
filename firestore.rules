@@ -24,13 +24,17 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ---------- RANKING DEL JUEGO ----------
-    // delete con sesión (anónima): los novios moderan el ranking desde
-    // el panel /resultados (misma limitación asumida que en "lugares").
+    // "Borrar" desde el panel es un SOFT DELETE: update que solo puede
+    // tocar el campo `deleted` (papelera). El delete real ("borrar
+    // definitivamente") también exige sesión. La web pública filtra
+    // deleted != true en el cliente.
     match /scores/{scoreId} {
       allow read: if true;                          // ranking público
       allow create: if isValidScore(request.resource.data);
-      allow update: if false;                       // inmutable desde el cliente
-      allow delete: if request.auth != null;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted'])
+        && request.resource.data.deleted is bool;
+      allow delete: if request.auth != null;        // vaciar papelera
     }
 
     // ---------- CONFIRMACIONES (RSVP) — SENSIBLE ----------
@@ -63,12 +67,14 @@ service cloud.firestore {
 
     // ---------- Validaciones ----------
     function isValidLugar(d) {
-      return d.keys().hasOnly(['x', 'y', 'titulo', 'texto', 'orden'])
+      // `deleted` es la papelera (soft delete); opcional y booleano.
+      return d.keys().hasOnly(['x', 'y', 'titulo', 'texto', 'orden', 'deleted'])
         && d.x is number && d.x >= 0 && d.x <= 100
         && d.y is number && d.y >= 0 && d.y <= 100
         && d.titulo is string && d.titulo.size() >= 1 && d.titulo.size() <= 80
         && d.texto is string && d.texto.size() <= 1200
-        && d.orden is number && d.orden >= 0 && d.orden <= 999;
+        && d.orden is number && d.orden >= 0 && d.orden <= 999
+        && (!('deleted' in d.keys()) || d.deleted is bool);
     }
 
     function isValidScore(d) {
