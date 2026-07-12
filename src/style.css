@@ -1314,6 +1314,15 @@ a { color: inherit; }
   margin-bottom: 0.9rem;
 }
 .adm-list { display: grid; gap: 0.6rem; margin-bottom: 0.9rem; }
+/* Subtítulos de la Papelera (Lugares / Puntuaciones) */
+.adm-subtitle {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--taupe-deep);
+  margin: 1.1rem 0 0.6rem;
+}
 .adm-row {
   display: flex;
   align-items: center;

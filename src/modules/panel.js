@@ -14,8 +14,10 @@
       pintar, y guardar con las funciones de una capa de datos propia
       (mira lugares-data.js como plantilla: fetch/save/delete).
    2. Añádelo al array TABS de abajo: { id, label, init }.
-   Nada más: la barra de pestañas, la carga perezosa (init solo la
-   primera vez que se abre) y el estado activo son automáticos.
+   Nada más: la barra de pestañas y el estado activo son automáticos.
+   El init se ejecuta CADA VEZ que se entra en la pestaña (así los
+   cambios hechos en otra —p. ej. restaurar desde la Papelera— se ven
+   recién cargados al volver).
    ============================================================ */
 
 import { app, isConfigured } from '../firebase.js';
@@ -24,12 +26,14 @@ import { getAuth, signInAnonymously } from 'firebase/auth';
 import { initRsvpTab } from './admin-rsvp.js';
 import { initLugaresTab } from './admin-lugares.js';
 import { initScoresTab } from './admin-scores.js';
+import { initPapeleraTab } from './admin-papelera.js';
 
 /** Registro de pestañas del panel (añade aquí las futuras). */
 const TABS = [
   { id: 'rsvp', label: 'Confirmaciones', init: initRsvpTab },
   { id: 'lugares', label: 'Lugares', init: initLugaresTab },
   { id: 'scores', label: 'Puntuaciones', init: initScoresTab },
+  { id: 'papelera', label: 'Papelera', init: initPapeleraTab },
 ];
 
 export function initPanel() {
@@ -49,9 +53,7 @@ export function initPanel() {
     if (type) feedback.classList.add(type);
   }
 
-  /* ---------- Pestañas (carga perezosa por pestaña) ---------- */
-  const initialized = new Set(); // pestañas ya inicializadas
-
+  /* ---------- Pestañas (se recargan al entrar) ---------- */
   function buildTabs() {
     TABS.forEach((tab, i) => {
       // Botón de la pestaña
@@ -86,16 +88,14 @@ export function initPanel() {
       p.hidden = p.id !== `pane-${id}`;
     });
 
-    // init solo la PRIMERA vez que se entra en la pestaña
-    if (!initialized.has(id)) {
-      initialized.add(id);
-      try {
-        await tab.init(document.getElementById(`pane-${id}`));
-      } catch (err) {
-        console.error(`[Panel] Error inicializando la pestaña "${id}":`, err);
-        document.getElementById(`pane-${id}`).textContent =
-          'No se ha podido cargar esta sección. Recarga e inténtalo de nuevo.';
-      }
+    // Recargar la pestaña al entrar: así refleja lo hecho en las demás
+    // (p. ej. algo movido a la Papelera o restaurado desde ella).
+    try {
+      await tab.init(document.getElementById(`pane-${id}`));
+    } catch (err) {
+      console.error(`[Panel] Error inicializando la pestaña "${id}":`, err);
+      document.getElementById(`pane-${id}`).textContent =
+        'No se ha podido cargar esta sección. Recarga e inténtalo de nuevo.';
     }
   }
 
