@@ -27,6 +27,8 @@ export async function initPapeleraTab(container) {
   container.innerHTML = `
     <p class="adm-hint">Lo que borras desde las otras pestañas acaba aquí.
       Puedes restaurarlo o eliminarlo para siempre.</p>
+    <h3 class="adm-subtitle">Confirmaciones</h3>
+    <div id="trash-rsvp" class="adm-list"></div>
     <h3 class="adm-subtitle">Lugares</h3>
     <div id="trash-lugares" class="adm-list"></div>
     <h3 class="adm-subtitle">Puntuaciones</h3>
@@ -34,6 +36,7 @@ export async function initPapeleraTab(container) {
     <p id="trash-feedback" class="form-feedback" role="status" aria-live="polite"></p>
   `;
 
+  const rsvpEl = container.querySelector('#trash-rsvp');
   const lugaresEl = container.querySelector('#trash-lugares');
   const scoresEl = container.querySelector('#trash-scores');
   const feedback = container.querySelector('#trash-feedback');
@@ -74,6 +77,25 @@ export async function initPapeleraTab(container) {
     r.appendChild(actions);
     return r;
   }
+
+  /* ---- Confirmaciones en la papelera ---- */
+  const rsvpSnap = await getDocs(collection(db, 'rsvp'));
+  const rsvps = rsvpSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((r) => r.deleted === true);
+  if (rsvps.length === 0) {
+    rsvpEl.appendChild(el('p', 'res-empty', 'No hay confirmaciones en la papelera.'));
+  }
+  rsvps.forEach((r) => {
+    const n = (r.people || []).length;
+    rsvpEl.appendChild(row({
+      title: r.filledBy || '—',
+      meta: r.attending === false ? 'No asiste' : `${n} persona${n === 1 ? '' : 's'}`,
+      what: `la confirmación de ${r.filledBy || '—'}`,
+      onRestore: () => updateDoc(doc(db, 'rsvp', r.id), { deleted: false }),
+      onForever: () => deleteDoc(doc(db, 'rsvp', r.id)),
+    }));
+  });
 
   /* ---- Lugares en la papelera ---- */
   const lugares = await fetchLugaresPapelera();

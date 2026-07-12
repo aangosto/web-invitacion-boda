@@ -5,7 +5,7 @@
    ================================================================= */
 
 import { db } from '../firebase.js';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, doc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore';
 
 const MENU_LABELS = { ninguno: 'Menú normal', vegetariano: 'Vegetariano', vegano: 'Vegano', otro: 'Otro' };
 const MODE_LABELS = { bus: 'Bus', ave: 'AVE', coche: 'Coche', otro: 'Otro' };
@@ -63,13 +63,25 @@ function travelLines(data) {
   return lines;
 }
 
-/** Init de la pestaña: descarga y pinta. */
+/** Init de la pestaña: descarga y pinta (re-llamable tras editar/borrar). */
 export async function initRsvpTab(container) {
   container.textContent = 'Cargando confirmaciones…';
 
   const snap = await getDocs(query(collection(db, 'rsvp'), orderBy('createdAt', 'desc')));
-  const docs = snap.docs.map((d) => d.data());
+  // Las confirmaciones en la papelera (deleted) no cuentan ni se listan
+  const docs = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((d) => d.deleted !== true);
   container.textContent = '';
+
+  const feedback = el('p', 'form-feedback');
+  feedback.setAttribute('role', 'status');
+  feedback.setAttribute('aria-live', 'polite');
+  function setFeedback(msg, type) {
+    feedback.textContent = msg || '';
+    feedback.classList.remove('is-ok', 'is-error');
+    if (type) feedback.classList.add(type);
+  }
 
   // --- Contadores: asistentes = suma de personas de los que SÍ vienen
   //     (docs antiguos sin `attending` cuentan como sí) ---
@@ -92,6 +104,7 @@ export async function initRsvpTab(container) {
     statsEl.appendChild(box);
   });
   container.appendChild(statsEl);
+  container.appendChild(feedback);
 
   // --- Una tarjeta por confirmación ---
   const listEl = el('div', 'res-list');
@@ -118,6 +131,27 @@ export async function initRsvpTab(container) {
       });
       travelLines(data).forEach((line) => card.appendChild(el('p', 'res-card__travel', line)));
     }
+
+    // --- Acciones: borrar (soft delete → papelera) ---
+    const actions = el('div', 'res-card__actions');
+    const del = el('button', 'adm-row__btn adm-row__btn--danger', 'Borrar');
+    del.type = 'button';
+    del.addEventListener('click', async () => {
+      if (!window.confirm(`La confirmación de "${data.filledBy || '—'}" se moverá a la papelera; podrás recuperarla desde la pestaña Papelera. ¿Continuar?`)) return;
+      del.disabled = true;
+      setFeedback('Moviendo a la papelera…');
+      try {
+        await updateDoc(doc(db, 'rsvp', data.id), { deleted: true });
+        card.remove();
+        setFeedback('Movida a la papelera ✓', 'is-ok');
+      } catch (err) {
+        console.error(err);
+        del.disabled = false;
+        setFeedback('No se ha podido borrar. Inténtalo de nuevo.', 'is-error');
+      }
+    });
+    actions.appendChild(del);
+    card.appendChild(actions);
 
     listEl.appendChild(card);
   });

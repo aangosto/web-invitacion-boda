@@ -1571,6 +1571,14 @@ a { color: inherit; }
   padding-top: 0.5rem;
   border-top: 1px dashed rgba(63,58,50,0.2);
 }
+.res-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px dashed rgba(63,58,50,0.2);
+}
 .res-empty {
   font-family: var(--font-sans);
   text-align: center;
