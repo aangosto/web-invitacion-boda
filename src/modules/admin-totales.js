@@ -94,8 +94,18 @@ function aggregate(docs) {
     const plazasVuelta = vuelta.mode === 'coche' && vuelta.canCarry === true;
     if (plazasIda || plazasVuelta) {
       const tramos = [];
-      if (plazasIda) tramos.push(`ida${from ? ` desde ${from}` : ''}${ida.departTime ? ` (~${ida.departTime})` : ''}`);
-      if (plazasVuelta) tramos.push(`vuelta${vuelta.departTime ? ` (~${vuelta.departTime})` : ''}`);
+      if (plazasIda) {
+        const bits = [];
+        if (ida.seats) bits.push(`${ida.seats} plaza${Number(ida.seats) === 1 ? '' : 's'}`);
+        if (from) bits.push(`desde ${from}`);
+        if (ida.departTime) bits.push(`sale ~${ida.departTime}`);
+        tramos.push(`ida${bits.length ? ` (${bits.join(', ')})` : ''}`);
+      }
+      if (plazasVuelta) {
+        const bits = [];
+        if (vuelta.departTime) bits.push(`sale ~${vuelta.departTime}`);
+        tramos.push(`vuelta${bits.length ? ` (${bits.join(', ')})` : ''}`);
+      }
       t.coches.push({ nombre: por, por, extra: tramos.join(' · ') });
     }
 

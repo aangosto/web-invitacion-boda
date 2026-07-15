@@ -52,8 +52,9 @@ function travelLines(data) {
     const partes = [`Ida: ${MODE_LABELS[t.ida.mode] || '—'}`];
     if (t.ida.from) partes.push(`desde ${t.ida.from}`);
     if (t.ida.arrivalDay) partes.push(`llega ${t.ida.arrivalDay}${t.ida.arrivalTime ? ` ${t.ida.arrivalTime}` : ''}`);
+    else if (t.ida.arrivalTime) partes.push(`llega ~${t.ida.arrivalTime}`);
+    if (t.ida.canCarry === true) partes.push(t.ida.seats ? `${t.ida.seats} plazas libres` : 'tiene plazas libres');
     if (t.ida.departTime) partes.push(`sale ~${t.ida.departTime}`);
-    if (t.ida.canCarry === true) partes.push('tiene plazas libres');
     lines.push(partes.join(' · '));
   }
   if (t.vuelta) {
