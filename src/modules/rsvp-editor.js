@@ -43,7 +43,7 @@ function normalize(data) {
     origin: data.origin || '',
     people,
     travel: {
-      ida: { mode: '', from: '', arrivalDay: '', arrivalTime: '', departTime: '', canCarry: null, ...(t.ida || {}) },
+      ida: { mode: '', from: '', arrivalTime: '', canCarry: null, seats: '', departTime: '', ...(t.ida || {}) },
       vuelta: { day: '', mode: '', departTime: '', canCarry: null, ...(t.vuelta || {}) },
     },
   };
@@ -110,14 +110,15 @@ function buildPayload(state) {
   if (state.origin === 'fuera') {
     const { ida, vuelta } = state.travel;
     const conLlegada = ida.mode && ida.mode !== 'buscando';
+    const idaOfrece = ida.mode === 'coche' && ida.canCarry === true;
     payload.travel = {
       ida: {
         mode: ida.mode,
         from: (ida.from || '').trim(),
-        arrivalDay: conLlegada ? ida.arrivalDay : '',
         arrivalTime: conLlegada ? ida.arrivalTime : '',
-        departTime: ida.mode === 'coche' ? (ida.departTime || '') : '',
         canCarry: ida.mode === 'coche' ? ida.canCarry === true : null,
+        seats: idaOfrece ? (parseInt(ida.seats, 10) || 0) : null,
+        departTime: idaOfrece ? (ida.departTime || '') : '',
         seeking: ida.mode === 'buscando',
       },
       vuelta: {
@@ -209,14 +210,16 @@ export function createRsvpEditor(data) {
       const vuelta = state.travel.vuelta;
       root.appendChild(el('h4', 'tot-minititle', 'Viaje de ida'));
       root.appendChild(chipGroup({ label: 'Cómo viene', options: MODE_OPTIONS, value: ida.mode, onSelect: (v) => { ida.mode = v; refresh(); } }));
-      root.appendChild(textField({ label: 'Desde dónde', value: ida.from, placeholder: 'Madrid, Murcia…', onInput: (v) => { ida.from = v; } }));
+      root.appendChild(textField({ label: 'De dónde viene', value: ida.from, placeholder: 'Madrid, Murcia…', onInput: (v) => { ida.from = v; } }));
       if (ida.mode && ida.mode !== 'buscando') {
-        root.appendChild(textField({ label: 'Día de llegada', value: ida.arrivalDay, type: 'date', onInput: (v) => { ida.arrivalDay = v; } }));
         root.appendChild(textField({ label: 'Hora de llegada', value: ida.arrivalTime, type: 'time', onInput: (v) => { ida.arrivalTime = v; } }));
       }
       if (ida.mode === 'coche') {
-        root.appendChild(textField({ label: 'Hora aprox. de salida', value: ida.departTime, type: 'time', onInput: (v) => { ida.departTime = v; } }));
-        root.appendChild(yesNo({ label: '¿Plazas libres a la ida?', value: ida.canCarry, onSelect: (v) => { ida.canCarry = v; } }));
+        root.appendChild(yesNo({ label: '¿Llevaría a algún invitado más?', value: ida.canCarry, onSelect: (v) => { ida.canCarry = v; refresh(); } }));
+        if (ida.canCarry === true) {
+          root.appendChild(textField({ label: 'Cuántas plazas', value: ida.seats, type: 'number', placeholder: 'Ej.: 2', onInput: (v) => { ida.seats = v; } }));
+          root.appendChild(textField({ label: 'Hora de salida', value: ida.departTime, type: 'time', onInput: (v) => { ida.departTime = v; } }));
+        }
       }
 
       root.appendChild(el('h4', 'tot-minititle', 'Viaje de vuelta'));
