@@ -17,6 +17,7 @@ const MODE_OPTIONS = [
   { value: 'ave', label: 'AVE' },
   { value: 'coche', label: 'Coche' },
   { value: 'otro', label: 'Otro' },
+  { value: 'buscando', label: 'Aún no lo sé' },
 ];
 
 function el(tag, className, text) {
@@ -42,8 +43,8 @@ function normalize(data) {
     origin: data.origin || '',
     people,
     travel: {
-      ida: { mode: '', from: '', arrivalDay: '', arrivalTime: '', canCarry: null, ...(t.ida || {}) },
-      vuelta: { day: '', mode: '', canCarry: null, ...(t.vuelta || {}) },
+      ida: { mode: '', from: '', arrivalDay: '', arrivalTime: '', departTime: '', canCarry: null, ...(t.ida || {}) },
+      vuelta: { day: '', mode: '', departTime: '', canCarry: null, ...(t.vuelta || {}) },
     },
   };
 }
@@ -108,19 +109,23 @@ function buildPayload(state) {
   };
   if (state.origin === 'fuera') {
     const { ida, vuelta } = state.travel;
-    const conLlegada = ida.mode === 'bus' || ida.mode === 'ave';
+    const conLlegada = ida.mode && ida.mode !== 'buscando';
     payload.travel = {
       ida: {
         mode: ida.mode,
         from: (ida.from || '').trim(),
         arrivalDay: conLlegada ? ida.arrivalDay : '',
         arrivalTime: conLlegada ? ida.arrivalTime : '',
+        departTime: ida.mode === 'coche' ? (ida.departTime || '') : '',
         canCarry: ida.mode === 'coche' ? ida.canCarry === true : null,
+        seeking: ida.mode === 'buscando',
       },
       vuelta: {
         day: vuelta.day,
         mode: vuelta.mode,
+        departTime: vuelta.mode === 'coche' ? (vuelta.departTime || '') : '',
         canCarry: vuelta.mode === 'coche' ? vuelta.canCarry === true : null,
+        seeking: vuelta.mode === 'buscando',
       },
     };
   }
@@ -205,11 +210,12 @@ export function createRsvpEditor(data) {
       root.appendChild(el('h4', 'tot-minititle', 'Viaje de ida'));
       root.appendChild(chipGroup({ label: 'Cómo viene', options: MODE_OPTIONS, value: ida.mode, onSelect: (v) => { ida.mode = v; refresh(); } }));
       root.appendChild(textField({ label: 'Desde dónde', value: ida.from, placeholder: 'Madrid, Murcia…', onInput: (v) => { ida.from = v; } }));
-      if (ida.mode === 'bus' || ida.mode === 'ave') {
+      if (ida.mode && ida.mode !== 'buscando') {
         root.appendChild(textField({ label: 'Día de llegada', value: ida.arrivalDay, type: 'date', onInput: (v) => { ida.arrivalDay = v; } }));
         root.appendChild(textField({ label: 'Hora de llegada', value: ida.arrivalTime, type: 'time', onInput: (v) => { ida.arrivalTime = v; } }));
       }
       if (ida.mode === 'coche') {
+        root.appendChild(textField({ label: 'Hora aprox. de salida', value: ida.departTime, type: 'time', onInput: (v) => { ida.departTime = v; } }));
         root.appendChild(yesNo({ label: '¿Plazas libres a la ida?', value: ida.canCarry, onSelect: (v) => { ida.canCarry = v; } }));
       }
 
@@ -217,6 +223,7 @@ export function createRsvpEditor(data) {
       root.appendChild(textField({ label: 'Día de vuelta', value: vuelta.day, type: 'date', onInput: (v) => { vuelta.day = v; } }));
       root.appendChild(chipGroup({ label: 'Cómo se va', options: MODE_OPTIONS, value: vuelta.mode, onSelect: (v) => { vuelta.mode = v; refresh(); } }));
       if (vuelta.mode === 'coche') {
+        root.appendChild(textField({ label: 'Hora aprox. de salida', value: vuelta.departTime, type: 'time', onInput: (v) => { vuelta.departTime = v; } }));
         root.appendChild(yesNo({ label: '¿Plazas libres a la vuelta?', value: vuelta.canCarry, onSelect: (v) => { vuelta.canCarry = v; } }));
       }
     }
