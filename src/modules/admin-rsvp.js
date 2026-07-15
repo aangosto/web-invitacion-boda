@@ -9,7 +9,7 @@ import { collection, doc, getDocs, orderBy, query, updateDoc, setDoc, serverTime
 import { createRsvpEditor } from './rsvp-editor.js';
 
 const MENU_LABELS = { ninguno: 'Menú normal', vegetariano: 'Vegetariano', vegano: 'Vegano', otro: 'Otro' };
-const MODE_LABELS = { bus: 'Bus', ave: 'AVE', coche: 'Coche', otro: 'Otro' };
+const MODE_LABELS = { bus: 'Bus', ave: 'AVE', coche: 'Coche', otro: 'Otro', buscando: 'Aún no lo sé / busca transporte' };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -52,12 +52,14 @@ function travelLines(data) {
     const partes = [`Ida: ${MODE_LABELS[t.ida.mode] || '—'}`];
     if (t.ida.from) partes.push(`desde ${t.ida.from}`);
     if (t.ida.arrivalDay) partes.push(`llega ${t.ida.arrivalDay}${t.ida.arrivalTime ? ` ${t.ida.arrivalTime}` : ''}`);
+    if (t.ida.departTime) partes.push(`sale ~${t.ida.departTime}`);
     if (t.ida.canCarry === true) partes.push('tiene plazas libres');
     lines.push(partes.join(' · '));
   }
   if (t.vuelta) {
     const partes = [`Vuelta: ${MODE_LABELS[t.vuelta.mode] || '—'}`];
     if (t.vuelta.day) partes.push(`el ${t.vuelta.day}`);
+    if (t.vuelta.departTime) partes.push(`sale ~${t.vuelta.departTime}`);
     if (t.vuelta.canCarry === true) partes.push('puede llevar a alguien');
     lines.push(partes.join(' · '));
   }

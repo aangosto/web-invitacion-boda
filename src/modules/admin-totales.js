@@ -39,6 +39,7 @@ function aggregate(docs) {
     fuera: [],
     zaragoza: [],
     coches: [],
+    buscan: [],   // quienes marcaron "Aún no lo sé / busco transporte"
   };
 
   docs.forEach((data) => {
@@ -84,17 +85,29 @@ function aggregate(docs) {
       if (p.busVuelta === true || p.bus === 'vuelta' || p.bus === 'ambos') t.busVuelta.push(m);
     });
 
-    // Coches con plazas libres (viajes compartidos)
+    // Coches con plazas libres (viajes compartidos). Mostramos hora de
+    // salida y origen para poder cruzarlo con quien busca transporte.
     const ida = data.travel?.ida || {};
     const vuelta = data.travel?.vuelta || {};
+    const from = (ida.from || '').trim();
     const plazasIda = ida.mode === 'coche' && ida.canCarry === true;
     const plazasVuelta = vuelta.mode === 'coche' && vuelta.canCarry === true;
     if (plazasIda || plazasVuelta) {
-      const tramos = [plazasIda && 'ida', plazasVuelta && 'vuelta'].filter(Boolean).join(' y ');
-      t.coches.push({
+      const tramos = [];
+      if (plazasIda) tramos.push(`ida${from ? ` desde ${from}` : ''}${ida.departTime ? ` (~${ida.departTime})` : ''}`);
+      if (plazasVuelta) tramos.push(`vuelta${vuelta.departTime ? ` (~${vuelta.departTime})` : ''}`);
+      t.coches.push({ nombre: por, por, extra: tramos.join(' · ') });
+    }
+
+    // Quien busca transporte ("Aún no lo sé"): a quién ayudar y desde dónde.
+    const buscaIda = ida.seeking === true || ida.mode === 'buscando';
+    const buscaVuelta = vuelta.seeking === true || vuelta.mode === 'buscando';
+    if (buscaIda || buscaVuelta) {
+      const tramos = [buscaIda && 'ida', buscaVuelta && 'vuelta'].filter(Boolean).join(' y ');
+      t.buscan.push({
         nombre: por,
         por,
-        extra: `${ida.from ? `desde ${ida.from.trim()} · ` : ''}${tramos}`,
+        extra: `${from ? `desde ${from} · ` : ''}busca ${tramos}`,
       });
     }
   });
@@ -230,5 +243,7 @@ export async function initTotalesTab(container) {
     { label: 'de Zaragoza', members: t.zaragoza },
   ]));
   viaje.appendChild(expandableRow('Coches con plazas libres', t.coches));
+  viaje.appendChild(el('h4', 'tot-minititle', 'Buscan transporte'));
+  viaje.appendChild(expandableRow('Aún no lo saben / buscan transporte', t.buscan));
   container.appendChild(viaje);
 }
