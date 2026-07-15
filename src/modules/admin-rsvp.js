@@ -9,7 +9,7 @@ import { collection, doc, getDocs, orderBy, query, updateDoc, setDoc, serverTime
 import { createRsvpEditor } from './rsvp-editor.js';
 
 const MENU_LABELS = { ninguno: 'Menú normal', vegetariano: 'Vegetariano', vegano: 'Vegano', otro: 'Otro' };
-const MODE_LABELS = { bus: 'Bus', ave: 'AVE', coche: 'Coche', otro: 'Otro', buscando: 'Aún no lo sé / busca transporte' };
+const MODE_LABELS = { bus: 'Bus', ave: 'AVE/Tren', coche: 'Coche', avion: 'Avión', otro: 'Otro', buscando: 'Aún no lo sé / busca transporte' };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
