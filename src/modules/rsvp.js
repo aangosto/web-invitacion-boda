@@ -50,7 +50,7 @@ export async function submitRsvp(data) {
 /* ---------------- Estado ---------------- */
 
 /* v3: se añadió `attending` (los respaldos anteriores no encajan) */
-const STORAGE_KEY = 'rsvpWizard.v5';
+const STORAGE_KEY = 'rsvpWizard.v6';
 
 /** Persona con todos sus campos por defecto. */
 function blankPerson() {
@@ -76,7 +76,7 @@ function blankState() {
     people: [blankPerson()],
     origin: '',        // '' | 'fuera' | 'zaragoza'
     travel: {
-      ida:    { mode: '', from: '', arrivalTime: '', canCarry: null, seats: '', departTime: '' },
+      ida:    { mode: '', from: '', arrivalDay: '', arrivalTime: '', canCarry: null, seats: '', departTime: '' },
       vuelta: { day: '', mode: '', departTime: '', canCarry: null },
     },
   };
@@ -92,13 +92,14 @@ const MENU_OPTIONS = [
 ];
 const MODE_OPTIONS = [
   { value: 'bus', label: 'Bus' },
-  { value: 'ave', label: 'AVE (tren)' },
+  { value: 'ave', label: 'AVE / Tren' },
   { value: 'coche', label: 'Coche' },
+  { value: 'avion', label: 'Avión' },
   { value: 'otro', label: 'Otro' },
   { value: 'buscando', label: 'Aún no lo sé' },
 ];
 const MENU_LABELS = { ninguno: 'Sin menú especial', vegetariano: 'Vegetariano', vegano: 'Vegano', otro: 'Otro' };
-const MODE_LABELS = { bus: 'Bus', ave: 'AVE', coche: 'Coche', otro: 'Otro', buscando: 'Aún no lo sé / busca transporte' };
+const MODE_LABELS = { bus: 'Bus', ave: 'AVE/Tren', coche: 'Coche', avion: 'Avión', otro: 'Otro', buscando: 'Aún no lo sé / busca transporte' };
 
 /* ---------------- Ayudantes de DOM ---------------- */
 
@@ -447,7 +448,13 @@ const STEPS = [
         screen.appendChild(el('p', 'wizard__hint',
           'Perfecto, lo dejamos anotado. Intentaremos ayudarte a cuadrar transporte con quien tenga plazas libres.'));
       } else if (ida.mode) {
-        // Hora aproximada de llegada (para todos los modos salvo "aún no lo sé").
+        // Día y hora de llegada para TODOS los modos salvo "aún no lo sé".
+        screen.appendChild(textField({
+          label: 'Día de llegada',
+          value: ida.arrivalDay,
+          type: 'date',
+          onInput: (v) => { ida.arrivalDay = v; save(); },
+        }));
         screen.appendChild(textField({
           label: 'Hora aproximada de llegada',
           value: ida.arrivalTime,
@@ -495,15 +502,8 @@ const STEPS = [
       screen.appendChild(el('h2', 'wizard__title', 'Tu viaje de vuelta'));
       screen.appendChild(el('p', 'wizard__hint', 'Para cuadrar despedidas (y algún viaje compartido).'));
 
-      screen.appendChild(textField({
-        label: '¿Qué día planeáis iros?',
-        value: vuelta.day,
-        type: 'date',
-        onInput: (v) => { vuelta.day = v; save(); },
-      }));
-
       screen.appendChild(chipGroup({
-        label: '¿Cómo os vais?',
+        label: '¿Cómo te vas?',
         options: MODE_OPTIONS,
         value: vuelta.mode,
         onSelect: (v) => { vuelta.mode = v; save(); refresh(); },
@@ -512,25 +512,33 @@ const STEPS = [
       if (vuelta.mode === 'buscando') {
         screen.appendChild(el('p', 'wizard__hint',
           'Anotado. Intentaremos cuadrarte la vuelta con quien tenga sitio en el coche.'));
-      }
-
-      // Coche → hora aproximada de salida + ¿plazas libres?
-      if (vuelta.mode === 'coche') {
+      } else if (vuelta.mode) {
+        // Día y hora de salida para TODOS los modos salvo "aún no lo sé".
         screen.appendChild(textField({
-          label: '¿A qué hora saldríais de Zaragoza (aprox.)?',
+          label: 'Día de salida',
+          value: vuelta.day,
+          type: 'date',
+          onInput: (v) => { vuelta.day = v; save(); },
+        }));
+        screen.appendChild(textField({
+          label: 'Hora aproximada de salida',
           value: vuelta.departTime,
           type: 'time',
           onInput: (v) => { vuelta.departTime = v; save(); },
         }));
+      }
+
+      // Coche → ¿plazas libres de vuelta?
+      if (vuelta.mode === 'coche') {
         screen.appendChild(yesNo({
-          label: '¿Estaríais dispuestos a llevar a alguien de vuelta?',
+          label: '¿Estarías dispuesto a llevar a alguien de vuelta?',
           value: vuelta.canCarry,
           onSelect: (v) => { vuelta.canCarry = v; save(); refresh(); },
         }));
       }
     },
     validate(state) {
-      return state.travel.vuelta.mode ? null : 'Dinos cómo os vais.';
+      return state.travel.vuelta.mode ? null : 'Dinos cómo te vas.';
     },
   },
 
@@ -596,9 +604,10 @@ const STEPS = [
         const vuelta = state.travel.vuelta;
         const idaParts = [MODE_LABELS[ida.mode] || '—'];
         if (ida.from.trim()) idaParts.push(`desde ${ida.from.trim()}`);
-        // La hora de llegada se pide para todos los modos salvo "aún no lo sé"
-        if (ida.mode && ida.mode !== 'buscando' && ida.arrivalTime) {
-          idaParts.push(`llegada ~${ida.arrivalTime}`);
+        // Día y hora de llegada para todos los modos salvo "aún no lo sé"
+        if (ida.mode && ida.mode !== 'buscando' && (ida.arrivalDay || ida.arrivalTime)) {
+          const cuando = [ida.arrivalDay && formatDay(ida.arrivalDay), ida.arrivalTime && `~${ida.arrivalTime}`].filter(Boolean).join(' ');
+          idaParts.push(`llegada ${cuando}`);
         }
         if (ida.mode === 'coche' && ida.canCarry === true) {
           idaParts.push(ida.seats ? `${ida.seats} plaza${Number(ida.seats) === 1 ? '' : 's'} libre${Number(ida.seats) === 1 ? '' : 's'}` : 'con plazas libres');
@@ -609,8 +618,10 @@ const STEPS = [
         row('Ida', idaParts.join(' · '));
 
         const vueltaParts = [MODE_LABELS[vuelta.mode] || '—'];
-        if (vuelta.day) vueltaParts.push(`el ${formatDay(vuelta.day)}`);
-        if (vuelta.mode === 'coche' && vuelta.departTime) vueltaParts.push(`salida ~${vuelta.departTime}`);
+        if (vuelta.mode && vuelta.mode !== 'buscando' && (vuelta.day || vuelta.departTime)) {
+          const cuando = [vuelta.day && formatDay(vuelta.day), vuelta.departTime && `~${vuelta.departTime}`].filter(Boolean).join(' ');
+          vueltaParts.push(`salida ${cuando}`);
+        }
         if (vuelta.mode === 'coche' && vuelta.canCarry !== null) vueltaParts.push(vuelta.canCarry ? 'puede llevar a alguien' : 'sin plazas');
         row('Vuelta', vueltaParts.join(' · '));
       }
@@ -735,10 +746,12 @@ export function initRsvp() {
       const vuelta = state.travel.vuelta;
       const idaAsksArrival = ida.mode && ida.mode !== 'buscando';
       const idaOfrece = ida.mode === 'coche' && ida.canCarry === true;
+      const vueltaAsks = vuelta.mode && vuelta.mode !== 'buscando';
       payload.travel = {
         ida: {
           mode: ida.mode,
           from: ida.from.trim(),
+          arrivalDay: idaAsksArrival ? ida.arrivalDay : '',
           arrivalTime: idaAsksArrival ? ida.arrivalTime : '',
           canCarry: ida.mode === 'coche' ? ida.canCarry === true : null,
           // Plazas y hora de salida solo si ofrece coche (para cruzar con quien busca)
@@ -748,9 +761,10 @@ export function initRsvp() {
           seeking: ida.mode === 'buscando',
         },
         vuelta: {
-          day: vuelta.day,
           mode: vuelta.mode,
-          departTime: vuelta.mode === 'coche' ? vuelta.departTime : '',
+          // Día y hora de salida para todos los modos salvo "aún no lo sé"
+          day: vueltaAsks ? vuelta.day : '',
+          departTime: vueltaAsks ? vuelta.departTime : '',
           canCarry: vuelta.mode === 'coche' ? vuelta.canCarry === true : null,
           seeking: vuelta.mode === 'buscando',
         },
