@@ -372,10 +372,10 @@ a { color: inherit; }
   margin: 0 auto 2rem;
 }
 
-/* Filete floral separador */
+/* Filete floral separador: flor y rayas en burdeos (color de acento) */
 .floral-rule {
   font-size: 1rem;
-  color: var(--taupe-deep);
+  color: var(--burgundy);
   margin-bottom: 1.5rem;
   position: relative;
 }
@@ -385,7 +385,7 @@ a { color: inherit; }
   top: 50%;
   width: clamp(2rem, 18vw, 5rem);
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--taupe));
+  background: linear-gradient(90deg, transparent, var(--burgundy));
 }
 .floral-rule::before { right: calc(50% + 1rem); }
 .floral-rule::after  { left: calc(50% + 1rem); transform: scaleX(-1); }
