@@ -86,6 +86,16 @@ export function initMinigame() {
     basket.x = Math.min(Math.max(basket.x || W / 2, basket.w / 2), W - basket.w / 2);
   }
 
+  /* Altura REAL visible del móvil → --game-vh. En Safari iOS 100vh incluye
+     las barras del navegador y el canvas quedaría cortado por arriba;
+     visualViewport.height (o innerHeight) mide solo lo visible. Se
+     re-mide si las barras aparecen/desaparecen o al girar el móvil. */
+  function syncViewport() {
+    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty('--game-vh', `${Math.round(h)}px`);
+    if (running) resize();
+  }
+
   /* ---------- Generación de objetos ---------- */
   function spawn() {
     // ~9% de probabilidad de booster a partir de los 4s
@@ -273,6 +283,7 @@ export function initMinigame() {
     livesEl.textContent = '●●●';
     boosterEl.textContent = '';
     show(screenPlay);
+    syncViewport();
     resize();
     basket.x = W / 2;
     running = true;
@@ -328,6 +339,9 @@ export function initMinigame() {
 
   function show(screen) {
     [screenStart, screenHelp, screenPlay, screenOver].forEach((s) => (s.hidden = s !== screen));
+    // Durante la partida el juego es un overlay fijo a pantalla completa
+    // (móvil): se bloquea el scroll de la página por debajo.
+    document.body.classList.toggle('is-playing', screen === screenPlay);
   }
 
   /* ---------- Pantalla de instrucciones ---------- */
@@ -377,7 +391,11 @@ export function initMinigame() {
     if (e.key === 'ArrowLeft') basket.x = Math.max(basket.w / 2, basket.x - 28);
     if (e.key === 'ArrowRight') basket.x = Math.min(W - basket.w / 2, basket.x + 28);
   });
-  window.addEventListener('resize', () => { if (running) resize(); });
+  // Reajustar SIEMPRE que cambie el viewport visible: resize clásico,
+  // giro del móvil y barras de Safari que aparecen/desaparecen.
+  window.addEventListener('resize', syncViewport);
+  window.addEventListener('orientationchange', syncViewport);
+  window.visualViewport?.addEventListener('resize', syncViewport);
 
   /* ---------- Botones ----------
      Elegir equipo → instrucciones → ¡Empezar! → partida.
@@ -391,6 +409,9 @@ export function initMinigame() {
   });
   document.getElementById('game-begin').addEventListener('click', startGame);
   document.getElementById('game-help-back').addEventListener('click', () => show(screenStart));
+  // La partida es un overlay sin scroll: la ✕ permite salir (termina la
+  // partida y lleva a la pantalla de fin, donde se puede guardar o repetir)
+  document.getElementById('game-quit').addEventListener('click', () => { if (running) endGame(); });
   saveBtn.addEventListener('click', saveCurrentScore);
   document.getElementById('game-again').addEventListener('click', startGame);
   document.getElementById('game-switch').addEventListener('click', () => show(screenStart));

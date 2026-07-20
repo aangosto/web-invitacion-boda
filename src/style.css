@@ -1202,6 +1202,61 @@ a { color: inherit; }
 .game__canvas:active { cursor: grabbing; }
 .game__tip { font-family: var(--font-sans); font-size: 0.75rem; color: var(--ink-soft); }
 
+/* Botón para terminar la partida (la partida en móvil es un overlay
+   fijo sin scroll: sin esta ✕ no habría forma de salir a media partida) */
+.game__quit {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  margin: -6px -6px -6px 0;   /* que no engorde el HUD */
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  cursor: pointer;
+}
+.game__quit:hover { color: var(--burgundy); }
+
+/* MÓVIL: la partida ocupa la pantalla VISIBLE completa.
+   --game-vh la fija el JS con visualViewport/innerHeight (lo que de
+   verdad se ve en Safari iOS, descontando sus barras); 100dvh/100svh
+   quedan de respaldo si el JS aún no ha medido. El safe-area evita el
+   notch y la barra de gestos del iPhone. */
+@media (max-width: 48rem) {
+  body.is-playing { overflow: hidden; }
+  #game-play:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    height: 100vh;               /* respaldo de respaldos */
+    height: 100svh;
+    height: 100dvh;
+    height: var(--game-vh, 100dvh);
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding:
+      calc(0.5rem + env(safe-area-inset-top, 0px))
+      calc(0.75rem + env(safe-area-inset-right, 0px))
+      calc(0.4rem + env(safe-area-inset-bottom, 0px))
+      calc(0.75rem + env(safe-area-inset-left, 0px));
+  }
+  /* El canvas se estira a TODO el hueco libre entre HUD y consejo:
+     ni 60vh ni topes: la altura real la mide resize() con su rect */
+  #game-play:not([hidden]) .game__canvas {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+  }
+  #game-play:not([hidden]) .game__tip { text-align: center; margin: 0; }
+}
+
 /* --- Fin de partida --- */
 .game__over-lead {
   font-family: var(--font-sans);
