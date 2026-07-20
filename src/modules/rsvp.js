@@ -846,6 +846,10 @@ export function initRsvp() {
       state.attending === false
         ? 'Hemos recibido tu respuesta. Sentimos mucho que no puedas acompañarnos: te tendremos presente ese día.'
         : `Hemos recibido ${quien}. Nos hace muchísima ilusión que forméis parte de nuestro día. ¡Nos vemos el 24 de octubre!`));
+    done.appendChild(el('p', 'wizard-success__text',
+      '¿Te has dado cuenta de un error o cambia algún plan? No pasa nada: ' +
+      'puedes volver a rellenar y enviar el formulario las veces que necesites; ' +
+      'solo tendremos en cuenta tu último envío.'));
     done.appendChild(el('p', 'wizard-success__names', 'María & Alberto'));
     const home = el('a', 'btn btn--ghost btn--block', '← Volver a la invitación');
     home.href = './index.html';

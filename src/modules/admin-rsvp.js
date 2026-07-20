@@ -7,6 +7,7 @@
 import { db } from '../firebase.js';
 import { collection, doc, getDocs, orderBy, query, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { createRsvpEditor } from './rsvp-editor.js';
+import { splitResubmissions } from './rsvp-dedupe.js';
 
 const MENU_LABELS = { ninguno: 'Menú normal', vegetariano: 'Vegetariano', vegano: 'Vegano', otro: 'Otro' };
 const MODE_LABELS = { bus: 'Bus', ave: 'AVE/Tren', coche: 'Coche', avion: 'Avión', otro: 'Otro', buscando: 'Aún no lo sé / busca transporte' };
@@ -190,11 +191,17 @@ export async function initRsvpTab(container) {
     if (type) feedback.classList.add(type);
   }
 
+  // --- Reenvíos: del mismo nombre solo cuenta el último envío; los
+  //     anteriores se listan igualmente pero con insignia y sin contar ---
+  const { antiguos } = splitResubmissions(docs);
+  const reenviados = new Set(antiguos);
+
   // --- Contadores: asistentes = suma de personas de los que SÍ vienen
   //     (docs antiguos sin `attending` cuentan como sí) ---
   let asistentes = 0;
   let noAsisten = 0;
   docs.forEach((data) => {
+    if (reenviados.has(data)) return;
     if (data.attending === false) noAsisten += 1;
     else asistentes += (data.people || []).length;
   });
@@ -202,7 +209,7 @@ export async function initRsvpTab(container) {
   const statsEl = el('div', 'res-stats');
   [
     { num: asistentes, label: 'asistentes' },
-    { num: docs.length, label: 'respuestas' },
+    { num: docs.length - reenviados.size, label: 'respuestas' },
     { num: noAsisten, label: 'no asisten' },
   ].forEach((s) => {
     const box = el('div', 'res-stat');
@@ -223,6 +230,11 @@ export async function initRsvpTab(container) {
 
     const head = el('header', 'res-card__head');
     head.appendChild(el('span', 'res-card__who', data.filledBy || '—'));
+    // Marca de reenvío: hay una versión más reciente del mismo nombre
+    // (esta ya no cuenta en los totales)
+    if (reenviados.has(data)) {
+      head.appendChild(el('span', 'res-badge res-badge--resent', '↻ Reenviado — no cuenta'));
+    }
     // Marca "Editada" si el registro se modificó respecto al original
     if (data.edited === true) {
       const chip = el('span', 'res-badge res-badge--edited', '✎ Editada');

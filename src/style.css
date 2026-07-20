@@ -1847,6 +1847,8 @@ a { color: inherit; }
 }
 .res-badge--no { background: var(--taupe-deep); }
 .res-badge--edited { background: var(--taupe); color: var(--ink); }
+/* Versión antigua reenviada: sigue visible pero no cuenta en totales */
+.res-badge--resent { background: rgba(63,58,50,0.35); }
 
 /* Caja de solo lectura con el original enviado por el invitado */
 .res-original {

@@ -12,6 +12,7 @@
 
 import { db } from '../firebase.js';
 import { collection, getDocs } from 'firebase/firestore';
+import { splitResubmissions } from './rsvp-dedupe.js';
 
 const MENU_LABELS = { ninguno: 'Normal', vegetariano: 'Vegetariano', vegano: 'Vegano', otro: 'Otro' };
 
@@ -208,7 +209,10 @@ export async function initTotalesTab(container) {
 
   const snap = await getDocs(collection(db, 'rsvp'));
   const docs = snap.docs.map((d) => d.data()).filter((d) => d.deleted !== true);
-  const t = aggregate(docs);
+  // Reenvíos: si alguien envió el formulario varias veces, solo el
+  // ÚLTIMO envío cuenta en los totales; los anteriores se listan aparte.
+  const { activos, antiguos } = splitResubmissions(docs);
+  const t = aggregate(activos);
 
   container.textContent = '';
   container.appendChild(el('p', 'adm-hint', 'Pulsa cualquier total para ver quiénes lo componen.'));
@@ -220,6 +224,16 @@ export async function initTotalesTab(container) {
     { label: 'confirmaciones', members: t.confirmaciones },
     { label: 'no asistirán', members: t.noAsisten },
   ]));
+  if (antiguos.length) {
+    const fecha = (d) => {
+      const dt = d.createdAt && typeof d.createdAt.toDate === 'function' ? d.createdAt.toDate() : null;
+      return dt ? `enviado el ${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}` : 'sin fecha';
+    };
+    general.appendChild(expandableRow(
+      'Reenvíos descartados (se cuenta solo el último envío de cada persona)',
+      antiguos.map((d) => ({ nombre: d.filledBy || '—', extra: fecha(d) })),
+    ));
+  }
   container.appendChild(general);
 
   /* --- 2 · Comida (catering) --- */
