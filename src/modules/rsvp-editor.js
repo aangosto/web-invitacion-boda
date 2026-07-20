@@ -42,6 +42,7 @@ function normalize(data) {
     filledBy: data.filledBy || '',
     attending,
     origin: data.origin || '',
+    comentario: data.comentario || '',
     people,
     travel: {
       ida: { mode: '', from: '', arrivalDay: '', arrivalTime: '', canCarry: null, seats: '', departTime: '', ...(t.ida || {}) },
@@ -51,6 +52,18 @@ function normalize(data) {
 }
 
 /* ---- Controles ---- */
+function textAreaField({ label, value, placeholder = '', onInput }) {
+  const wrap = el('label', 'field');
+  wrap.appendChild(el('span', 'field__label', label));
+  const input = el('textarea', 'field__input field__input--area');
+  input.value = value || '';
+  input.placeholder = placeholder;
+  input.rows = 4;
+  input.addEventListener('input', () => onInput(input.value));
+  wrap.appendChild(input);
+  return wrap;
+}
+
 function textField({ label, value, placeholder = '', type = 'text', onInput }) {
   const wrap = el('label', 'field');
   wrap.appendChild(el('span', 'field__label', label));
@@ -91,12 +104,14 @@ function yesNo({ label, value, onSelect }) {
 /** Construye un payload limpio (mismo formato que el wizard) desde el estado. */
 function buildPayload(state) {
   const filledBy = state.filledBy.trim();
-  if (!state.attending) return { filledBy, attending: false };
+  const comentario = (state.comentario || '').trim();
+  if (!state.attending) return { filledBy, attending: false, comentario };
 
   const payload = {
     filledBy,
     attending: true,
     origin: state.origin,
+    comentario,
     people: state.people.map((p) => ({
       name: p.name.trim(),
       allergies: p.allergies.trim(),
@@ -164,6 +179,12 @@ export function createRsvpEditor(data) {
         if (v && state.people.length === 0) state.people = [blankPerson()];
         refresh();
       },
+    }));
+
+    // Comentario libre: existe asista o no
+    root.appendChild(textAreaField({
+      label: 'Comentario del invitado', value: state.comentario, placeholder: 'Opcional',
+      onInput: (v) => { state.comentario = v; },
     }));
 
     if (!state.attending) return; // no asiste → nada más que editar

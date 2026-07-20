@@ -82,6 +82,7 @@ function blankState() {
       ida:    { mode: '', from: '', arrivalDay: '', arrivalTime: '', canCarry: null, seats: '', departTime: '' },
       vuelta: { day: '', mode: '', departTime: '', canCarry: null, seats: '' },
     },
+    comentario: '',   // texto libre final, opcional (asista o no)
   };
 }
 
@@ -131,6 +132,19 @@ function textField({ label, value, placeholder = '', type = 'text', autocomplete
   if (autocomplete) input.autocomplete = autocomplete;
   if (min != null) input.min = min;
   if (max != null) input.max = max;
+  input.addEventListener('input', () => onInput(input.value));
+  wrap.appendChild(input);
+  return wrap;
+}
+
+/** Área de texto amplia con etiqueta (para respuestas largas). */
+function textAreaField({ label, value, placeholder = '', onInput }) {
+  const wrap = el('label', 'field');
+  wrap.appendChild(el('span', 'field__label', label));
+  const input = el('textarea', 'field__input field__input--area');
+  input.value = value || '';
+  input.placeholder = placeholder;
+  input.rows = 5;
   input.addEventListener('input', () => onInput(input.value));
   wrap.appendChild(input);
   return wrap;
@@ -572,6 +586,22 @@ const STEPS = [
     },
   },
 
+  /* ---- PASO · Comentario libre (para TODO el mundo, asista o no) ---- */
+  {
+    id: 'comentario',
+    render(screen, { state, save }) {
+      screen.appendChild(el('h2', 'wizard__title', '¿Algo que quieras comentarnos?'));
+      screen.appendChild(el('p', 'wizard__hint',
+        'Lo que sea: una duda, una petición, una canción que no puede faltar… Es opcional, puedes dejarlo en blanco.'));
+      screen.appendChild(textAreaField({
+        label: 'Tu comentario (opcional)',
+        value: state.comentario,
+        placeholder: 'Escríbenos lo que quieras…',
+        onInput: (v) => { state.comentario = v; save(); },
+      }));
+    },
+  },
+
   /* ---- PASO FINAL · Resumen y confirmación ---- */
   {
     id: 'resumen',
@@ -586,6 +616,10 @@ const STEPS = [
         const summary = el('dl', 'summary');
         summary.appendChild(el('dt', 'summary__label', 'Respuesta'));
         summary.appendChild(el('dd', 'summary__value', `${state.filledBy.trim()} · No podrá asistir`));
+        if (state.comentario.trim()) {
+          summary.appendChild(el('dt', 'summary__label', 'Comentario'));
+          summary.appendChild(el('dd', 'summary__value', state.comentario.trim()));
+        }
         screen.appendChild(summary);
         screen.appendChild(el('p', 'wizard__closing', 'Un abrazo enorme. — María & Alberto ✿'));
         return;
@@ -643,6 +677,8 @@ const STEPS = [
         }
         row('Vuelta', vueltaParts.join(' · '));
       }
+
+      if (state.comentario.trim()) row('Comentario', state.comentario.trim());
 
       screen.appendChild(summary);
       screen.appendChild(el('p', 'wizard__closing', 'Gracias por tomarte este ratico. Nos hace muchísima ilusión contar contigo. — María & Alberto ✿'));
@@ -738,9 +774,9 @@ export function initRsvp() {
 
   /* ---- Construcción del documento que se envía a Firestore ---- */
   function buildPayload() {
-    // Si NO asiste, basta con quién responde y su negativa
+    // Si NO asiste, basta con quién responde y su negativa (+ comentario)
     if (state.attending === false) {
-      return { filledBy: state.filledBy.trim(), attending: false };
+      return { filledBy: state.filledBy.trim(), attending: false, comentario: state.comentario.trim() };
     }
 
     const payload = {
@@ -757,6 +793,7 @@ export function initRsvp() {
         needsShoes: p.needsShoes === true,
         shoeSize: p.needsShoes === true ? p.shoeSize.trim() : '',
       })),
+      comentario: state.comentario.trim(),
     };
     // Los datos de viaje solo tienen sentido si viene de fuera
     if (state.origin === 'fuera') {

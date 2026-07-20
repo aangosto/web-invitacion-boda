@@ -70,8 +70,8 @@ function travelLines(data) {
 /** Snapshot de los campos editables tal como están AHORA (para guardar
     el "original" la primera vez que se edita). Sin valores undefined. */
 function editableSnapshot(d) {
-  if (d.attending === false) return { filledBy: d.filledBy || '', attending: false };
-  const snap = { filledBy: d.filledBy || '', attending: true, origin: d.origin || '', people: Array.isArray(d.people) ? d.people : [] };
+  if (d.attending === false) return { filledBy: d.filledBy || '', attending: false, comentario: d.comentario || '' };
+  const snap = { filledBy: d.filledBy || '', attending: true, origin: d.origin || '', people: Array.isArray(d.people) ? d.people : [], comentario: d.comentario || '' };
   if (d.travel) snap.travel = d.travel;
   return snap;
 }
@@ -111,6 +111,7 @@ function originalBox(orig) {
     box.appendChild(el('p', 'res-person__meta', personLine(p)));
   });
   travelLines(orig).forEach((line) => box.appendChild(el('p', 'res-card__travel', line)));
+  if ((orig.comentario || '').trim()) box.appendChild(el('p', 'res-card__travel', `💬 ${orig.comentario.trim()}`));
   return box;
 }
 
@@ -245,6 +246,8 @@ export async function initRsvpTab(container) {
       });
       travelLines(data).forEach((line) => card.appendChild(el('p', 'res-card__travel', line)));
     }
+    // Comentario libre del invitado (asista o no)
+    if ((data.comentario || '').trim()) card.appendChild(el('p', 'res-card__travel', `💬 ${data.comentario.trim()}`));
 
     // --- Acciones: editar · ver original · borrar (soft) ---
     const actions = el('div', 'res-card__actions');

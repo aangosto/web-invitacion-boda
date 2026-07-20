@@ -1056,6 +1056,8 @@ a { color: inherit; }
   border-color: var(--burgundy);
   box-shadow: 0 0 0 3px rgba(110,36,53,0.12);
 }
+/* Área de texto (comentario libre del wizard): amplia y redimensionable */
+.field__input--area { min-height: 7.5rem; resize: vertical; }
 /* ---- Chips (selección única: menú, sí/no, modo de viaje) ---- */
 .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .chip {
