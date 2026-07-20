@@ -24,7 +24,9 @@ export const ITEMS = {
   escudo:   { team: 'novio', img: '/nio_escudo.png',   emoji: '🛡️', color: '#1f3a6b' },
 };
 export const BOOSTERS = {
-  x2:     { emoji: '✖️', label: '×2 puntos', color: '#6e2435' },
+  // El x2 se dibuja como TEXTO "×2" (no emoji): con la ✖️ parecía una
+  // penalización. `text` tiene prioridad sobre `emoji` al dibujar.
+  x2:     { text: '×2', emoji: '×2', label: '×2 puntos', color: '#6e2435' },
   slow:   { emoji: '🐌', label: 'Caída lenta', color: '#7a6b54' }, // topo (--taupe-deep)
   magnet: { emoji: '🧲', label: 'Imán', color: '#561a28' },
 };
@@ -149,7 +151,7 @@ export function initMinigame() {
 
   function drawObject(o) {
     if (o.isBooster) {
-      // halo del booster
+      // Los boosters se dibujan SIN rotar (legibles): halo + símbolo
       ctx.save();
       ctx.beginPath();
       ctx.arc(o.x, o.y, o.r + 4, 0, Math.PI * 2);
@@ -158,7 +160,19 @@ export function initMinigame() {
       ctx.lineWidth = 2;
       ctx.strokeStyle = o.def.color;
       ctx.stroke();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      if (o.def.text) {
+        // "×2" en grande y burdeos: claramente un bonus, no un aspa
+        ctx.font = `700 ${Math.round(o.r * 1.5)}px Jost, system-ui, sans-serif`;
+        ctx.fillStyle = o.def.color;
+        ctx.fillText(o.def.text, o.x, o.y + 1);
+      } else {
+        ctx.font = `${o.r * 1.8}px serif`;
+        ctx.fillText(o.def.emoji, o.x, o.y + 1);
+      }
       ctx.restore();
+      return;
     }
 
     ctx.save();
@@ -263,7 +277,10 @@ export function initMinigame() {
   function updateBoosterHud() {
     const active = Object.keys(effects).filter((k) => effects[k] > 0);
     boosterEl.textContent = active.length
-      ? active.map((k) => `${BOOSTERS[k].emoji} ${BOOSTERS[k].label}`).join('  ')
+      ? active.map((k) => {
+          const b = BOOSTERS[k];
+          return b.text ? b.label : `${b.emoji} ${b.label}`;
+        }).join('  ')
       : '';
   }
 
@@ -372,7 +389,9 @@ export function initMinigame() {
     Object.entries(BOOSTERS).forEach(([key, b]) => {
       const span = document.createElement('span');
       span.className = 'game-help__booster';
-      span.textContent = `${b.emoji} ${b.label} (${DESC[key]})`;
+      span.textContent = b.text
+        ? `${b.label} (${DESC[key]})`
+        : `${b.emoji} ${b.label} (${DESC[key]})`;
       boostersBox.appendChild(span);
     });
   }
