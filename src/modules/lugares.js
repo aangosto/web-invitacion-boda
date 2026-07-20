@@ -76,6 +76,8 @@ export function initLugares() {
     if (e.key === 'Escape') close();
   });
 
+  initArtViewer();
+
   // --- Cargar los lugares (Firestore → respaldo con los de ejemplo) ---
   fetchLugares()
     .then((lugares) => renderMarkers(lugares.length ? lugares : SEED_LUGARES))
@@ -83,4 +85,40 @@ export function initLugares() {
       console.error('[Lugares] No se pudo leer Firestore, uso el respaldo:', err);
       renderMarkers(SEED_LUGARES);
     });
+}
+
+/* ---------------- Visor de la ilustración a pantalla completa ----------------
+   "Ver la ilustración completa" abre la acuarela en un overlay oscuro con
+   botones de cerrar y descargar. Se cierra con la X, tocando el fondo
+   (fuera de la imagen) o con Escape. Mientras está abierto se bloquea el
+   scroll de la página. */
+function initArtViewer() {
+  const openBtn = document.getElementById('art-open');
+  const overlay = document.getElementById('art-overlay');
+  if (!openBtn || !overlay) return;
+
+  const closeBtn = document.getElementById('art-close');
+
+  function openViewer() {
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+    closeBtn.focus();
+  }
+
+  function closeViewer() {
+    if (overlay.hidden) return;
+    overlay.hidden = true;
+    document.body.style.overflow = '';
+    openBtn.focus();
+  }
+
+  openBtn.addEventListener('click', openViewer);
+  closeBtn.addEventListener('click', closeViewer);
+  // Tocar el fondo cierra; tocar la imagen o los botones, no
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeViewer();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeViewer();
+  });
 }

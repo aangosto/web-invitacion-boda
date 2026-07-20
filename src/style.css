@@ -574,6 +574,123 @@ a { color: inherit; }
   object-fit: cover;
 }
 
+/* ---- Enlace discreto para abrir el visor ---- */
+.places__view {
+  display: block;
+  margin: 0.75rem auto 0;
+  min-height: 44px;             /* área táctil cómoda */
+  padding: 0.5rem 1rem;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: var(--burgundy);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.places__view:hover { opacity: 0.75; }
+
+/* ---- Visor de la ilustración a pantalla completa ----
+   z-index por encima de la nav flotante (100). */
+.art-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(30, 22, 18, 0.88);
+  animation: art-fade 0.25s ease;
+}
+.art-overlay[hidden] { display: none; }
+@keyframes art-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Escritorio / pantalla ancha: horizontal, grande y centrada */
+.art-overlay__pic {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;          /* el fondo recibe el toque de cierre… */
+}
+.art-overlay__pic img {
+  pointer-events: auto;          /* …pero tocar la imagen NO cierra */
+  max-width: 94vw;
+  max-height: 94vh;
+  max-height: 94svh;
+  border-radius: 6px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* MÓVIL (pantalla estrecha): rotada 90° ocupando toda la pantalla, el
+   mismo truco que el stage de la apertura (ejes intercambiados + rotate).
+   object-fit: cover llena el móvil recortando solo cielo y arena. */
+@media (max-width: 48rem) {
+  .art-overlay__pic {
+    inset: auto;
+    display: block;
+    top: 50%;
+    left: 50%;
+    width: 100vh;                /* respaldo para navegadores sin svh */
+    width: 100svh;
+    height: 100vw;
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+  .art-overlay__pic img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+/* Botones del visor: NO rotan, quedan fijos respecto al móvil físico */
+.art-overlay__close {
+  position: absolute;
+  top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  right: 0.75rem;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(245, 241, 233, 0.92);   /* --paper */
+  color: var(--burgundy);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+.art-overlay__download {
+  position: absolute;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-grid;
+  place-items: center;
+  min-height: 44px;
+  padding: 0.6rem 1.6rem;
+  border-radius: 999px;
+  background: rgba(245, 241, 233, 0.92);   /* --paper */
+  color: var(--burgundy);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+.art-overlay__download:active,
+.art-overlay__close:active { transform: scale(0.97); }
+.art-overlay__download:active { transform: translateX(-50%) scale(0.97); }
+
+@media (prefers-reduced-motion: reduce) {
+  .art-overlay { animation: none; }
+}
+
 /* ---- Marcadores (botones pulsantes sobre la imagen) ---- */
 .place-marker {
   position: absolute;

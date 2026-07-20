@@ -172,6 +172,7 @@
           <h3 class="place-card__title"></h3>
           <p class="place-card__text"></p>
         </div>
+        <button id="art-open" class="places__view" type="button">Ver la ilustración completa</button>
       </div>
     </section>
 
@@ -264,6 +265,20 @@
     </footer>
 
   </main>
+
+  <!-- VISOR DE LA ILUSTRACIÓN a pantalla completa (se abre desde "Nuestros
+       lugares"). Vive FUERA de <main> porque .reveal usa transform y un
+       ancestro con transform rompería este position: fixed. En móvil la
+       imagen se muestra rotada 90° con el mismo truco que el stage de la
+       apertura (ancho = 100svh, alto = 100vw, rotate). -->
+  <div id="art-overlay" class="art-overlay" role="dialog" aria-modal="true" aria-label="Ilustración completa" hidden>
+    <picture class="art-overlay__pic">
+      <source srcset="/acuarela.webp" type="image/webp" />
+      <img src="/acuarela.jpeg" alt="Ilustración en acuarela de María y Alberto con los lugares de Murcia y Zaragoza" decoding="async" loading="lazy" />
+    </picture>
+    <button id="art-close" class="art-overlay__close" type="button" aria-label="Cerrar">✕</button>
+    <a id="art-download" class="art-overlay__download" href="/acuarela.jpeg" download="ilustracion-maria-y-alberto.jpg">Descargar</a>
+  </div>
 
   <script type="module" src="/src/main.js"></script>
 </body>
