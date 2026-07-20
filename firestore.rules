@@ -133,11 +133,13 @@ service cloud.firestore {
     function isValidRsvp(d) {
       // Si NO asiste basta { filledBy, attending:false, createdAt }.
       // Si asiste: origin obligatorio, people 1..30 y travel opcional
-      // (solo se envía si viene de fuera).
-      return d.keys().hasOnly(['filledBy', 'attending', 'origin', 'people', 'travel', 'createdAt'])
+      // (solo se envía si viene de fuera). `comentario` es el texto
+      // libre final del cuestionario: opcional, asista o no.
+      return d.keys().hasOnly(['filledBy', 'attending', 'origin', 'people', 'travel', 'comentario', 'createdAt'])
         && d.filledBy is string && d.filledBy.size() >= 1 && d.filledBy.size() <= 120
         && d.attending is bool
         && d.createdAt == request.time              // obliga a serverTimestamp()
+        && (!('comentario' in d.keys()) || (d.comentario is string && d.comentario.size() <= 2000))
         && (d.attending == false || (
              d.origin in ['fuera', 'zaragoza']
              && d.people is list && d.people.size() >= 1 && d.people.size() <= 30
