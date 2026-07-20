@@ -70,6 +70,20 @@ service cloud.firestore {
       allow delete: if request.auth != null;
     }
 
+    // ---------- AUDITORÍA (registro de visitas y eventos) ----------
+    // La web pública CREA eventos (visitas, envíos de RSVP, partidas)
+    // sin sesión; la LECTURA exige autenticación, igual que rsvp: solo
+    // el panel /resultados puede consultarla. No es pública porque
+    // contiene datos de navegación de los invitados (sin IP).
+    // Inmutable desde el cliente: sin update; delete solo con sesión
+    // (limpieza desde el panel).
+    match /auditoria/{eventId} {
+      allow read: if request.auth != null;
+      allow create: if isValidAudit(request.resource.data);
+      allow update: if false;
+      allow delete: if request.auth != null;
+    }
+
     // ---------- CONFIG (textos editables: regalo/IBAN…) ----------
     // Lectura pública (la home muestra la frase y el IBAN); escritura
     // solo con sesión + validación de forma (misma limitación asumida
@@ -80,6 +94,15 @@ service cloud.firestore {
     }
 
     // ---------- Validaciones ----------
+    function isValidAudit(d) {
+      // Validación laxa a propósito: el cliente añade campos de contexto
+      // variables (idioma, pantalla, conexión…). Se exige tipo, fecha de
+      // servidor y un tope de tamaño para disuadir el abuso.
+      return d.tipo is string && d.tipo.size() >= 1 && d.tipo.size() <= 40
+        && d.createdAt == request.time             // obliga a serverTimestamp()
+        && d.keys().size() <= 25;
+    }
+
     function isValidConfig(d) {
       // `titular` (nombre del titular de la cuenta) es opcional.
       return d.keys().hasOnly(['frase', 'iban', 'titular'])
