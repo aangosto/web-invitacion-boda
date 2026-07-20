@@ -11,7 +11,10 @@
 // no arriesgamos unas coordenadas equivocadas.
 const EVENT = {
   title: 'Boda de María & Alberto',
-  description: 'Ceremonia en la Iglesia de San Antonio de Padua (Paseo de Cuéllar, 10, Zaragoza) y celebración en la Finca Tierrabella.',
+  // El evento .ics solo admite UNA ubicación (LOCATION): la iglesia,
+  // donde empieza el día. La dirección completa de la finca va en la
+  // descripción para tenerla a mano desde el propio evento.
+  description: 'Ceremonia en la Iglesia de San Antonio de Padua (Paseo de Cuéllar, 10, 50006 Zaragoza) y celebración en la Finca Tierrabella (Carretera de Cogullada, 29, 50014 Zaragoza).',
   location: 'Iglesia de San Antonio de Padua, Paseo de Cuéllar, 10, 50006 Zaragoza',
   startUTC: '20261024T103000Z',
   endUTC: '20261024T180000Z',
