@@ -14,14 +14,14 @@ import { logAudit } from './audit.js';
 // Objetos por equipo, con su sprite PNG (transparencia real) en public/.
 // Si el sprite no carga, se dibuja el respaldo: círculo de color + emoji.
 export const ITEMS = {
-  limon:    { team: 'novia', img: '/nov_limon.png',    emoji: '🍋', color: '#e7cf6a' },
-  espeto:   { team: 'novia', img: '/nov_espeto.png',   emoji: '🐟', color: '#8a7b64' },
-  biznaga:  { team: 'novia', img: '/nov_biznaga.png',  emoji: '💮', color: '#efece3' },
-  marinera: { team: 'novia', img: '/nov_marinera.png', emoji: '🥖', color: '#d9a05b' },
-  vermut:   { team: 'novio', img: '/nio_vermut.png',   emoji: '🍸', color: '#6e2435' },
-  ternasco: { team: 'novio', img: '/nio_ternasco.png', emoji: '🍗', color: '#b0713a' },
-  cartas:   { team: 'novio', img: '/nio_cartas.png',   emoji: '🃏', color: '#f5f1e9' },
-  escudo:   { team: 'novio', img: '/nio_escudo.png',   emoji: '🛡️', color: '#1f3a6b' },
+  limon:    { team: 'novia', name: 'Limón',              img: '/nov_limon.png',    emoji: '🍋', color: '#e7cf6a' },
+  espeto:   { team: 'novia', name: 'Espeto',             img: '/nov_espeto.png',   emoji: '🐟', color: '#8a7b64' },
+  biznaga:  { team: 'novia', name: 'Biznaga',            img: '/nov_biznaga.png',  emoji: '💮', color: '#efece3' },
+  marinera: { team: 'novia', name: 'Marinera',           img: '/nov_marinera.png', emoji: '🥖', color: '#d9a05b' },
+  vermut:   { team: 'novio', name: 'Vermut',             img: '/nio_vermut.png',   emoji: '🍸', color: '#6e2435' },
+  ternasco: { team: 'novio', name: 'Ternasco',           img: '/nio_ternasco.png', emoji: '🍗', color: '#b0713a' },
+  cartas:   { team: 'novio', name: 'Cartas',             img: '/nio_cartas.png',   emoji: '🃏', color: '#f5f1e9' },
+  escudo:   { team: 'novio', name: 'Escudo del Zaragoza', img: '/nio_escudo.png',  emoji: '🛡️', color: '#1f3a6b' },
 };
 export const BOOSTERS = {
   // El x2 se dibuja como TEXTO "×2" (no emoji): con la ✖️ parecía una
@@ -200,6 +200,22 @@ export function initMinigame() {
       ctx.fillText(o.def.emoji, 0, 1);
     }
     ctx.restore();
+
+    // Etiqueta pequeña con el NOMBRE bajo el objeto (sin rotar, con un
+    // trazo claro debajo para que se lea sobre cualquier fondo)
+    if (o.def.name) {
+      ctx.save();
+      ctx.font = '500 10px Jost, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const ly = o.y + o.r * 1.35;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(245,241,233,0.85)';
+      ctx.strokeText(o.def.name, o.x, ly);
+      ctx.fillStyle = 'rgba(63,58,50,0.85)';
+      ctx.fillText(o.def.name, o.x, ly);
+      ctx.restore();
+    }
   }
 
   function draw() {
