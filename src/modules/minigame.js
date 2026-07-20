@@ -8,6 +8,7 @@
    ================================================================= */
 
 import { saveScore } from './scores.js';
+import { logAudit } from './audit.js';
 
 /* ---------------- Definición de objetos ---------------- */
 // Objetos por equipo, con su sprite PNG (transparencia real) en public/.
@@ -284,6 +285,7 @@ export function initMinigame() {
     running = false;
     cancelAnimationFrame(raf);
     clearInterval(hudTimer);
+    logAudit('juego', { team, points: score });
     overTeamEl.textContent = team === 'novio' ? 'Team Novio' : 'Team Novia';
     overTeamEl.style.color = team === 'novio' ? 'var(--burgundy)' : 'var(--taupe-deep)';
     finalEl.textContent = score;

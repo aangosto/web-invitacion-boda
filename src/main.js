@@ -15,8 +15,10 @@ import { initReveal } from './modules/reveal.js';
 import { initParallax } from './modules/parallax.js';
 import { initLugares } from './modules/lugares.js';
 import { initRegalo } from './modules/regalo.js';
+import { logAudit } from './modules/audit.js';
 
 function boot() {
+  logAudit('visita');
   initCountdown();
   initNav();
   initCalendar();

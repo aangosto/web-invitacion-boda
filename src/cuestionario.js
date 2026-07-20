@@ -6,8 +6,10 @@
 import './style.css';
 
 import { initRsvp } from './modules/rsvp.js';
+import { logAudit } from './modules/audit.js';
 
 function boot() {
+  logAudit('visita');
   initRsvp();
 }
 

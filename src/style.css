@@ -1774,6 +1774,50 @@ a { color: inherit; }
   color: var(--ink-soft);
 }
 
+/* ---- Pestaña Auditoría: tabla de eventos ----
+   En móvil la tabla es más ancha que la pantalla: se desplaza en
+   horizontal dentro de su contenedor, sin desbordar la página. */
+.adm-tablewrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 0.75rem;
+  border: 1px solid rgba(110,36,53,0.15);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.5);
+}
+.adm-table {
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  min-width: 100%;
+}
+.adm-table th,
+.adm-table td {
+  padding: 0.45rem 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(63,58,50,0.12);
+  color: var(--ink);
+}
+.adm-table th {
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+  color: var(--burgundy);
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid rgba(110,36,53,0.3);
+}
+.adm-table tbody tr:nth-child(even) { background: rgba(110,36,53,0.04); }
+.adm-table tbody tr:last-child td { border-bottom: 0; }
+/* El user-agent es larguísimo: se acota y se lee entero con title */
+.adm-table__ua {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink-soft);
+}
+
 /* =================================================================
    14. REVEALS AL SCROLL
    ================================================================= */

@@ -8,8 +8,10 @@ import './style.css';
 import { initReveal } from './modules/reveal.js';
 import { initMinigame } from './modules/minigame.js';
 import { initRanking } from './modules/ranking.js';
+import { logAudit } from './modules/audit.js';
 
 function boot() {
+  logAudit('visita');
   initMinigame();
   initRanking();
   initReveal();

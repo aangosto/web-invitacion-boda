@@ -23,6 +23,7 @@
 
 import { db, isConfigured } from '../firebase.js';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { logAudit } from './audit.js';
 
 /**
  * Envía la confirmación a Firestore (colección "rsvp").
@@ -39,7 +40,9 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
  */
 export async function submitRsvp(data) {
   if (isConfigured) {
-    await addDoc(collection(db, 'rsvp'), { ...data, createdAt: serverTimestamp() });
+    const ref = await addDoc(collection(db, 'rsvp'), { ...data, createdAt: serverTimestamp() });
+    // Auditoría con referencia al doc recién creado (fire-and-forget)
+    logAudit('envio_formulario', { rsvpId: ref.id, attending: data.attending });
     return { ok: true };
   }
   console.info('[RSVP] (sin Firebase) datos capturados:', data);
