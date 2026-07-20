@@ -1144,6 +1144,10 @@ a { color: inherit; }
   color: var(--ink);
 }
 .game-help__row { display: flex; align-items: flex-start; gap: 0.6rem; }
+/* El bloque de texto ocupa SIEMPRE todo el ancho restante de la fila:
+   así las rejillas de +10 y −5 comparten ancho exacto y sus columnas
+   coinciden verticalmente entre sí. */
+.game-help__row > span:last-child:not(.game-help__icon) { flex: 1 1 0; min-width: 0; }
 .game-help__icon {
   flex: 0 0 2.4rem;
   text-align: center;
@@ -1160,7 +1164,12 @@ a { color: inherit; }
    nombres arrancan a la misma altura en cada fila. */
 .game-help__items {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0,1fr): dos columnas EXACTAMENTE iguales (sin suelo de
+     min-content), llenando el 100% del bloque de texto. Como ese
+     bloque mide lo mismo en todas las filas, la columna izquierda y
+     la derecha quedan en la misma vertical en ambas rejillas. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  width: 100%;
   justify-items: center;
   gap: 0.6rem;
   margin-top: 0.45rem;
