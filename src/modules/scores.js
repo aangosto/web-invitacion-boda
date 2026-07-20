@@ -11,8 +11,9 @@ import {
 } from 'firebase/firestore';
 
 // Se leen las mejores puntuaciones y se reparten por equipo en el cliente
-// (evita tener que crear un índice compuesto en Firestore).
-const TOP_LIMIT = 100;
+// (evita tener que crear un índice compuesto en Firestore). El tope es
+// holgado porque el marcador global suma TODAS las partidas guardadas.
+const TOP_LIMIT = 500;
 
 /* ---------- Firestore ---------- */
 async function saveFirestore(score) {

@@ -37,6 +37,28 @@ function escapeHtml(str) {
   );
 }
 
+/** Marcador global: suma de TODOS los puntos de cada equipo, como barra
+    repartida (topo = novia, burdeos = novio). Con 0-0 queda al 50%. */
+function renderGlobal(scores) {
+  const noviaEl = document.getElementById('global-novia');
+  const novioEl = document.getElementById('global-novio');
+  const fillNovia = document.getElementById('global-fill-novia');
+  if (!noviaEl || !novioEl || !fillNovia) return;
+
+  const sum = (team) => scores
+    .filter((s) => s.team === team)
+    .reduce((acc, s) => acc + (Number(s.points) || 0), 0);
+  const novia = sum('novia');
+  const novio = sum('novio');
+  const total = novia + novio;
+
+  noviaEl.textContent = String(novia);
+  novioEl.textContent = String(novio);
+  // Nunca al 0%: un mínimo del 6% deja siempre visible al que pierde
+  const pct = total === 0 ? 50 : Math.min(94, Math.max(6, (novia / total) * 100));
+  fillNovia.style.width = `${pct}%`;
+}
+
 export function initRanking() {
   const novia = document.getElementById('rank-novia');
   const novio = document.getElementById('rank-novio');
@@ -45,5 +67,6 @@ export function initRanking() {
   watchRanking((scores) => {
     render(novia, top3(scores, 'novia'));
     render(novio, top3(scores, 'novio'));
+    renderGlobal(scores);
   });
 }

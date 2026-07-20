@@ -138,6 +138,19 @@
       <!-- Ranking en vivo (TOP 3 por equipo) -->
       <div class="floral-rule reveal" aria-hidden="true">✿</div>
       <h2 class="ranking__title reveal">Ranking</h2>
+
+      <!-- Marcador GLOBAL: suma de TODOS los puntos de cada equipo,
+           pintado por src/modules/ranking.js con los datos en vivo -->
+      <div class="global-score reveal" aria-label="Marcador global por equipos">
+        <div class="global-score__labels">
+          <span class="global-score__team global-score__team--novia">Team Novia · <b id="global-novia">0</b></span>
+          <span class="global-score__team global-score__team--novio"><b id="global-novio">0</b> · Team Novio</span>
+        </div>
+        <div class="global-score__bar">
+          <div id="global-fill-novia" class="global-score__fill global-score__fill--novia" style="width: 50%"></div>
+          <div class="global-score__fill global-score__fill--novio"></div>
+        </div>
+      </div>
       <div class="ranking reveal">
         <div class="ranking__col">
           <h3 class="ranking__team ranking__team--novia">Team Novia</h3>

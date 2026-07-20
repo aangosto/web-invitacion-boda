@@ -1273,6 +1273,36 @@ a { color: inherit; }
 .game__over-score b { color: var(--ink); font-size: 1.3rem; }
 .game__over-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
 
+/* --- Marcador GLOBAL Novia vs Novio (barra repartida) --- */
+.global-score {
+  max-width: 30rem;
+  margin: 0 auto 1.1rem;
+}
+.global-score__labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+}
+.global-score__team--novia { color: var(--taupe-deep); }
+.global-score__team--novio { color: var(--burgundy); }
+.global-score__team b { font-size: 0.95rem; }
+.global-score__bar {
+  display: flex;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(110,36,53,0.25);
+  background: rgba(255,255,255,0.5);
+}
+.global-score__fill { transition: width 0.6s var(--ease); }
+.global-score__fill--novia { background: var(--taupe-deep); }
+/* El novio ocupa el resto de la barra */
+.global-score__fill--novio { flex: 1; background: var(--burgundy); }
+
 /* --- Ranking en vivo (TOP 3 por equipo) --- */
 .ranking__title { margin-top: 0.5rem; }
 .ranking {
