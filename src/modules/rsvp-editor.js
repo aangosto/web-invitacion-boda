@@ -45,7 +45,7 @@ function normalize(data) {
     people,
     travel: {
       ida: { mode: '', from: '', arrivalDay: '', arrivalTime: '', canCarry: null, seats: '', departTime: '', ...(t.ida || {}) },
-      vuelta: { day: '', mode: '', departTime: '', canCarry: null, ...(t.vuelta || {}) },
+      vuelta: { day: '', mode: '', departTime: '', canCarry: null, seats: '', ...(t.vuelta || {}) },
     },
   };
 }
@@ -113,6 +113,7 @@ function buildPayload(state) {
     const conLlegada = ida.mode && ida.mode !== 'buscando';
     const idaOfrece = ida.mode === 'coche' && ida.canCarry === true;
     const vueltaAsks = vuelta.mode && vuelta.mode !== 'buscando';
+    const vueltaOfrece = vuelta.mode === 'coche' && vuelta.canCarry === true;
     payload.travel = {
       ida: {
         mode: ida.mode,
@@ -129,6 +130,7 @@ function buildPayload(state) {
         day: vueltaAsks ? vuelta.day : '',
         departTime: vueltaAsks ? (vuelta.departTime || '') : '',
         canCarry: vuelta.mode === 'coche' ? vuelta.canCarry === true : null,
+        seats: vueltaOfrece ? (parseInt(vuelta.seats, 10) || 0) : null,
         seeking: vuelta.mode === 'buscando',
       },
     };
@@ -233,7 +235,10 @@ export function createRsvpEditor(data) {
         root.appendChild(textField({ label: 'Hora de salida', value: vuelta.departTime, type: 'time', onInput: (v) => { vuelta.departTime = v; } }));
       }
       if (vuelta.mode === 'coche') {
-        root.appendChild(yesNo({ label: '¿Plazas libres a la vuelta?', value: vuelta.canCarry, onSelect: (v) => { vuelta.canCarry = v; } }));
+        root.appendChild(yesNo({ label: '¿Plazas libres a la vuelta?', value: vuelta.canCarry, onSelect: (v) => { vuelta.canCarry = v; refresh(); } }));
+        if (vuelta.canCarry === true) {
+          root.appendChild(textField({ label: 'Cuántas plazas (vuelta)', value: vuelta.seats, type: 'number', placeholder: 'Ej.: 2', onInput: (v) => { vuelta.seats = v; } }));
+        }
       }
     }
   }

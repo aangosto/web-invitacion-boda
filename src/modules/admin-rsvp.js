@@ -61,7 +61,7 @@ function travelLines(data) {
     const partes = [`Vuelta: ${MODE_LABELS[t.vuelta.mode] || '—'}`];
     if (t.vuelta.day) partes.push(`el ${t.vuelta.day}`);
     if (t.vuelta.departTime) partes.push(`sale ~${t.vuelta.departTime}`);
-    if (t.vuelta.canCarry === true) partes.push('puede llevar a alguien');
+    if (t.vuelta.canCarry === true) partes.push(t.vuelta.seats ? `${t.vuelta.seats} plazas libres` : 'puede llevar a alguien');
     lines.push(partes.join(' · '));
   }
   return lines;

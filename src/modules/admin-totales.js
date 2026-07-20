@@ -103,6 +103,7 @@ function aggregate(docs) {
       }
       if (plazasVuelta) {
         const bits = [];
+        if (vuelta.seats) bits.push(`${vuelta.seats} plaza${Number(vuelta.seats) === 1 ? '' : 's'}`);
         if (vuelta.departTime) bits.push(`sale ~${vuelta.departTime}`);
         tramos.push(`vuelta${bits.length ? ` (${bits.join(', ')})` : ''}`);
       }
