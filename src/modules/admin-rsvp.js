@@ -18,9 +18,9 @@ function el(tag, className, text) {
   return node;
 }
 
-/** Timestamp de Firestore → "24/10/2026 12:30" (o '—' si falta). */
+/** Timestamp de Firestore → "24/10/2026 12:30" (o 'sin fecha' si falta). */
 function formatDate(ts) {
-  if (!ts || typeof ts.toDate !== 'function') return '—';
+  if (!ts || typeof ts.toDate !== 'function') return 'sin fecha';
   const d = ts.toDate();
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -232,7 +232,9 @@ export async function initRsvpTab(container) {
       data.attending === false ? 'res-badge res-badge--no' : 'res-badge',
       data.attending === false ? 'No asiste' : 'Asiste'));
     card.appendChild(head);
-    card.appendChild(el('p', 'res-card__date', formatDate(data.createdAt)));
+    const when = formatDate(data.createdAt);
+    card.appendChild(el('p', 'res-card__date',
+      when === 'sin fecha' ? 'Sin fecha de envío' : `Rellenado el ${when}`));
 
     if (data.attending !== false) {
       (data.people || []).forEach((p) => {
