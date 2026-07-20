@@ -1154,22 +1154,35 @@ a { color: inherit; }
 .game-help__icon--ok { color: var(--taupe-deep); }
 .game-help__icon--bad { color: var(--burgundy); }
 /* Artículos que suman / restan: REJILLA 2x2 (4 objetos por equipo),
-   cada celda con la imagen y su nombre debajo */
+   cada celda con la imagen y su nombre debajo. TODAS las imágenes
+   comparten la MISMA caja (52x52) con object-fit: contain: un objeto
+   alargado y uno cuadrado ocupan idéntica casilla, centrados, y los
+   nombres arrancan a la misma altura en cada fila. */
 .game-help__items {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem 0.6rem;
+  justify-items: center;
+  gap: 0.6rem;
   margin-top: 0.45rem;
 }
 .game-help__cell {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.15rem;
+  justify-content: flex-start;   /* el nombre, pegado bajo la caja */
+  gap: 0.3rem;
   text-align: center;
 }
-.game-help__item { width: 40px; height: 40px; object-fit: contain; }
+.game-help__item {
+  display: block;
+  width: 52px;
+  height: 52px;
+  object-fit: contain;           /* centra el dibujo en la caja sin deformar */
+  object-position: center;
+  flex: 0 0 auto;
+}
 .game-help__cellname {
+  display: block;
   font-size: 0.72rem;
   line-height: 1.2;
   color: var(--ink-soft);
