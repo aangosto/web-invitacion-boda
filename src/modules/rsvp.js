@@ -104,6 +104,13 @@ const MODE_OPTIONS = [
 const MENU_LABELS = { ninguno: 'Sin menú especial', vegetariano: 'Vegetariano', vegano: 'Vegano', otro: 'Otro' };
 const MODE_LABELS = { bus: 'Bus', ave: 'AVE/Tren', coche: 'Coche', avion: 'Avión', otro: 'Otro', buscando: 'Aún no lo sé / busca transporte' };
 
+/* Ventana de fechas de viaje alrededor de la boda (24·10·2026). Con la
+   fecha de hoy fuera del rango, el calendario nativo abre directamente
+   en octubre de 2026 en vez de en el mes actual: el invitado no tiene
+   que ir pasando meses. No pre-rellena nada: el campo sigue vacío. */
+const TRAVEL_DATE_MIN = '2026-10-01';
+const TRAVEL_DATE_MAX = '2026-11-30';
+
 /* ---------------- Ayudantes de DOM ---------------- */
 
 function el(tag, className, text) {
@@ -114,7 +121,7 @@ function el(tag, className, text) {
 }
 
 /** Campo de texto con etiqueta. onInput recibe el valor ya recortable. */
-function textField({ label, value, placeholder = '', type = 'text', autocomplete, onInput }) {
+function textField({ label, value, placeholder = '', type = 'text', autocomplete, min, max, onInput }) {
   const wrap = el('label', 'field');
   wrap.appendChild(el('span', 'field__label', label));
   const input = el('input', 'field__input');
@@ -122,6 +129,8 @@ function textField({ label, value, placeholder = '', type = 'text', autocomplete
   input.value = value || '';
   input.placeholder = placeholder;
   if (autocomplete) input.autocomplete = autocomplete;
+  if (min != null) input.min = min;
+  if (max != null) input.max = max;
   input.addEventListener('input', () => onInput(input.value));
   wrap.appendChild(input);
   return wrap;
@@ -456,6 +465,8 @@ const STEPS = [
           label: 'Día de llegada',
           value: ida.arrivalDay,
           type: 'date',
+          min: TRAVEL_DATE_MIN,
+          max: TRAVEL_DATE_MAX,
           onInput: (v) => { ida.arrivalDay = v; save(); },
         }));
         screen.appendChild(textField({
@@ -521,6 +532,8 @@ const STEPS = [
           label: 'Día de salida',
           value: vuelta.day,
           type: 'date',
+          min: TRAVEL_DATE_MIN,
+          max: TRAVEL_DATE_MAX,
           onInput: (v) => { vuelta.day = v; save(); },
         }));
         screen.appendChild(textField({
