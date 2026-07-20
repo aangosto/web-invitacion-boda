@@ -21,7 +21,7 @@ export const ITEMS = {
   vermut:   { team: 'novio', name: 'Vermut',             img: '/nio_vermut.png',   emoji: '🍸', color: '#6e2435' },
   ternasco: { team: 'novio', name: 'Ternasco',           img: '/nio_ternasco.png', emoji: '🍗', color: '#b0713a' },
   cartas:   { team: 'novio', name: 'Cartas',             img: '/nio_cartas.png',   emoji: '🃏', color: '#f5f1e9' },
-  escudo:   { team: 'novio', name: 'Escudo del Zaragoza', img: '/nio_escudo.png',  emoji: '🛡️', color: '#1f3a6b' },
+  escudo:   { team: 'novio', name: 'Escudo del Real Zaragoza', img: '/nio_escudo.png', emoji: '🛡️', color: '#1f3a6b' },
 };
 export const BOOSTERS = {
   // El x2 se dibuja como TEXTO "×2" (no emoji): con la ✖️ parecía una
@@ -200,22 +200,8 @@ export function initMinigame() {
       ctx.fillText(o.def.emoji, 0, 1);
     }
     ctx.restore();
-
-    // Etiqueta pequeña con el NOMBRE bajo el objeto (sin rotar, con un
-    // trazo claro debajo para que se lea sobre cualquier fondo)
-    if (o.def.name) {
-      ctx.save();
-      ctx.font = '500 10px Jost, system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      const ly = o.y + o.r * 1.35;
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(245,241,233,0.85)';
-      ctx.strokeText(o.def.name, o.x, ly);
-      ctx.fillStyle = 'rgba(63,58,50,0.85)';
-      ctx.fillText(o.def.name, o.x, ly);
-      ctx.restore();
-    }
+    // (Los NOMBRES de los objetos ya no se pintan durante la partida:
+    // se aprenden en la pantalla de instrucciones, en rejilla con nombre.)
   }
 
   function draw() {
@@ -385,15 +371,23 @@ export function initMinigame() {
     teamEl.textContent = team === 'novio' ? 'Team Novio' : 'Team Novia';
     teamEl.style.color = team === 'novio' ? 'var(--burgundy)' : 'var(--taupe-deep)';
 
+    // Rejilla 2x2 (cada equipo tiene 4 objetos): imagen + NOMBRE debajo,
+    // para que el jugador aprenda qué es cada cosa antes de jugar.
     const fillItems = (elId, wanted) => {
       const box = document.getElementById(elId);
       box.innerHTML = '';
       Object.values(ITEMS).filter((d) => (d.team === team) === wanted).forEach((d) => {
+        const cell = document.createElement('span');
+        cell.className = 'game-help__cell';
         const img = document.createElement('img');
         img.src = d.img;
         img.alt = '';
         img.className = 'game-help__item';
-        box.appendChild(img);
+        const name = document.createElement('span');
+        name.className = 'game-help__cellname';
+        name.textContent = d.name;
+        cell.append(img, name);
+        box.appendChild(cell);
       });
     };
     fillItems('game-help-catch', true);

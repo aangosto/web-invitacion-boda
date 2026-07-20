@@ -1153,9 +1153,27 @@ a { color: inherit; }
 }
 .game-help__icon--ok { color: var(--taupe-deep); }
 .game-help__icon--bad { color: var(--burgundy); }
-/* Miniaturas de los artículos que suman / restan */
-.game-help__items { display: inline-flex; gap: 0.25rem; vertical-align: middle; margin-left: 0.2rem; }
-.game-help__item { width: 30px; height: 30px; object-fit: contain; }
+/* Artículos que suman / restan: REJILLA 2x2 (4 objetos por equipo),
+   cada celda con la imagen y su nombre debajo */
+.game-help__items {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 0.6rem;
+  margin-top: 0.45rem;
+}
+.game-help__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  text-align: center;
+}
+.game-help__item { width: 40px; height: 40px; object-fit: contain; }
+.game-help__cellname {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
 /* Boosters: uno por línea, con su icono delante */
 .game-help__boosters { display: block; margin-top: 0.2rem; }
 .game-help__booster { display: block; color: var(--ink-soft); }
