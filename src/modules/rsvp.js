@@ -11,8 +11,8 @@
      2. ¿Asistirás? (sí/no)      8. Origen (fuera / Zaragoza)
      3. Acompañantes             9. Viaje de IDA        (solo fuera)
      4. Alergias (por persona)  10. Viaje de VUELTA     (solo fuera)
-     5. Menú (por persona)      11. Alojamiento (placeholder, solo fuera)
-     6. Autobús (por persona)   12. Resumen y confirmación
+     5. Menú (por persona)      11. Resumen y confirmación
+     6. Autobús (por persona)
    Si NO asiste (paso 2), se salta directo al resumen: no se pregunta
    nada más y se guarda attending: false.
 
@@ -539,22 +539,6 @@ const STEPS = [
     },
     validate(state) {
       return state.travel.vuelta.mode ? null : 'Dinos cómo te vas.';
-    },
-  },
-
-  /* ---- PASO 10 · Alojamiento (solo si viene de fuera) ----
-     TODO(alojamiento): pantalla vacía a propósito. Cuando la pareja
-     cierre los detalles de alojamiento, sustituir este placeholder por
-     las preguntas reales (hotel recomendado, reservas de grupo, etc.). */
-  {
-    id: 'alojamiento',
-    when: (state) => state.attending === true && state.origin === 'fuera',
-    render(screen) {
-      screen.appendChild(el('h2', 'wizard__title', 'Alojamiento'));
-      const box = el('div', 'placeholder-box');
-      box.appendChild(el('p', 'placeholder-box__icon', '🏡'));
-      box.appendChild(el('p', 'placeholder-box__text', 'Próximamente os daremos información de alojamiento. ¡Estamos en ello!'));
-      screen.appendChild(box);
     },
   },
 

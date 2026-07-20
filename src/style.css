@@ -878,19 +878,6 @@ a { color: inherit; }
 .option-card__title { font-family: var(--font-serif); font-weight: 600; font-size: 1.2rem; }
 .option-card__text { font-family: var(--font-sans); font-size: 0.85rem; color: var(--ink-soft); }
 
-/* ---- Placeholder de alojamiento (paso 10) ---- */
-.placeholder-box {
-  display: grid;
-  gap: 0.5rem;
-  padding: 2rem 1.5rem;
-  text-align: center;
-  background: rgba(255,255,255,0.45);
-  border: 1px dashed rgba(110,36,53,0.35);
-  border-radius: 10px;
-}
-.placeholder-box__icon { font-size: 2rem; line-height: 1; }
-.placeholder-box__text { font-family: var(--font-sans); font-size: 0.95rem; color: var(--ink-soft); }
-
 /* ---- Resumen final ---- */
 .summary {
   display: grid;
