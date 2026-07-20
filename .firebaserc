@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "web-invitacion-boda"
-  }
+  },
+  "targets": {
+    "web-invitacion-boda": {
+      "hosting": {
+        "principal": [
+          "invitacion-boda-aym"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
