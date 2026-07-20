@@ -1160,6 +1160,16 @@ a { color: inherit; }
 .game-help__boosters { display: block; margin-top: 0.2rem; }
 .game-help__booster { display: block; color: var(--ink-soft); }
 
+/* Guiño al premio del ranking (sutil, en cursiva) */
+.game-help__prize {
+  margin: 0.9rem 0 0.2rem;
+  text-align: center;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--burgundy);
+}
+
 /* --- HUD --- */
 .game__hud {
   display: flex;
