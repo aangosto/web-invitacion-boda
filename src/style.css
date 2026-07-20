@@ -1228,6 +1228,10 @@ a { color: inherit; }
    notch y la barra de gestos del iPhone. */
 @media (max-width: 48rem) {
   body.is-playing { overflow: hidden; }
+  /* OJO: .reveal lleva will-change: transform, que convierte a #game en
+     "containing block": el overlay fixed quedaría anclado al contenedor
+     en vez de a la pantalla (cortado por arriba). En partida se anula. */
+  body.is-playing #game { will-change: auto; transform: none; }
   #game-play:not([hidden]) {
     position: fixed;
     inset: 0;
