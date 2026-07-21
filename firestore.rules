@@ -33,9 +33,22 @@ service cloud.firestore {
     match /scores/{scoreId} {
       allow read: if true;                          // ranking público
       allow create: if isValidScore(request.resource.data);
-      allow update: if request.auth != null
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted'])
-        && request.resource.data.deleted is bool;
+      // Dos updates posibles:
+      //  · Panel (con sesión): solo el campo `deleted` (papelera).
+      //  · Público (sin sesión): SOLO poner nombre a una partida que se
+      //    guardó anónima (name == ''), y solo UNA vez — con nombre ya
+      //    puesto deja de cumplirse resource.data.name == '', así que
+      //    nadie puede renombrar puntuaciones ajenas. Es lo que permite
+      //    que la partida cuente una única vez: al poner el nombre se
+      //    actualiza el registro existente en vez de crear otro.
+      allow update: if (request.auth != null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted'])
+          && request.resource.data.deleted is bool)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+          && resource.data.name == ''
+          && request.resource.data.name is string
+          && request.resource.data.name.size() >= 1
+          && request.resource.data.name.size() <= 40);
       allow delete: if request.auth != null;        // vaciar papelera
     }
 
@@ -123,8 +136,10 @@ service cloud.firestore {
     }
 
     function isValidScore(d) {
+      // `name` puede ser '' (partida anónima: cuenta para el marcador
+      // global pero no sale en el Top 3 hasta que se le ponga nombre).
       return d.keys().hasOnly(['name', 'team', 'points', 'createdAt'])
-        && d.name is string && d.name.size() >= 1 && d.name.size() <= 40
+        && d.name is string && d.name.size() <= 40
         && d.team in ['novia', 'novio']
         && d.points is number && d.points >= 0 && d.points <= 100000
         && d.createdAt == request.time;             // obliga a serverTimestamp()
