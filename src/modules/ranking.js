@@ -6,8 +6,10 @@
 import { watchRanking } from './scores.js';
 
 function top3(scores, team) {
+  // Solo partidas CON nombre: las anónimas suman al marcador global
+  // (renderGlobal) pero no aparecen en el Top 3.
   return scores
-    .filter((s) => s.team === team)
+    .filter((s) => s.team === team && String(s.name || '').trim())
     .sort((a, b) => b.points - a.points)
     .slice(0, 3);
 }

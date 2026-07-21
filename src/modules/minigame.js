@@ -3,11 +3,13 @@
    El jugador elige equipo y mueve una cesta para atrapar los objetos
    que caen. Atrapar los de tu equipo suma; los del contrario restan.
    La caída acelera con el tiempo y aparecen boosters especiales.
-   Al terminar, el jugador pone su nombre y guarda la puntuación en el
-   ranking (saveScore, desacoplado del backend en src/modules/scores.js).
+   Al terminar, la partida se guarda AUTOMÁTICAMENTE sin nombre (así
+   siempre suma al marcador global Novia vs Novio); el nombre solo se
+   pide para el Top 3 y, si lo pone, se actualiza ESE mismo registro
+   (nameScore) — una partida = un registro, sin puntos duplicados.
    ================================================================= */
 
-import { saveScore } from './scores.js';
+import { saveScore, nameScore } from './scores.js';
 import { logAudit } from './audit.js';
 
 /* ---------------- Definición de objetos ---------------- */
@@ -61,6 +63,9 @@ export function initMinigame() {
 
   /* ---------- Estado del juego ---------- */
   let team = 'novia';
+  // Promesa con el id del autoguardado anónimo de la ÚLTIMA partida
+  // (null si falló): el botón "guardar" le pone nombre a ese registro.
+  let pendingSaveId = null;
   let running = false;
   let raf = 0;
   let lastT = 0;
@@ -316,6 +321,10 @@ export function initMinigame() {
     cancelAnimationFrame(raf);
     clearInterval(hudTimer);
     logAudit('juego', { team, points: score });
+    // La partida cuenta SIEMPRE en el marcador global: se guarda ya,
+    // anónima. Si luego pone su nombre, se actualiza este registro.
+    pendingSaveId = saveScore({ name: '', team, points: score })
+      .catch((err) => { console.error('[juego] autoguardado:', err); return null; });
     overTeamEl.textContent = team === 'novio' ? 'Team Novio' : 'Team Novia';
     overTeamEl.style.color = team === 'novio' ? 'var(--burgundy)' : 'var(--taupe-deep)';
     finalEl.textContent = score;
@@ -345,9 +354,14 @@ export function initMinigame() {
     nameInput.disabled = true;
     setSaveFeedback('Guardando…', null);
     try {
-      await saveScore({ name, team, points: score });
+      // La partida ya se guardó anónima al terminar: aquí solo se le
+      // pone nombre a ESE registro (sin duplicar puntos). Si aquel
+      // guardado falló (p. ej. sin conexión), se crea ahora completo.
+      const id = pendingSaveId ? await pendingSaveId : null;
+      if (id) await nameScore(id, name);
+      else await saveScore({ name, team, points: score });
       const equipo = team === 'novio' ? 'Novio' : 'Novia';
-      setSaveFeedback(`¡Guardado! Has sumado ${score} puntos al Team ${equipo}. ✿`, 'is-ok');
+      setSaveFeedback(`¡Guardado! Ya estás en el ranking del Team ${equipo}. ✿`, 'is-ok');
     } catch (err) {
       console.error(err);
       saveBtn.disabled = false;
