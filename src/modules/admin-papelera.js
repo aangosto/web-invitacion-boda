@@ -122,10 +122,11 @@ export async function initPapeleraTab(container) {
     scoresEl.appendChild(el('p', 'res-empty', 'No hay puntuaciones en la papelera.'));
   }
   scores.forEach((s) => {
+    const nombre = String(s.name || '').trim() || 'Sin nombre';
     scoresEl.appendChild(row({
-      title: `${s.points} pts — ${s.name} (Team ${s.team === 'novio' ? 'Novio' : 'Novia'})`,
+      title: `${s.points} pts — ${nombre} (Team ${s.team === 'novio' ? 'Novio' : 'Novia'})`,
       meta: null,
-      what: `la puntuación de ${s.name} (${s.points} pts)`,
+      what: `la puntuación de ${nombre} (${s.points} pts)`,
       onRestore: () => updateDoc(doc(db, 'scores', s.id), { deleted: false }),
       onForever: () => deleteDoc(doc(db, 'scores', s.id)),
     }));

@@ -81,9 +81,13 @@ export async function initScoresTab(container) {
     visible.forEach((s) => {
       const row = el('div', 'adm-row');
 
+      // Partida anónima (jugó sin guardar nombre): cuenta igualmente en
+      // el marcador global; aquí se etiqueta para poder verla y borrarla.
+      const displayName = String(s.name || '').trim() || 'Sin nombre';
+
       const info = el('div', 'adm-row__info');
       const title = el('p', 'adm-row__title');
-      title.appendChild(document.createTextNode(`${s.points} pts — ${s.name} `));
+      title.appendChild(document.createTextNode(`${s.points} pts — ${displayName} `));
       title.appendChild(el('span',
         s.team === 'novio' ? 'adm-team adm-team--novio' : 'adm-team adm-team--novia',
         s.team === 'novio' ? 'Novio' : 'Novia'));
@@ -96,7 +100,7 @@ export async function initScoresTab(container) {
       del.type = 'button';
       del.addEventListener('click', async () => {
         // Soft delete: la puntuación va a la papelera, recuperable
-        if (!window.confirm(`${s.name} · ${s.points} pts se moverá a la papelera; podrás recuperarla desde la pestaña Papelera. ¿Continuar?`)) return;
+        if (!window.confirm(`${displayName} · ${s.points} pts se moverá a la papelera; podrás recuperarla desde la pestaña Papelera. ¿Continuar?`)) return;
         del.disabled = true;
         setFeedback('Moviendo a la papelera…');
         try {
