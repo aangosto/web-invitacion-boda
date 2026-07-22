@@ -71,7 +71,14 @@ function travelLines(data) {
 /** Snapshot de los campos editables tal como están AHORA (para guardar
     el "original" la primera vez que se edita). Sin valores undefined. */
 function editableSnapshot(d) {
-  if (d.attending === false) return { filledBy: d.filledBy || '', attending: false, comentario: d.comentario || '' };
+  if (d.attending === false) {
+    return {
+      filledBy: d.filledBy || '',
+      attending: false,
+      comentario: d.comentario || '',
+      companions: Array.isArray(d.companions) ? d.companions : [],
+    };
+  }
   const snap = { filledBy: d.filledBy || '', attending: true, origin: d.origin || '', people: Array.isArray(d.people) ? d.people : [], comentario: d.comentario || '' };
   if (d.travel) snap.travel = d.travel;
   return snap;
@@ -105,6 +112,9 @@ function originalBox(orig) {
   box.appendChild(el('p', 'res-original__who', orig.filledBy || '—'));
   if (orig.attending === false) {
     box.appendChild(el('p', 'res-person__meta', 'No asiste'));
+    if (Array.isArray(orig.companions) && orig.companions.length) {
+      box.appendChild(el('p', 'res-person__meta', `Tampoco asisten: ${orig.companions.join(', ')}`));
+    }
     return box;
   }
   (orig.people || []).forEach((p) => {
@@ -202,7 +212,9 @@ export async function initRsvpTab(container) {
   let noAsisten = 0;
   docs.forEach((data) => {
     if (reenviados.has(data)) return;
-    if (data.attending === false) noAsisten += 1;
+    // El "no" cuenta a quien rellenó MÁS los acompañantes añadidos
+    // desde el panel (companions: solo nombres, no vienen).
+    if (data.attending === false) noAsisten += 1 + (Array.isArray(data.companions) ? data.companions.length : 0);
     else asistentes += (data.people || []).length;
   });
 
@@ -257,6 +269,10 @@ export async function initRsvpTab(container) {
         card.appendChild(person);
       });
       travelLines(data).forEach((line) => card.appendChild(el('p', 'res-card__travel', line)));
+    }
+    // "No asiste" con acompañantes añadidos desde el panel
+    if (data.attending === false && Array.isArray(data.companions) && data.companions.length) {
+      card.appendChild(el('p', 'res-card__travel', `Tampoco asisten: ${data.companions.join(', ')}`));
     }
     // Comentario libre del invitado (asista o no)
     if ((data.comentario || '').trim()) card.appendChild(el('p', 'res-card__travel', `💬 ${data.comentario.trim()}`));

@@ -43,6 +43,9 @@ function normalize(data) {
     attending,
     origin: data.origin || '',
     comentario: data.comentario || '',
+    // Acompañantes de un "no asiste" (solo nombres): los añaden los
+    // novios desde el panel para contar el "no" completo.
+    companions: Array.isArray(data.companions) ? data.companions.map(String) : [],
     people,
     travel: {
       ida: { mode: '', from: '', arrivalDay: '', arrivalTime: '', canCarry: null, seats: '', departTime: '', ...(t.ida || {}) },
@@ -105,7 +108,14 @@ function yesNo({ label, value, onSelect }) {
 function buildPayload(state) {
   const filledBy = state.filledBy.trim();
   const comentario = (state.comentario || '').trim();
-  if (!state.attending) return { filledBy, attending: false, comentario };
+  if (!state.attending) {
+    return {
+      filledBy,
+      attending: false,
+      comentario,
+      companions: state.companions.map((n) => n.trim()).filter(Boolean),
+    };
+  }
 
   const payload = {
     filledBy,
@@ -187,7 +197,41 @@ export function createRsvpEditor(data) {
       onInput: (v) => { state.comentario = v; },
     }));
 
-    if (!state.attending) return; // no asiste → nada más que editar
+    if (!state.attending) {
+      // "No asiste" → solo queda registrar a quiénes incluye ese "no":
+      // acompañantes con nombre (sin menú/bus/zapatos, no vienen).
+      root.appendChild(el('h4', 'tot-minititle', 'Acompañantes que tampoco asisten'));
+      root.appendChild(el('p', 'adm-hint',
+        'Si este "no" incluye a más personas (pareja, hijos…), añádelas aquí para que el recuento de ausencias sea el real.'));
+      const list = el('div', 'people-editor');
+      state.companions.forEach((name, idx) => {
+        const row = el('div', 'people-editor__row');
+        const input = el('input', 'field__input');
+        input.type = 'text';
+        input.placeholder = `Nombre del acompañante ${idx + 1}`;
+        input.value = name;
+        input.setAttribute('aria-label', `Nombre del acompañante ${idx + 1}`);
+        input.addEventListener('input', () => { state.companions[idx] = input.value; });
+        row.appendChild(input);
+        const rm = el('button', 'people-editor__remove', '✕');
+        rm.type = 'button';
+        rm.setAttribute('aria-label', `Eliminar al acompañante ${idx + 1}`);
+        rm.addEventListener('click', () => { state.companions.splice(idx, 1); refresh(); });
+        row.appendChild(rm);
+        list.appendChild(row);
+      });
+      root.appendChild(list);
+      const add = el('button', 'btn btn--ghost btn--block', '+ Añadir acompañante');
+      add.type = 'button';
+      add.addEventListener('click', () => {
+        state.companions.push('');
+        refresh();
+        const inputs = root.querySelectorAll('.people-editor__row input');
+        inputs[inputs.length - 1]?.focus();
+      });
+      root.appendChild(add);
+      return; // no asiste → nada más que editar
+    }
 
     // Origen
     root.appendChild(chipGroup({
@@ -271,6 +315,9 @@ export function createRsvpEditor(data) {
     read: () => buildPayload(state),
     validate: () => {
       if (!state.filledBy.trim()) return 'Indica quién rellena la confirmación.';
+      if (!state.attending && state.companions.some((n) => !n.trim())) {
+        return 'Cada acompañante necesita un nombre (o quítalo con ✕).';
+      }
       if (state.attending) {
         if (!state.origin) return 'Indica el origen (de fuera / de Zaragoza).';
         if (state.people.length === 0) return 'Debe haber al menos una persona.';
