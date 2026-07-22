@@ -50,6 +50,12 @@ function aggregate(docs) {
 
     if (data.attending === false) {
       t.noAsisten.push({ nombre: por, por });
+      // Acompañantes añadidos desde el panel a un "no": también cuentan
+      // como ausencias (solo nombre; se indica de qué confirmación son).
+      (Array.isArray(data.companions) ? data.companions : []).forEach((c) => {
+        const nombre = String(c).trim();
+        if (nombre) t.noAsisten.push({ nombre, por, extra: 'acompañante' });
+      });
       return;
     }
 
