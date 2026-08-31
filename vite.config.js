@@ -15,6 +15,7 @@ export default defineConfig({
         resultados: 'resultados.html', // privada (solo por URL directa)
         invitados: 'invitados.html',   // privada (gestión de invitados)
         hoteles: 'hoteles.html',       // privada (gestión del hotel)
+        mesas: 'mesas.html',           // privada (mesas del banquete)
       },
     },
   },

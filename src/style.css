@@ -2462,3 +2462,215 @@ a { color: inherit; }
   margin-bottom: 0.8rem;
 }
 #inv-statdetail:not(:empty) { margin-top: -0.6rem; }
+
+/* =================================================================
+   16. MESAS (página privada del banquete · mesas.html)
+   Reutiliza la base de /invitados (inv-*, res-stat, tot-detail).
+   ================================================================= */
+
+/* Chip de aforo "6/8" (rojo en sobreaforo) */
+.mes-aforo {
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #2e6b45;
+  border: 1.5px solid #2e6b45;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  white-space: nowrap;
+}
+.mes-aforo.is-sobre { color: #8c2f2f; border-color: #8c2f2f; background: rgba(140,47,47,0.07); }
+.mes-card__sobre {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #8c2f2f;
+  margin: 0.3rem 0 0.1rem;
+}
+
+/* Comensales de una mesa */
+.mes-comensales { margin-top: 0.4rem; }
+.mes-comensal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 46px;
+  padding: 0.25rem 0;
+  border-top: 1px dashed rgba(63,58,50,0.14);
+}
+.mes-comensal__info { min-width: 0; }
+.mes-comensal__nombre {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  overflow-wrap: anywhere;
+}
+.mes-comensal__meta { font-family: var(--font-sans); font-size: 0.72rem; color: var(--ink-soft); }
+.mes-comensal__acciones { display: flex; gap: 0.3rem; flex: 0 0 auto; }
+.mes-mini { min-height: 40px; min-width: 40px; padding: 0.2rem; }
+
+/* Chips de estado: C confirmado, P pendiente, ✗ no asiste, ? borrado, ✍ a mano */
+.mes-estado {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.mes-estado--c { color: #fff; background: #2e6b45; }
+.mes-estado--p { color: #fff; background: #c9a15a; }
+.mes-estado--no { color: #fff; background: #8c2f2f; }
+.mes-estado--falta { color: #fff; background: var(--taupe-deep); }
+.mes-estado--manual { color: var(--ink-soft); border: 1px dashed var(--taupe-deep); }
+
+.mes-card__acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(110,36,53,0.12);
+}
+.mes-editor__fila { display: grid; gap: 0.9rem; grid-template-columns: 1.6fr 1fr; }
+
+/* Lista de personas sin asignar, agrupada por núcleo */
+.mes-nucleo {
+  margin-bottom: 0.7rem;
+  padding: 0.5rem 0.7rem;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(110,36,53,0.13);
+  border-radius: 10px;
+}
+.mes-nucleo__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(110,36,53,0.12);
+}
+.mes-nucleo__marcar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  min-width: 0;
+}
+.mes-nucleo__marcar input,
+.mes-persona input {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 auto;
+  accent-color: var(--burgundy);
+}
+.mes-nucleo__nombre {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.mes-nucleo__sentar { flex: 0 0 auto; min-height: 40px; white-space: nowrap; }
+.mes-persona {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 44px;
+  padding: 0.1rem 0;
+}
+.mes-persona__nombre {
+  flex: 1;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* Barra de acción pegajosa (selección activa) */
+.mes-accion {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.9rem calc(0.6rem + env(safe-area-inset-bottom));
+  background: var(--cream, #faf6f0);
+  border-top: 1px solid rgba(110,36,53,0.25);
+  box-shadow: 0 -4px 14px rgba(63,58,50,0.12);
+}
+.mes-accion__texto { font-family: var(--font-sans); font-size: 0.82rem; color: var(--ink-soft); flex-basis: 100%; text-align: center; }
+.mes-accion__btn { min-height: 44px; }
+#mes-app.has-accion { padding-bottom: 7rem; }
+
+/* Selector de mesa destino (modal por toque) */
+.mes-chooser {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(63,58,50,0.45);
+}
+.mes-chooser__panel {
+  width: 100%;
+  max-width: 34rem;
+  max-height: 75vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--cream, #faf6f0);
+  border-radius: 14px 14px 0 0;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  display: grid;
+  gap: 0.5rem;
+}
+.mes-chooser__titulo {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--burgundy);
+  text-align: center;
+}
+.mes-chooser__mesa {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-height: 48px;
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(110,36,53,0.25);
+  border-radius: 10px;
+}
+.mes-chooser__nombre { font-family: var(--font-serif); font-weight: 600; color: var(--ink); }
+.mes-chooser__libres { font-family: var(--font-sans); font-size: 0.78rem; color: #2e6b45; }
+.mes-chooser__libres.is-lleno { color: #8c2f2f; }
+
+/* Avisos */
+.mes-aviso {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  padding: 0.45rem 0.7rem;
+  margin-bottom: 0.4rem;
+  border-radius: 8px;
+}
+.mes-aviso--warn { color: #7a5a1e; background: rgba(201,161,90,0.14); border: 1px solid #c9a15a; }
+.mes-aviso--error { color: #8c2f2f; background: rgba(140,47,47,0.08); border: 1px solid #8c2f2f; }
