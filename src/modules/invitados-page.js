@@ -36,6 +36,10 @@ function norm(s) {
 
 const LADO_LABEL = { novia: 'María', novio: 'Alberto' };
 
+function fmtEuros(n) {
+  return Number(n).toLocaleString('es-ES', { maximumFractionDigits: 2 });
+}
+
 /* =================================================================
    App (tras pasar la puerta)
    ================================================================= */
@@ -46,6 +50,7 @@ async function initApp(root) {
       por la web.</p>
 
     <div id="inv-stats" class="res-stats res-stats--four"></div>
+    <div id="inv-money" class="inv-money"></div>
 
     <div class="inv-filtros">
       <input id="inv-busca" class="field__input" type="search"
@@ -74,6 +79,7 @@ async function initApp(root) {
   `;
 
   const statsEl = root.querySelector('#inv-stats');
+  const moneyEl = root.querySelector('#inv-money');
   const listEl = root.querySelector('#inv-list');
   const feedback = root.querySelector('#inv-feedback');
   const buscaInput = root.querySelector('#inv-busca');
@@ -169,6 +175,75 @@ async function initApp(root) {
       card.appendChild(el('span', 'res-stat__label', label));
       statsEl.appendChild(card);
     });
+
+    // Total de dinero regalado (núcleos + personas de lo filtrado)
+    let total = 0;
+    let apuntes = 0;
+    visibles.forEach((n) => {
+      if (n.regalo != null) { total += n.regalo; apuntes += 1; }
+      n.personas.forEach((p) => {
+        if (p.regalo != null) { total += p.regalo; apuntes += 1; }
+      });
+    });
+    moneyEl.textContent = apuntes === 0
+      ? 'Regalos: nada apuntado todavía'
+      : `Regalos: ${fmtEuros(total)} € · ${apuntes} apunte${apuntes === 1 ? '' : 's'}`;
+    moneyEl.classList.toggle('has-total', apuntes > 0);
+  }
+
+  /* ---------- Control de dinero regalado (núcleo o persona) ----------
+     Botón que muestra el importe apuntado (o el estado "sin apuntar");
+     al tocarlo se convierte en un campo para escribir la cantidad.
+     Guardar con el campo VACÍO quita el apunte (vuelve a "sin apuntar",
+     distinto de 0 €). */
+  function creaRegaloControl(actual, etiquetaVacia, onSave) {
+    const wrap = el('span', 'inv-regalo');
+
+    function pinta() {
+      wrap.innerHTML = '';
+      const btn = el('button',
+        `inv-regalo__btn${actual != null ? ' has-valor' : ''}`,
+        actual != null ? `${fmtEuros(actual)} €` : etiquetaVacia);
+      btn.type = 'button';
+      btn.title = 'Apuntar dinero regalado';
+      btn.addEventListener('click', edita);
+      wrap.appendChild(btn);
+    }
+
+    function edita() {
+      wrap.innerHTML = '';
+      const input = el('input', 'field__input inv-regalo__input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = '0.01';
+      input.inputMode = 'decimal';
+      input.placeholder = '€ (vacío = quitar)';
+      if (actual != null) input.value = actual;
+
+      const ok = el('button', 'adm-row__btn inv-regalo__ok', 'Guardar');
+      ok.type = 'button';
+      ok.addEventListener('click', () => {
+        const v = input.value.trim();
+        const num = v === '' ? null : Number(v.replace(',', '.'));
+        if (num != null && (!Number.isFinite(num) || num < 0)) {
+          input.focus();
+          return;
+        }
+        onSave(num);
+      });
+      const cancelar = el('button', 'adm-row__btn inv-regalo__cancel', '✕');
+      cancelar.type = 'button';
+      cancelar.addEventListener('click', pinta);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); ok.click(); }
+      });
+
+      wrap.append(input, ok, cancelar);
+      input.focus();
+    }
+
+    pinta();
+    return wrap;
   }
 
   /* ---------- Selector de estado (persona o núcleo entero) ---------- */
@@ -396,6 +471,12 @@ async function initApp(root) {
       const nombre = el('span', 'inv-persona__nombre', p.nombre);
       if (p.nino) nombre.appendChild(el('span', 'inv-nino', 'niño'));
       row.appendChild(nombre);
+      // Regalo individual (para quien regala por su cuenta)
+      row.appendChild(creaRegaloControl(p.regalo, '€', (num) => {
+        const personas = n.personas.map((q, j) => (j === i ? { ...q, regalo: num } : q));
+        guardar(n, { personas },
+          num == null ? `${p.nombre}: regalo quitado ✓` : `${p.nombre}: ${fmtEuros(num)} € ✓`);
+      }));
       row.appendChild(creaSelectEstado(p.estado, (nuevo) => {
         const personas = n.personas.map((q, j) => (j === i ? { ...q, estado: nuevo } : q));
         guardar(n, { personas }, `${p.nombre}: ${ESTADO_LABEL[nuevo]} ✓`);
@@ -403,6 +484,15 @@ async function initApp(root) {
       lista.appendChild(row);
     });
     card.appendChild(lista);
+
+    // Dinero regalado del núcleo (conjunto); lo individual va por persona
+    const regaloRow = el('div', 'inv-regalo-row');
+    regaloRow.appendChild(el('span', 'inv-bulk__label', 'Regalo del núcleo:'));
+    regaloRow.appendChild(creaRegaloControl(n.regalo, 'sin apuntar', (num) => {
+      guardar(n, { regalo: num },
+        num == null ? `${n.nombre}: regalo quitado ✓` : `${n.nombre}: ${fmtEuros(num)} € ✓`);
+    }));
+    card.appendChild(regaloRow);
 
     // Marcar todo el núcleo de golpe
     if (n.personas.length > 1) {

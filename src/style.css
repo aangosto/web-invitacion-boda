@@ -2177,3 +2177,49 @@ a { color: inherit; }
 .inv-editor__nino input { width: 1.1rem; height: 1.1rem; accent-color: var(--burgundy); }
 .inv-editor__quitar { min-height: 40px; min-width: 40px; padding: 0.2rem; flex: 0 0 auto; }
 .inv-editor__borrar { width: 100%; min-height: 44px; margin-top: 0.2rem; }
+
+/* ---- Dinero regalado ---- */
+.inv-money {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-align: center;
+  padding: 0.5rem 0.6rem;
+  margin: -0.6rem 0 1rem;
+  background: rgba(255,255,255,0.5);
+  border: 1px dashed rgba(110,36,53,0.25);
+  border-radius: 8px;
+}
+.inv-money.has-total { color: var(--burgundy); font-weight: 500; border-style: solid; }
+
+.inv-regalo { display: flex; align-items: center; gap: 0.35rem; flex: 0 0 auto; }
+.inv-regalo__btn {
+  min-height: 36px;
+  padding: 0.2rem 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  background: none;
+  border: 1px dashed rgba(63,58,50,0.35);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.inv-regalo__btn.has-valor {
+  color: #2e6b45;
+  font-weight: 500;
+  border: 1px solid #2e6b45;
+  background: rgba(46,107,69,0.06);
+}
+.inv-regalo__input { width: 6.5rem; min-height: 40px; padding: 0.3rem 0.5rem; font-size: 0.85rem; }
+.inv-regalo__ok { min-height: 40px; }
+.inv-regalo__cancel { min-height: 40px; min-width: 40px; padding: 0.2rem; }
+
+.inv-regalo-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(110,36,53,0.12);
+}
