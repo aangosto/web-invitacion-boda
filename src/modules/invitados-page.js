@@ -51,6 +51,7 @@ async function initApp(root) {
       por la web.</p>
 
     <div id="inv-stats" class="res-stats res-stats--four"></div>
+    <div id="inv-statdetail"></div>
     <div id="inv-money" class="inv-money"></div>
 
     <div class="inv-filtros">
@@ -81,6 +82,7 @@ async function initApp(root) {
   `;
 
   const statsEl = root.querySelector('#inv-stats');
+  const statDetailEl = root.querySelector('#inv-statdetail');
   const moneyEl = root.querySelector('#inv-money');
   const listEl = root.querySelector('#inv-list');
   const feedback = root.querySelector('#inv-feedback');
@@ -93,6 +95,7 @@ async function initApp(root) {
 
   let nucleos = [];
   let editando = null; // id del núcleo en edición, o 'nuevo', o null
+  let statAbierta = -1; // índice del contador desplegado (-1 = ninguno)
   const filtros = { lado: '', etiqueta: '', estado: '', busca: '' };
 
   let feedbackTimer = null;
@@ -158,7 +161,10 @@ async function initApp(root) {
   /* ---------- Contadores ----------
      Cuentan PERSONAS de los núcleos que pasan los filtros de lado /
      etiqueta / búsqueda (el filtro de estado no altera los números:
-     así siempre se ve el desglose completo de lo filtrado). */
+     así siempre se ve el desglose completo de lo filtrado).
+     Son DESPLEGABLES (acordeón, como en la pestaña Totales del panel):
+     al tocar uno se listan sus personas con núcleo y lado; al volver a
+     tocar se cierra. Respetan los filtros activos. */
   function renderStats() {
     const visibles = nucleos.filter((n) => {
       const estadoGuardado = filtros.estado;
@@ -167,22 +173,53 @@ async function initApp(root) {
       filtros.estado = estadoGuardado;
       return ok;
     });
-    const personas = visibles.flatMap((n) => n.personas);
-    const cuenta = (e) => personas.filter((p) => p.estado === e).length;
+    // Cada persona con su núcleo, para poder ubicarla en el desplegable
+    const personas = visibles.flatMap((n) => n.personas.map((p) => ({ p, n })));
+    const grupo = (e) => personas.filter(({ p }) => p.estado === e);
+    const stats = [
+      { label: 'Invitados', members: personas },
+      { label: 'Confirmados', members: grupo('confirmado') },
+      { label: 'Pendientes', members: grupo('pendiente') },
+      { label: 'No asisten', members: grupo('no_asiste') },
+    ];
+
+    function pintaDetalle() {
+      statDetailEl.innerHTML = '';
+      if (statAbierta === -1) return;
+      const lista = el('div', 'tot-detail tot-detail--scroll');
+      const members = stats[statAbierta].members;
+      if (members.length === 0) {
+        lista.appendChild(el('p', 'tot-person tot-person--empty', 'Nadie con los filtros actuales.'));
+      }
+      members.forEach(({ p, n }) => {
+        const line = el('p', 'tot-person');
+        line.appendChild(el('span', null, p.nombre + (p.nino ? ' (niño)' : '')));
+        line.appendChild(el('span', 'tot-person__by', ` — ${n.nombre} · ${LADO_LABEL[n.lado]}`));
+        lista.appendChild(line);
+      });
+      statDetailEl.appendChild(lista);
+    }
 
     statsEl.innerHTML = '';
-    const stats = [
-      [personas.length, 'Invitados'],
-      [cuenta('confirmado'), 'Confirmados'],
-      [cuenta('pendiente'), 'Pendientes'],
-      [cuenta('no_asiste'), 'No asisten'],
-    ];
-    stats.forEach(([num, label]) => {
-      const card = el('div', 'res-stat');
-      card.appendChild(el('span', 'res-stat__num', String(num)));
-      card.appendChild(el('span', 'res-stat__label', label));
+    stats.forEach((s, i) => {
+      const card = el('button', 'res-stat res-stat--btn');
+      card.type = 'button';
+      card.classList.toggle('is-open', statAbierta === i);
+      card.setAttribute('aria-expanded', String(statAbierta === i));
+      card.appendChild(el('span', 'res-stat__num', String(s.members.length)));
+      card.appendChild(el('span', 'res-stat__label', s.label));
+      card.appendChild(el('span', 'tot-exp__chev', '▾'));
+      card.addEventListener('click', () => {
+        statAbierta = statAbierta === i ? -1 : i;
+        statsEl.querySelectorAll('.res-stat--btn').forEach((b, j) => {
+          b.classList.toggle('is-open', j === statAbierta);
+          b.setAttribute('aria-expanded', String(j === statAbierta));
+        });
+        pintaDetalle();
+      });
       statsEl.appendChild(card);
     });
+    pintaDetalle();
 
     // Totales de regalos (núcleos + personas de lo filtrado), SEPARADOS:
     // el dinero es el único dato real; el valor de lo material es una

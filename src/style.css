@@ -2450,3 +2450,15 @@ a { color: inherit; }
   color: var(--burgundy);
 }
 .hot-editor__cuna { font-size: 0.85rem; }
+
+/* ---- Contadores desplegables de /invitados ---- */
+/* La lista desplegada limita su alto y hace scroll propio: con 207
+   personas no debe empujar la página entera ni romper el layout. */
+.tot-detail--scroll {
+  max-height: 55vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  margin-bottom: 0.8rem;
+}
+#inv-statdetail:not(:empty) { margin-top: -0.6rem; }
