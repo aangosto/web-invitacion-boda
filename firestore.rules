@@ -120,6 +120,17 @@ service cloud.firestore {
       allow delete: if request.auth != null;
     }
 
+    // ---------- MESAS (banquete) — SENSIBLE ----------
+    // Reparto de invitados por mesas: nombres reales de los comensales.
+    // NADA es público: lectura y escritura exigen sesión, como
+    // invitados/habitaciones. La gestiona la página privada /mesas.html
+    // (que LEE de "invitados" pero solo escribe aquí).
+    match /mesas/{mesaId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && isValidMesa(request.resource.data);
+      allow delete: if request.auth != null;
+    }
+
     // ---------- CONFIG (textos editables: regalo/IBAN…) ----------
     // Lectura pública (la home muestra la frase y el IBAN); escritura
     // solo con sesión + validación de forma (misma limitación asumida
@@ -154,6 +165,20 @@ service cloud.firestore {
         && d.personas is list && d.personas.size() <= 40
         && (!('regalo' in d.keys()) || d.regalo == null || (d.regalo is number && d.regalo >= 0 && d.regalo <= 100000))
         && (!('regaloMaterial' in d.keys()) || isValidRegaloMaterial(d.regaloMaterial))
+        && (!('orden' in d.keys()) || d.orden is number);
+    }
+
+    function isValidMesa(d) {
+      // Mesa del banquete. `comensales` es una lista de mapas (cada uno
+      // con nombre, núcleo y lado de la persona sentada, o un comensal
+      // añadido a mano); las rules no validan cada elemento, solo forma
+      // y topes. `capacidad` son las plazas de ESA mesa (cada una tiene
+      // la suya). El sobreaforo se permite a propósito (la página lo
+      // avisa sin bloquearlo).
+      return d.keys().hasOnly(['nombre', 'capacidad', 'comensales', 'orden', 'createdAt', 'updatedAt'])
+        && d.nombre is string && d.nombre.size() >= 1 && d.nombre.size() <= 80
+        && d.capacidad is number && d.capacidad >= 1 && d.capacidad <= 100
+        && d.comensales is list && d.comensales.size() <= 100
         && (!('orden' in d.keys()) || d.orden is number);
     }
 
