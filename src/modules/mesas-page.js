@@ -49,7 +49,10 @@ async function initApp(root) {
     <div id="mes-avisos"></div>
     <p id="mes-feedback" class="form-feedback inv-feedback" role="status" aria-live="polite"></p>
 
-    <h3 class="adm-subtitle">Mesas</h3>
+    <div class="mes-listhead">
+      <h3 class="adm-subtitle">Mesas</h3>
+      <button type="button" id="mes-plegar" class="adm-row__btn" hidden>Plegar todas</button>
+    </div>
     <div id="mes-list" class="inv-list"></div>
     <button type="button" id="mes-nueva" class="btn btn--ghost btn--block">+ Nueva mesa</button>
 
@@ -85,6 +88,7 @@ async function initApp(root) {
   const avisosEl = root.querySelector('#mes-avisos');
   const feedback = root.querySelector('#mes-feedback');
   const listEl = root.querySelector('#mes-list');
+  const plegarBtn = root.querySelector('#mes-plegar');
   const nuevaBtn = root.querySelector('#mes-nueva');
   const personasEl = root.querySelector('#mes-personas');
   const accionEl = root.querySelector('#mes-accion');
@@ -99,6 +103,9 @@ async function initApp(root) {
   let editandoMesa = null;   // id de mesa en edición, 'nueva' o null
   let modoMesa = null;       // mesa a la que se están añadiendo comensales
   let statAbierta = false;   // desplegable de "sin asignar"
+  const plegadas = new Set(); // ids de mesas plegadas (se recuerda en
+                              // memoria mientras dura la sesión: los
+                              // renders tras asignar/mover no lo resetean)
   const seleccion = new Set(); // keys de personas marcadas
   const filtros = { busca: '', lado: '', etiqueta: '', nucleo: '' };
 
@@ -274,8 +281,18 @@ async function initApp(root) {
 
     const ocupadas = mesa.comensales.length;
     const sobre = ocupadas > mesa.capacidad;
+    const abierta = !plegadas.has(mesa.id);
 
-    const head = el('div', 'inv-card__head');
+    // Cabecera-toggle: TODA la cabecera pliega/despliega (zona de toque
+    // amplia); el botón Editar corta la propagación para no plegar.
+    const head = el('div', `inv-card__head mes-card__head${abierta ? ' is-open' : ''}`);
+    head.setAttribute('role', 'button');
+    head.setAttribute('aria-expanded', String(abierta));
+    head.addEventListener('click', () => {
+      if (plegadas.has(mesa.id)) plegadas.delete(mesa.id);
+      else plegadas.add(mesa.id);
+      render();
+    });
     const title = el('div', 'inv-card__title');
     title.appendChild(el('h3', 'inv-card__nombre', mesa.nombre));
     head.appendChild(title);
@@ -287,18 +304,38 @@ async function initApp(root) {
     headRight.appendChild(chip);
     const editBtn = el('button', 'adm-row__btn inv-card__edit', 'Editar');
     editBtn.type = 'button';
-    editBtn.addEventListener('click', () => { editandoMesa = mesa.id; render(); });
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      editandoMesa = mesa.id;
+      render();
+    });
     headRight.appendChild(editBtn);
+    headRight.appendChild(el('span', 'tot-exp__chev mes-card__chev', '▾'));
     head.appendChild(headRight);
     card.appendChild(head);
 
+    // Avisos de la mesa: visibles SIEMPRE, también plegada (lo
+    // importante no debe exigir desplegar).
     if (sobre) {
       card.appendChild(el('p', 'mes-card__sobre',
         `⚠ Sobreaforo: ${ocupadas} comensales para ${mesa.capacidad} plazas`));
     }
+    const estados = mapaEstados();
+    const noAsisten = mesa.comensales.filter((c) => !c.manual && estados.get(c.key) === 'no_asiste').length;
+    const borrados = mesa.comensales.filter((c) => !c.manual && !estados.has(c.key)).length;
+    if (noAsisten) {
+      card.appendChild(el('p', 'mes-card__sobre',
+        `⚠ ${noAsisten} comensal${noAsisten === 1 ? '' : 'es'} marcado${noAsisten === 1 ? '' : 's'} NO ASISTE`));
+    }
+    if (borrados) {
+      card.appendChild(el('p', 'mes-card__sobre',
+        `⚠ ${borrados} comensal${borrados === 1 ? '' : 'es'} ya no está${borrados === 1 ? '' : 'n'} en invitados`));
+    }
 
-    card.appendChild(renderComensales(mesa));
-    card.appendChild(renderAccionesMesa(mesa));
+    if (abierta) {
+      card.appendChild(renderComensales(mesa));
+      card.appendChild(renderAccionesMesa(mesa));
+    }
     return card;
   }
 
@@ -355,6 +392,7 @@ async function initApp(root) {
     }));
     seleccion.clear();
     modoMesa = null;
+    plegadas.delete(mesa.id); // que se vea el cambio aunque estuviera plegada
     await guardarMesa(mesa, { comensales: [...mesa.comensales, ...nuevos] },
       `${personas.length} sentado${personas.length === 1 ? '' : 's'} en "${mesa.nombre}" ✓`);
   }
@@ -378,6 +416,7 @@ async function initApp(root) {
       const ok = window.confirm(`"${destino.nombre}" está llena (${destino.comensales.length}/${destino.capacidad}). ¿Continuar con sobreaforo?`);
       if (!ok) return;
     }
+    plegadas.delete(destino.id); // que se vea a dónde ha ido
     setFeedback('Moviendo…');
     try {
       await updateMesa(destino.id, { comensales: [...destino.comensales, comensal] });
@@ -405,6 +444,7 @@ async function initApp(root) {
       key: `manual|${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       nombre, nucleo: '', lado: '', manual: true,
     };
+    plegadas.delete(mesa.id);
     await guardarMesa(mesa, { comensales: [...mesa.comensales, comensal] },
       `${nombre} (a mano) en "${mesa.nombre}" ✓`);
   }
@@ -741,6 +781,10 @@ async function initApp(root) {
       listEl.appendChild(el('p', 'adm-hint', 'Aún no hay mesas: crea la primera.'));
     }
     mesas.forEach((m) => listEl.appendChild(renderMesa(m)));
+    // "Plegar todas" ↔ "Desplegar todas" según lo que haya abierto
+    plegarBtn.hidden = mesas.length < 2;
+    plegarBtn.textContent = mesas.some((m) => !plegadas.has(m.id))
+      ? 'Plegar todas' : 'Desplegar todas';
     renderPersonas();
     renderAccionBar();
   }
@@ -750,6 +794,14 @@ async function initApp(root) {
     editandoMesa = 'nueva';
     render();
     listEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  plegarBtn.addEventListener('click', () => {
+    if (mesas.some((m) => !plegadas.has(m.id))) {
+      mesas.forEach((m) => plegadas.add(m.id));
+    } else {
+      plegadas.clear();
+    }
+    render();
   });
   buscaInput.addEventListener('input', () => { filtros.busca = buscaInput.value.trim(); renderPersonas(); });
   fLado.addEventListener('change', () => { filtros.lado = fLado.value; renderPersonas(); });

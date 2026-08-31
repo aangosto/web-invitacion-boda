@@ -2692,3 +2692,25 @@ a { color: inherit; }
 .inv-money__btn.is-open .tot-exp__chev { transform: rotate(-180deg); display: inline-block; }
 #hot-statdetail:not(:empty) { margin-top: -0.6rem; }
 #hot-moneydetail:not(:empty) { margin-top: 0.4rem; }
+
+/* ---- Mesas plegables ---- */
+.mes-listhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.mes-listhead .adm-subtitle { margin-bottom: 0.6rem; }
+#mes-plegar { min-height: 40px; margin-bottom: 0.4rem; white-space: nowrap; }
+
+/* Cabecera-toggle: zona de toque amplia, con chevron que rota */
+.mes-card__head {
+  cursor: pointer;
+  min-height: 48px;
+  margin: -0.85rem -0.9rem 0;      /* la zona táctil llega a los bordes de la tarjeta */
+  padding: 0.85rem 0.9rem 0.4rem;
+  -webkit-tap-highlight-color: rgba(110,36,53,0.08);
+}
+.mes-card__chev { flex: 0 0 auto; }
+.mes-card__head .tot-exp__chev { transition: transform 0.2s ease; }
+.mes-card__head.is-open .tot-exp__chev { transform: rotate(-180deg); }
