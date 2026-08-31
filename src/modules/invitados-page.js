@@ -18,7 +18,7 @@
 import { app, isConfigured } from '../firebase.js';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import {
-  ESTADOS, ESTADO_LABEL, fetchNucleos, updateNucleo,
+  ESTADOS, ESTADO_LABEL, fetchNucleos, updateNucleo, createNucleo, deleteNucleo,
 } from './invitados-data.js';
 
 /* ---------- Utilidades ---------- */
@@ -69,6 +69,7 @@ async function initApp(root) {
     </div>
 
     <p id="inv-feedback" class="form-feedback inv-feedback" role="status" aria-live="polite"></p>
+    <button type="button" id="inv-nuevo" class="btn btn--ghost btn--block">+ Nuevo núcleo</button>
     <div id="inv-list" class="inv-list">Cargando invitados…</div>
   `;
 
@@ -80,7 +81,10 @@ async function initApp(root) {
   const fEtiqueta = root.querySelector('#inv-f-etiqueta');
   const fEstado = root.querySelector('#inv-f-estado');
 
+  const nuevoBtn = root.querySelector('#inv-nuevo');
+
   let nucleos = [];
+  let editando = null; // id del núcleo en edición, o 'nuevo', o null
   const filtros = { lado: '', etiqueta: '', estado: '', busca: '' };
 
   let feedbackTimer = null;
@@ -192,18 +196,192 @@ async function initApp(root) {
     return sel;
   }
 
+  /* ---------- Editor de un núcleo (crear o editar) ----------
+     Permite corregir nombre, lado y etiquetas, y añadir / quitar /
+     renombrar personas. Las personas que se conservan mantienen su
+     estado y su regalo; las nuevas nacen "pendiente" y sin regalo. */
+  function creaEditor(n) {
+    const esNuevo = !n;
+    const datos = n || { nombre: '', lado: filtros.lado || 'novia', etiquetas: [], personas: [] };
+
+    const box = el('div', 'adm-editor inv-editor');
+    box.appendChild(el('h3', 'adm-editor__title',
+      esNuevo ? 'Nuevo núcleo' : `Editar: ${datos.nombre}`));
+
+    // Nombre del núcleo
+    const fNombre = el('label', 'field');
+    fNombre.appendChild(el('span', 'field__label', 'Nombre del núcleo'));
+    const nombreInput = el('input', 'field__input');
+    nombreInput.type = 'text';
+    nombreInput.maxLength = 120;
+    nombreInput.value = datos.nombre;
+    fNombre.appendChild(nombreInput);
+    box.appendChild(fNombre);
+
+    // Lado + etiquetas
+    const fila = el('div', 'inv-editor__fila');
+    const fLadoEd = el('label', 'field');
+    fLadoEd.appendChild(el('span', 'field__label', 'Lado'));
+    const ladoSel = el('select', 'field__input inv-select');
+    [['novia', 'María (novia)'], ['novio', 'Alberto (novio)']].forEach(([v, t]) => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = t;
+      ladoSel.appendChild(opt);
+    });
+    ladoSel.value = datos.lado;
+    fLadoEd.appendChild(ladoSel);
+    fila.appendChild(fLadoEd);
+
+    const fTags = el('label', 'field');
+    fTags.appendChild(el('span', 'field__label', 'Etiquetas (separadas por comas)'));
+    const tagsInput = el('input', 'field__input');
+    tagsInput.type = 'text';
+    tagsInput.placeholder = 'Familia novia, Cole…';
+    tagsInput.value = datos.etiquetas.join(', ');
+    fTags.appendChild(tagsInput);
+    fila.appendChild(fTags);
+    box.appendChild(fila);
+
+    // Personas del núcleo
+    box.appendChild(el('span', 'field__label', 'Personas'));
+    const personasBox = el('div', 'inv-editor__personas');
+    box.appendChild(personasBox);
+    const filas = []; // { original, nombreInput, ninoCheck, row }
+
+    function addFilaPersona(p) {
+      const row = el('div', 'inv-editor__persona');
+      const input = el('input', 'field__input');
+      input.type = 'text';
+      input.maxLength = 120;
+      input.placeholder = 'Nombre';
+      input.value = p ? p.nombre : '';
+
+      const ninoLabel = el('label', 'inv-editor__nino');
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.checked = p ? p.nino : false;
+      ninoLabel.appendChild(check);
+      ninoLabel.appendChild(document.createTextNode('niño'));
+
+      const quitar = el('button', 'adm-row__btn adm-row__btn--danger inv-editor__quitar', '✕');
+      quitar.type = 'button';
+      quitar.title = 'Quitar persona';
+      quitar.addEventListener('click', () => {
+        const idx = filas.findIndex((f) => f.row === row);
+        if (idx >= 0) filas.splice(idx, 1);
+        row.remove();
+      });
+
+      row.append(input, ninoLabel, quitar);
+      personasBox.appendChild(row);
+      filas.push({ original: p || null, nombreInput: input, ninoCheck: check, row });
+      return input;
+    }
+    datos.personas.forEach((p) => addFilaPersona(p));
+
+    const addPersonaBtn = el('button', 'btn btn--ghost btn--block', '+ Añadir persona');
+    addPersonaBtn.type = 'button';
+    addPersonaBtn.addEventListener('click', () => addFilaPersona(null).focus());
+    box.appendChild(addPersonaBtn);
+
+    // Acciones: guardar / cancelar / borrar núcleo
+    const acciones = el('div', 'adm-editor__actions');
+    const cancelar = el('button', 'btn btn--ghost', 'Cancelar');
+    cancelar.type = 'button';
+    cancelar.addEventListener('click', () => { editando = null; render(); });
+    const guardarBtn = el('button', 'btn btn--solid', 'Guardar');
+    guardarBtn.type = 'button';
+    guardarBtn.addEventListener('click', async () => {
+      const nombre = nombreInput.value.trim();
+      if (!nombre) {
+        setFeedback('El núcleo necesita un nombre.', 'is-error');
+        nombreInput.focus();
+        return;
+      }
+      const personas = filas
+        .map((f) => ({
+          ...(f.original || { estado: 'pendiente', regalo: null }),
+          nombre: f.nombreInput.value.trim(),
+          nino: f.ninoCheck.checked,
+        }))
+        .filter((p) => p.nombre);
+      const etiquetas = tagsInput.value.split(',').map((t) => t.trim()).filter(Boolean);
+
+      guardarBtn.disabled = true;
+      setFeedback('Guardando…');
+      try {
+        if (esNuevo) {
+          const orden = nucleos.reduce((m, x) => Math.max(m, x.orden), 0) + 1;
+          const id = await createNucleo({ nombre, lado: ladoSel.value, etiquetas, personas, orden });
+          nucleos.push({ id, nombre, lado: ladoSel.value, etiquetas, personas, regalo: null, orden });
+        } else {
+          await updateNucleo(n.id, { nombre, lado: ladoSel.value, etiquetas, personas });
+          Object.assign(n, { nombre, lado: ladoSel.value, etiquetas, personas });
+        }
+        editando = null;
+        setFeedback('Guardado ✓', 'is-ok');
+        rellenaEtiquetas();
+        render();
+      } catch (err) {
+        console.error(err);
+        guardarBtn.disabled = false;
+        setFeedback('No se ha podido guardar. Inténtalo de nuevo.', 'is-error');
+      }
+    });
+    acciones.append(cancelar, guardarBtn);
+    box.appendChild(acciones);
+
+    if (!esNuevo) {
+      const borrar = el('button', 'adm-row__btn adm-row__btn--danger inv-editor__borrar',
+        'Borrar núcleo definitivamente');
+      borrar.type = 'button';
+      borrar.addEventListener('click', async () => {
+        const cuantas = n.personas.length;
+        if (!window.confirm(`¿Borrar el núcleo "${n.nombre}" (${cuantas} persona${cuantas === 1 ? '' : 's'})? Esta acción NO se puede deshacer.`)) return;
+        if (!window.confirm('¿Seguro del todo? Se borrará definitivamente de la lista de invitados.')) return;
+        setFeedback('Borrando…');
+        try {
+          await deleteNucleo(n.id);
+          nucleos = nucleos.filter((x) => x.id !== n.id);
+          editando = null;
+          setFeedback(`"${n.nombre}" borrado ✓`, 'is-ok');
+          rellenaEtiquetas();
+          render();
+        } catch (err) {
+          console.error(err);
+          setFeedback('No se ha podido borrar. Inténtalo de nuevo.', 'is-error');
+        }
+      });
+      box.appendChild(borrar);
+    }
+
+    return box;
+  }
+
   /* ---------- Tarjeta de un núcleo ---------- */
   function renderNucleo(n) {
     const card = el('article', 'inv-card');
 
-    // Cabecera: nombre + lado + nº de personas
+    // En edición, la tarjeta se convierte en el editor
+    if (editando === n.id) {
+      card.appendChild(creaEditor(n));
+      return card;
+    }
+
+    // Cabecera: nombre + lado + nº de personas + editar
     const head = el('div', 'inv-card__head');
     const title = el('div', 'inv-card__title');
     title.appendChild(el('h3', 'inv-card__nombre', n.nombre));
     const lado = el('span', `adm-team adm-team--${n.lado}`, LADO_LABEL[n.lado]);
     title.appendChild(lado);
     head.appendChild(title);
-    head.appendChild(el('span', 'inv-card__n', `${n.personas.length} pers.`));
+    const headRight = el('div', 'inv-card__headright');
+    headRight.appendChild(el('span', 'inv-card__n', `${n.personas.length} pers.`));
+    const editBtn = el('button', 'adm-row__btn inv-card__edit', 'Editar');
+    editBtn.type = 'button';
+    editBtn.addEventListener('click', () => { editando = n.id; render(); });
+    headRight.appendChild(editBtn);
+    head.appendChild(headRight);
     card.appendChild(head);
 
     // Etiquetas (clave para distinguir los núcleos con el mismo nombre)
@@ -245,8 +423,14 @@ async function initApp(root) {
   function render() {
     renderStats();
     listEl.innerHTML = '';
+
+    // Alta de un núcleo nuevo: el editor se muestra arriba de la lista
+    if (editando === 'nuevo') {
+      listEl.appendChild(creaEditor(null));
+    }
+
     const visibles = nucleos.filter(nucleoVisible);
-    if (visibles.length === 0) {
+    if (visibles.length === 0 && editando !== 'nuevo') {
       listEl.appendChild(el('p', 'adm-hint', 'Ningún núcleo coincide con los filtros.'));
       return;
     }
@@ -260,6 +444,11 @@ async function initApp(root) {
   fLado.addEventListener('change', () => { filtros.lado = fLado.value; render(); });
   fEtiqueta.addEventListener('change', () => { filtros.etiqueta = fEtiqueta.value; render(); });
   fEstado.addEventListener('change', () => { filtros.estado = fEstado.value; render(); });
+  nuevoBtn.addEventListener('click', () => {
+    editando = 'nuevo';
+    render();
+    listEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   /* ---------- Carga inicial ---------- */
   nucleos = await fetchNucleos();
