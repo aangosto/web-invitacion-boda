@@ -1987,3 +1987,165 @@ a { color: inherit; }
   /* Marcadores de "Nuestros lugares": sin pulso */
   .place-marker__dot::after { animation: none; opacity: 0; }
 }
+
+/* =================================================================
+   14. INVITADOS (página privada de gestión · invitados.html)
+   Mobile-first: una columna, controles táctiles grandes.
+   ================================================================= */
+
+/* Enlace destacado del panel hacia la gestión de invitados */
+.panel-link {
+  display: block;
+  margin-bottom: 1.1rem;
+  padding: 0.8rem 1rem;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--burgundy);
+  text-decoration: none;
+  background: rgba(110,36,53,0.06);
+  border: 1px solid rgba(110,36,53,0.25);
+  border-left: 3px solid var(--burgundy);
+  border-radius: 8px;
+}
+.panel-link__sub {
+  display: block;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin-top: 0.15rem;
+}
+
+/* Contadores en 2x2 en móvil, 4 en línea en pantallas anchas */
+.res-stats--four { grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 34rem) {
+  .res-stats--four { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ---- Filtros ---- */
+.inv-filtros { display: grid; gap: 0.5rem; margin-bottom: 0.6rem; }
+.inv-filtros__row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+.inv-select {
+  min-height: 44px;
+  padding: 0.4rem 0.35rem;
+  font-size: 0.8rem;
+}
+@media (max-width: 24rem) {
+  /* móviles estrechos: etiqueta (la más larga) a ancho completo */
+  .inv-filtros__row { grid-template-columns: 1fr 1fr; }
+  .inv-filtros__row #inv-f-etiqueta { grid-column: 1 / -1; }
+}
+
+/* El feedback de guardado queda visible sobre la lista */
+.inv-feedback { min-height: 1.2rem; margin: 0.2rem 0 0.6rem; }
+
+/* ---- Lista de núcleos ---- */
+.inv-list { display: grid; gap: 0.8rem; }
+.inv-list__resumen {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.inv-card {
+  padding: 0.85rem 0.9rem;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(110,36,53,0.15);
+  border-radius: 10px;
+}
+.inv-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.inv-card__title { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.inv-card__nombre {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+.inv-card__n {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.inv-card__tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.35rem 0 0.2rem; }
+.inv-tag {
+  font-family: var(--font-sans);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  color: var(--taupe-deep);
+  padding: 0.12rem 0.5rem;
+  background: rgba(182,168,148,0.16);
+  border: 1px solid rgba(182,168,148,0.45);
+  border-radius: 999px;
+}
+
+/* ---- Personas ---- */
+.inv-personas { margin-top: 0.4rem; }
+.inv-persona {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-height: 46px;
+  padding: 0.25rem 0;
+  border-top: 1px dashed rgba(63,58,50,0.14);
+}
+.inv-persona__nombre {
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.inv-nino {
+  display: inline-block;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--taupe-deep);
+  border: 1px dashed rgba(182,168,148,0.8);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+/* Selector de estado, coloreado según el valor elegido */
+.inv-estado {
+  min-height: 40px;
+  flex: 0 0 auto;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  padding: 0.3rem 0.4rem;
+  color: var(--ink);
+  background: rgba(255,255,255,0.8);
+  border: 1.5px solid rgba(63,58,50,0.25);
+  border-radius: 8px;
+}
+.inv-estado[data-estado="confirmado"] { color: #2e6b45; border-color: #2e6b45; background: rgba(46,107,69,0.07); }
+.inv-estado[data-estado="pendiente"]  { color: #9a6b1f; border-color: #c9a15a; background: rgba(201,161,90,0.1); }
+.inv-estado[data-estado="no_asiste"]  { color: #8c2f2f; border-color: #8c2f2f; background: rgba(140,47,47,0.06); text-decoration: line-through; }
+
+/* "Marcar todos" del núcleo */
+.inv-bulk {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(110,36,53,0.12);
+}
+.inv-bulk__label {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}

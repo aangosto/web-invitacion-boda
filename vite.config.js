@@ -13,6 +13,7 @@ export default defineConfig({
         cuestionario: 'cuestionario.html',
         juego: 'juego.html',
         resultados: 'resultados.html', // privada (solo por URL directa)
+        invitados: 'invitados.html',   // privada (gestión de invitados)
       },
     },
   },
