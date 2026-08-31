@@ -60,7 +60,9 @@ async function initApp(root) {
       Cada invitado paga su habitación: marca aquí quién ha pagado y cuánto.</p>
 
     <div id="hot-stats" class="res-stats res-stats--four"></div>
+    <div id="hot-statdetail"></div>
     <div id="hot-money" class="inv-money"></div>
+    <div id="hot-moneydetail"></div>
 
     <div class="inv-filtros">
       <input id="hot-busca" class="field__input" type="search"
@@ -90,7 +92,9 @@ async function initApp(root) {
   `;
 
   const statsEl = root.querySelector('#hot-stats');
+  const statDetailEl = root.querySelector('#hot-statdetail');
   const moneyEl = root.querySelector('#hot-money');
+  const moneyDetailEl = root.querySelector('#hot-moneydetail');
   const listEl = root.querySelector('#hot-list');
   const feedback = root.querySelector('#hot-feedback');
   const buscaInput = root.querySelector('#hot-busca');
@@ -101,6 +105,7 @@ async function initApp(root) {
 
   let habitaciones = [];
   let editando = null; // id en edición, o 'nueva', o null
+  let statAbierta = -1; // contador desplegado: índice, 'dinero' o -1
   const filtros = { busca: '', tipo: '', estado: '', fechas: '' };
 
   let feedbackTimer = null;
@@ -176,24 +181,62 @@ async function initApp(root) {
 
   function renderStats() {
     const visibles = habitaciones.filter(pasaFiltrosBase);
-    const pagadas = visibles.filter((h) => h.pagado).length;
-    const sinAsignar = visibles.filter((h) => h.ocupantes.length === 0).length;
+
+    // Grupos de los contadores (todos desplegables, como en /invitados)
+    const grupos = [
+      { label: 'Habitaciones', members: visibles },
+      { label: 'Pagadas', members: visibles.filter((h) => h.pagado) },
+      { label: 'Sin pagar', members: visibles.filter((h) => !h.pagado) },
+      { label: 'Sin asignar', members: visibles.filter((h) => h.ocupantes.length === 0) },
+    ];
+
+    /** Línea de una habitación en un desplegable: ocupantes — tipo,
+        fechas e importe, para identificarla sin salir de la lista. */
+    function lineaHab(h, extra) {
+      const line = el('p', 'tot-person');
+      line.appendChild(el('span', null,
+        h.ocupantes.length ? h.ocupantes.join(' · ') : 'Pendiente de asignar'));
+      line.appendChild(el('span', 'tot-person__by',
+        ` — ${TIPO_LABEL[h.tipo]} · ${fmtRango(h.entrada, h.salida)} · ${fmtEuros(h.importe)} €${extra ? ` · ${extra}` : ''}`));
+      return line;
+    }
+
+    function pintaDetalleStats() {
+      statDetailEl.innerHTML = '';
+      if (typeof statAbierta !== 'number' || statAbierta === -1) return;
+      const lista = el('div', 'tot-detail tot-detail--scroll');
+      const members = grupos[statAbierta].members;
+      if (members.length === 0) {
+        lista.appendChild(el('p', 'tot-person tot-person--empty', 'Ninguna con los filtros actuales.'));
+      }
+      members.forEach((h) => lista.appendChild(lineaHab(h)));
+      statDetailEl.appendChild(lista);
+    }
 
     statsEl.innerHTML = '';
-    [
-      [visibles.length, 'Habitaciones'],
-      [pagadas, 'Pagadas'],
-      [visibles.length - pagadas, 'Sin pagar'],
-      [sinAsignar, 'Sin asignar'],
-    ].forEach(([num, label]) => {
-      const card = el('div', 'res-stat');
-      card.appendChild(el('span', 'res-stat__num', String(num)));
-      card.appendChild(el('span', 'res-stat__label', label));
+    grupos.forEach((g, i) => {
+      const card = el('button', 'res-stat res-stat--btn');
+      card.type = 'button';
+      card.classList.toggle('is-open', statAbierta === i);
+      card.setAttribute('aria-expanded', String(statAbierta === i));
+      card.appendChild(el('span', 'res-stat__num', String(g.members.length)));
+      card.appendChild(el('span', 'res-stat__label', g.label));
+      card.appendChild(el('span', 'tot-exp__chev', '▾'));
+      card.addEventListener('click', () => {
+        statAbierta = statAbierta === i ? -1 : i;
+        renderStats();
+      });
       statsEl.appendChild(card);
     });
+    pintaDetalleStats();
 
+    /* ---- Dinero: facturado / cobrado / pendiente (desplegable) ---- */
     const facturado = visibles.reduce((s, h) => s + h.importe, 0);
     const cobrado = visibles.reduce((s, h) => s + cobradoEfectivo(h), 0);
+    const pendientes = visibles
+      .map((h) => ({ h, falta: h.importe - cobradoEfectivo(h) }))
+      .filter((x) => x.falta > 0);
+
     moneyEl.innerHTML = '';
     moneyEl.classList.add('has-total');
     const fila = (clase, label, valor) => {
@@ -204,7 +247,36 @@ async function initApp(root) {
     };
     fila('', 'Total facturado', `${fmtEuros(facturado)} €`);
     fila('inv-money__row--real', 'Cobrado', `${fmtEuros(cobrado)} €`);
-    fila('inv-money__row--total', 'Pendiente de cobro', `${fmtEuros(facturado - cobrado)} €`);
+
+    // "Pendiente de cobro" se despliega para ver de qué habitaciones
+    // viene ese dinero (y cuánto falta en cada una).
+    const pendBtn = el('button', 'inv-money__row inv-money__row--total inv-money__btn');
+    pendBtn.type = 'button';
+    pendBtn.classList.toggle('is-open', statAbierta === 'dinero');
+    pendBtn.setAttribute('aria-expanded', String(statAbierta === 'dinero'));
+    pendBtn.appendChild(el('span', 'inv-money__label',
+      `Pendiente de cobro (${pendientes.length} hab.)`));
+    const val = el('span', 'inv-money__val', `${fmtEuros(facturado - cobrado)} € `);
+    val.appendChild(el('span', 'tot-exp__chev', '▾'));
+    pendBtn.appendChild(val);
+    pendBtn.addEventListener('click', () => {
+      statAbierta = statAbierta === 'dinero' ? -1 : 'dinero';
+      renderStats();
+    });
+    moneyEl.appendChild(pendBtn);
+
+    moneyDetailEl.innerHTML = '';
+    if (statAbierta === 'dinero') {
+      const lista = el('div', 'tot-detail tot-detail--scroll');
+      if (pendientes.length === 0) {
+        lista.appendChild(el('p', 'tot-person tot-person--empty', 'Nada pendiente con los filtros actuales. 🎉'));
+      }
+      pendientes.forEach(({ h, falta }) => {
+        lista.appendChild(lineaHab(h,
+          falta < h.importe ? `faltan ${fmtEuros(falta)} €` : ''));
+      });
+      moneyDetailEl.appendChild(lista);
+    }
   }
 
   /* ---------- Control de importe cobrado (mismo patrón que los

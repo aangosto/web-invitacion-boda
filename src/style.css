@@ -2674,3 +2674,21 @@ a { color: inherit; }
 }
 .mes-aviso--warn { color: #7a5a1e; background: rgba(201,161,90,0.14); border: 1px solid #c9a15a; }
 .mes-aviso--error { color: #8c2f2f; background: rgba(140,47,47,0.08); border: 1px solid #8c2f2f; }
+
+/* ---- Contadores desplegables de /hoteles ---- */
+/* La fila "Pendiente de cobro" es un botón: mismo aspecto que las
+   otras filas del bloque de dinero, pero tappable, con chevron. */
+.inv-money__btn {
+  width: 100%;
+  min-height: 44px;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  padding: 0.3rem 0 0;
+  cursor: pointer;
+}
+.inv-money__btn .tot-exp__chev { font-size: 0.7rem; vertical-align: middle; }
+.inv-money__btn.is-open .tot-exp__chev { transform: rotate(-180deg); display: inline-block; }
+#hot-statdetail:not(:empty) { margin-top: -0.6rem; }
+#hot-moneydetail:not(:empty) { margin-top: 0.4rem; }
