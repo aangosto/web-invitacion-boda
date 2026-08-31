@@ -184,19 +184,47 @@ async function initApp(root) {
       statsEl.appendChild(card);
     });
 
-    // Total de dinero regalado (núcleos + personas de lo filtrado)
-    let total = 0;
-    let apuntes = 0;
+    // Totales de regalos (núcleos + personas de lo filtrado), SEPARADOS:
+    // el dinero es el único dato real; el valor de lo material es una
+    // estimación propia, así que nunca se mezclan en un solo número.
+    let dinero = 0;
+    let dineroN = 0;
+    let material = 0;
+    let materialN = 0;
+    let materialSinValor = 0;
+    function suma(regalo, regaloMaterial) {
+      if (regalo != null) { dinero += regalo; dineroN += 1; }
+      if (regaloMaterial != null) {
+        materialN += 1;
+        if (regaloMaterial.valor != null) material += regaloMaterial.valor;
+        else materialSinValor += 1;
+      }
+    }
     visibles.forEach((n) => {
-      if (n.regalo != null) { total += n.regalo; apuntes += 1; }
-      n.personas.forEach((p) => {
-        if (p.regalo != null) { total += p.regalo; apuntes += 1; }
-      });
+      suma(n.regalo, n.regaloMaterial);
+      n.personas.forEach((p) => suma(p.regalo, p.regaloMaterial));
     });
-    moneyEl.textContent = apuntes === 0
-      ? 'Regalos: nada apuntado todavía'
-      : `Regalos: ${fmtEuros(total)} € · ${apuntes} apunte${apuntes === 1 ? '' : 's'}`;
-    moneyEl.classList.toggle('has-total', apuntes > 0);
+
+    const apunte = (x) => `${x} apunte${x === 1 ? '' : 's'}`;
+    moneyEl.innerHTML = '';
+    moneyEl.classList.toggle('has-total', dineroN + materialN > 0);
+    if (dineroN + materialN === 0) {
+      moneyEl.textContent = 'Regalos: nada apuntado todavía';
+    } else {
+      const fila = (clase, label, valor) => {
+        const row = el('div', `inv-money__row ${clase}`);
+        row.appendChild(el('span', 'inv-money__label', label));
+        row.appendChild(el('span', 'inv-money__val', valor));
+        moneyEl.appendChild(row);
+      };
+      fila('inv-money__row--real', `Dinero (${apunte(dineroN)})`,
+        `${fmtEuros(dinero)} €`);
+      fila('inv-money__row--est',
+        `Material, valor estimado (${apunte(materialN)}${materialSinValor ? `, ${materialSinValor} sin valorar` : ''})`,
+        `~${fmtEuros(material)} €`);
+      fila('inv-money__row--total', 'Total aproximado (dinero + estimación)',
+        `≈ ${fmtEuros(dinero + material)} €`);
+    }
   }
 
   /* ---------- Control de dinero regalado (núcleo o persona) ----------
@@ -248,6 +276,74 @@ async function initApp(root) {
 
       wrap.append(input, ok, cancelar);
       input.focus();
+    }
+
+    pinta();
+    return wrap;
+  }
+
+  /* ---------- Control de regalo MATERIAL (núcleo o persona) ----------
+     Igual que el de dinero pero con dos partes: descripción (qué es) y
+     valor ESTIMADO en € (opcional). Guardar con la descripción VACÍA
+     quita el apunte. Coexiste con el dinero: no son excluyentes. */
+  function creaMaterialControl(actual, etiquetaVacia, onSave) {
+    const wrap = el('span', 'inv-regalo inv-material');
+
+    function pinta() {
+      wrap.classList.remove('is-editing');
+      wrap.innerHTML = '';
+      let texto = etiquetaVacia;
+      if (actual) {
+        texto = `🎁 ${actual.descripcion}`;
+        if (actual.valor != null) texto += ` · ~${fmtEuros(actual.valor)} €`;
+      }
+      const btn = el('button',
+        `inv-regalo__btn inv-material__btn${actual ? ' has-valor' : ''}`, texto);
+      btn.type = 'button';
+      btn.title = 'Apuntar regalo material (vajilla, electrodoméstico…)';
+      btn.addEventListener('click', edita);
+      wrap.appendChild(btn);
+    }
+
+    function edita() {
+      wrap.innerHTML = '';
+      wrap.classList.add('is-editing');
+
+      const desc = el('input', 'field__input inv-material__desc');
+      desc.type = 'text';
+      desc.maxLength = 300;
+      desc.placeholder = 'Qué es (vacío = quitar)';
+      if (actual) desc.value = actual.descripcion;
+
+      const valor = el('input', 'field__input inv-regalo__input');
+      valor.type = 'number';
+      valor.min = '0';
+      valor.step = '0.01';
+      valor.inputMode = 'decimal';
+      valor.placeholder = 'Valor est. €';
+      if (actual && actual.valor != null) valor.value = actual.valor;
+
+      const ok = el('button', 'adm-row__btn inv-regalo__ok', 'Guardar');
+      ok.type = 'button';
+      ok.addEventListener('click', () => {
+        const d = desc.value.trim();
+        const v = valor.value.trim();
+        const num = v === '' ? null : Number(v.replace(',', '.'));
+        if (num != null && (!Number.isFinite(num) || num < 0)) {
+          valor.focus();
+          return;
+        }
+        onSave(d ? { descripcion: d, valor: num } : null);
+      });
+      const cancelar = el('button', 'adm-row__btn inv-regalo__cancel', '✕');
+      cancelar.type = 'button';
+      cancelar.addEventListener('click', pinta);
+      [desc, valor].forEach((input) => input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); ok.click(); }
+      }));
+
+      wrap.append(desc, valor, ok, cancelar);
+      desc.focus();
     }
 
     pinta();
@@ -383,7 +479,7 @@ async function initApp(root) {
       }
       const personas = filas
         .map((f) => ({
-          ...(f.original || { estado: 'pendiente', regalo: null }),
+          ...(f.original || { estado: 'pendiente', regalo: null, regaloMaterial: null }),
           nombre: f.nombreInput.value.trim(),
           nino: f.ninoCheck.checked,
         }))
@@ -479,28 +575,44 @@ async function initApp(root) {
       const nombre = el('span', 'inv-persona__nombre', p.nombre);
       if (p.nino) nombre.appendChild(el('span', 'inv-nino', 'niño'));
       row.appendChild(nombre);
-      // Regalo individual (para quien regala por su cuenta)
-      row.appendChild(creaRegaloControl(p.regalo, '€', (num) => {
+      // Regalos individuales (dinero y/o material) + estado
+      const controles = el('span', 'inv-persona__controles');
+      controles.appendChild(creaRegaloControl(p.regalo, '€', (num) => {
         const personas = n.personas.map((q, j) => (j === i ? { ...q, regalo: num } : q));
         guardar(n, { personas },
-          num == null ? `${p.nombre}: regalo quitado ✓` : `${p.nombre}: ${fmtEuros(num)} € ✓`);
+          num == null ? `${p.nombre}: dinero quitado ✓` : `${p.nombre}: ${fmtEuros(num)} € ✓`);
       }));
-      row.appendChild(creaSelectEstado(p.estado, (nuevo) => {
+      controles.appendChild(creaMaterialControl(p.regaloMaterial, '🎁', (mat) => {
+        const personas = n.personas.map((q, j) => (j === i ? { ...q, regaloMaterial: mat } : q));
+        guardar(n, { personas },
+          mat == null ? `${p.nombre}: regalo material quitado ✓` : `${p.nombre}: 🎁 ${mat.descripcion} ✓`);
+      }));
+      controles.appendChild(creaSelectEstado(p.estado, (nuevo) => {
         const personas = n.personas.map((q, j) => (j === i ? { ...q, estado: nuevo } : q));
         guardar(n, { personas }, `${p.nombre}: ${ESTADO_LABEL[nuevo]} ✓`);
       }));
+      row.appendChild(controles);
       lista.appendChild(row);
     });
     card.appendChild(lista);
 
-    // Dinero regalado del núcleo (conjunto); lo individual va por persona
+    // Regalos del núcleo (conjunto): dinero y material, no excluyentes;
+    // lo individual va por persona
     const regaloRow = el('div', 'inv-regalo-row');
-    regaloRow.appendChild(el('span', 'inv-bulk__label', 'Regalo del núcleo:'));
+    regaloRow.appendChild(el('span', 'inv-bulk__label', 'Dinero del núcleo:'));
     regaloRow.appendChild(creaRegaloControl(n.regalo, 'sin apuntar', (num) => {
       guardar(n, { regalo: num },
-        num == null ? `${n.nombre}: regalo quitado ✓` : `${n.nombre}: ${fmtEuros(num)} € ✓`);
+        num == null ? `${n.nombre}: dinero quitado ✓` : `${n.nombre}: ${fmtEuros(num)} € ✓`);
     }));
     card.appendChild(regaloRow);
+
+    const materialRow = el('div', 'inv-regalo-row');
+    materialRow.appendChild(el('span', 'inv-bulk__label', 'Regalo material:'));
+    materialRow.appendChild(creaMaterialControl(n.regaloMaterial, 'sin apuntar', (mat) => {
+      guardar(n, { regaloMaterial: mat },
+        mat == null ? `${n.nombre}: regalo material quitado ✓` : `${n.nombre}: 🎁 ${mat.descripcion} ✓`);
+    }));
+    card.appendChild(materialRow);
 
     // Marcar todo el núcleo de golpe
     if (n.personas.length > 1) {

@@ -4,8 +4,11 @@
    Cada documento es un NÚCLEO (id autogenerado, nunca el nombre: hay
    núcleos con el mismo nombre en la lista):
      { nombre, lado: 'novia'|'novio'|'ambos', etiquetas: [string],
-       personas: [{ nombre, nino, estado, regalo }],
+       personas: [{ nombre, nino, estado, regalo, regaloMaterial }],
        regalo,            // dinero regalado del núcleo (number|null)
+       regaloMaterial,    // { descripcion, valor }|null — regalo material
+                          // (valor = estimación en €, opcional). Puede
+                          // coexistir con el dinero: no son excluyentes.
        orden, createdAt, updatedAt }
 
    `estado` de cada persona: 'confirmado' | 'pendiente' | 'no_asiste'.
@@ -37,6 +40,15 @@ export const ESTADO_LABEL = {
   no_asiste: 'No asiste',
 };
 
+/** Normaliza un regalo material: { descripcion, valor } o null. */
+export function toRegaloMaterial(m) {
+  if (!m || typeof m.descripcion !== 'string' || !m.descripcion.trim()) return null;
+  return {
+    descripcion: m.descripcion.trim(),
+    valor: typeof m.valor === 'number' ? m.valor : null,
+  };
+}
+
 /** Normaliza una persona (por si faltan campos en datos antiguos). */
 export function toPersona(p) {
   return {
@@ -44,6 +56,7 @@ export function toPersona(p) {
     nino: p.nino === true,
     estado: ESTADOS.includes(p.estado) ? p.estado : 'pendiente',
     regalo: typeof p.regalo === 'number' ? p.regalo : null,
+    regaloMaterial: toRegaloMaterial(p.regaloMaterial),
   };
 }
 
@@ -59,6 +72,7 @@ export async function fetchNucleos() {
       etiquetas: Array.isArray(data.etiquetas) ? data.etiquetas : [],
       personas: (Array.isArray(data.personas) ? data.personas : []).map(toPersona),
       regalo: typeof data.regalo === 'number' ? data.regalo : null,
+      regaloMaterial: toRegaloMaterial(data.regaloMaterial),
       orden: typeof data.orden === 'number' ? data.orden : 0,
     };
   });
@@ -80,6 +94,7 @@ export async function createNucleo({ nombre, lado, etiquetas, personas, orden })
     etiquetas: etiquetas || [],
     personas: (personas || []).map(toPersona),
     regalo: null,
+    regaloMaterial: null,
     orden: Number(orden) || 0,
     createdAt: serverTimestamp(),
   });
