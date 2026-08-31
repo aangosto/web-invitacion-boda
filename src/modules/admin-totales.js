@@ -16,6 +16,15 @@ import { splitResubmissions } from './rsvp-dedupe.js';
 
 const MENU_LABELS = { ninguno: 'Normal', vegetariano: 'Vegetariano', vegano: 'Vegano', otro: 'Otro' };
 
+/** ¿La talla equivale a "sin talla"? Cubre todas las formas vistas o
+    previsibles: campo ausente/null, cadena vacía o solo espacios (lo que
+    deja el editor del panel al corregir), y textos tipo "sin talla",
+    "-", "—" o "?". Un texto libre con contenido ("37..38") SÍ cuenta. */
+function esSinTalla(shoeSize) {
+  const v = String(shoeSize ?? '').trim().toLowerCase();
+  return !v || ['sin talla', '-', '—', '?', '¿?'].includes(v);
+}
+
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -34,6 +43,7 @@ function aggregate(docs) {
     menus: { ninguno: [], vegetariano: [], vegano: [], otro: [] },
     alergias: [],
     zapatos: [],
+    zapatosSinTalla: [], // marcados "sin talla": visibles pero NO cuentan
     tallas: new Map(),   // talla → miembros
     busIda: [],
     busVuelta: [],
@@ -79,12 +89,18 @@ function aggregate(docs) {
       // Alergias no vacías, con el texto para el catering
       if ((p.allergies || '').trim()) t.alergias.push({ nombre, por, extra: p.allergies.trim() });
 
-      // Zapatos de recambio + desglose por talla
+      // Zapatos de recambio + desglose por talla. Los "sin talla" (p. ej.
+      // marcados sin querer y corregidos desde el panel) se listan aparte
+      // y NO suman al total ni al desglose; el dato sigue en su ficha.
       if (p.needsShoes === true) {
-        const talla = String(p.shoeSize || '').trim() || 'sin talla';
-        t.zapatos.push({ nombre, por, extra: `talla ${talla}` });
-        if (!t.tallas.has(talla)) t.tallas.set(talla, []);
-        t.tallas.get(talla).push(m);
+        const talla = String(p.shoeSize ?? '').trim();
+        if (esSinTalla(talla)) {
+          t.zapatosSinTalla.push({ nombre, por, extra: talla ? `«${talla}»` : undefined });
+        } else {
+          t.zapatos.push({ nombre, por, extra: `talla ${talla}` });
+          if (!t.tallas.has(talla)) t.tallas.set(talla, []);
+          t.tallas.get(talla).push(m);
+        }
       }
 
       // Autobús (booleanos actuales o texto del formato antiguo)
@@ -257,6 +273,12 @@ export async function initTotalesTab(container) {
   [...t.tallas.entries()]
     .sort((a, b) => (parseFloat(a[0]) || 999) - (parseFloat(b[0]) || 999))
     .forEach(([talla, members]) => zapatos.appendChild(expandableRow(`Talla ${talla}`, members)));
+  if (t.zapatosSinTalla.length) {
+    zapatos.appendChild(expandableRow('Sin talla — no contabilizadas', t.zapatosSinTalla));
+    zapatos.appendChild(el('p', 'adm-hint',
+      `${t.zapatosSinTalla.length} marcada${t.zapatosSinTalla.length === 1 ? '' : 's'} «sin talla»: `
+      + 'se ven en su confirmación pero no suman al total ni al desglose por tallas.'));
+  }
   container.appendChild(zapatos);
 
   /* --- 4 · Autobús --- */
