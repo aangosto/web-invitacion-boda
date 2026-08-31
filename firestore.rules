@@ -129,17 +129,30 @@ service cloud.firestore {
     }
 
     function isValidNucleo(d) {
-      // Núcleo de invitados: nombre, lado, etiquetas, personas y regalo.
+      // Núcleo de invitados: nombre, lado, etiquetas, personas y regalos.
       // `personas` es una lista de mapas; Firestore rules no puede validar
       // cada elemento de una lista, así que se validan forma y topes.
       // `regalo` (dinero, en €) es number o null (null = sin apuntar).
-      return d.keys().hasOnly(['nombre', 'lado', 'etiquetas', 'personas', 'regalo', 'orden', 'createdAt', 'updatedAt'])
+      // `regaloMaterial` (una vajilla, un electrodoméstico…) es null o
+      // { descripcion, valor }: descripción obligatoria y valor ESTIMADO
+      // en € opcional (number o null). Dinero y material coexisten.
+      return d.keys().hasOnly(['nombre', 'lado', 'etiquetas', 'personas', 'regalo', 'regaloMaterial', 'orden', 'createdAt', 'updatedAt'])
         && d.nombre is string && d.nombre.size() >= 1 && d.nombre.size() <= 120
         && d.lado in ['novia', 'novio', 'ambos']
         && d.etiquetas is list && d.etiquetas.size() <= 15
         && d.personas is list && d.personas.size() <= 40
         && (!('regalo' in d.keys()) || d.regalo == null || (d.regalo is number && d.regalo >= 0 && d.regalo <= 100000))
+        && (!('regaloMaterial' in d.keys()) || isValidRegaloMaterial(d.regaloMaterial))
         && (!('orden' in d.keys()) || d.orden is number);
+    }
+
+    function isValidRegaloMaterial(m) {
+      return m == null || (
+        m is map
+        && m.keys().hasOnly(['descripcion', 'valor'])
+        && m.descripcion is string && m.descripcion.size() >= 1 && m.descripcion.size() <= 300
+        && (m.valor == null || (m.valor is number && m.valor >= 0 && m.valor <= 100000))
+      );
     }
 
     function isValidConfig(d) {
