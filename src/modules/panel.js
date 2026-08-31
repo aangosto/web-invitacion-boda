@@ -25,6 +25,7 @@ import { initGate } from './panel-gate.js';
 
 import { initRsvpTab } from './admin-rsvp.js';
 import { initTotalesTab } from './admin-totales.js';
+import { initCronologiaTab } from './admin-cronologia.js';
 import { initLugaresTab } from './admin-lugares.js';
 import { initScoresTab } from './admin-scores.js';
 import { initRegaloTab } from './admin-regalo.js';
@@ -35,6 +36,7 @@ import { initAuditoriaTab } from './admin-auditoria.js';
 const TABS = [
   { id: 'rsvp', label: 'Confirmaciones', init: initRsvpTab },
   { id: 'totales', label: 'Totales', init: initTotalesTab },
+  { id: 'crono', label: 'Cronología', init: initCronologiaTab },
   { id: 'lugares', label: 'Lugares', init: initLugaresTab },
   { id: 'scores', label: 'Puntuaciones', init: initScoresTab },
   { id: 'regalo', label: 'Regalo', init: initRegaloTab },

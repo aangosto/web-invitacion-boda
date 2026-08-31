@@ -2294,3 +2294,49 @@ a { color: inherit; }
   padding-top: 0.3rem;
 }
 .inv-money__row--total .inv-money__val { color: var(--ink-soft); font-style: italic; }
+
+/* ---- Pestaña Cronología (llegadas y salidas por día) ---- */
+.crono-toggle { display: flex; gap: 0.5rem; margin: 0.4rem 0 1rem; }
+.crono-toggle__btn { flex: 1; text-align: center; }
+
+.crono-dia { margin-bottom: 1.2rem; }
+.crono-dia__titulo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  border-bottom: 1px solid rgba(110,36,53,0.18);
+  padding-bottom: 0.25rem;
+}
+.crono-dia__n { font-size: 0.72rem; letter-spacing: 0.06em; color: var(--burgundy); }
+
+.crono-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.4rem 0.1rem;
+  border-bottom: 1px dashed rgba(63,58,50,0.12);
+}
+.crono-item__hora {
+  flex: 0 0 3.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--burgundy);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.crono-item--sinfecha .crono-item__hora { display: none; }
+.crono-item__info { min-width: 0; }
+.crono-item__nombre {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.crono-item__meta {
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
