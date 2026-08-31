@@ -109,6 +109,17 @@ service cloud.firestore {
       allow delete: if request.auth != null;
     }
 
+    // ---------- HABITACIONES (hotel del bloqueo) — SENSIBLE ----------
+    // Habitaciones bloqueadas en el hotel para la boda: nombres completos
+    // de los ocupantes, importes y estado de pago. NADA es público:
+    // lectura y escritura exigen sesión, como invitados/auditoria.
+    // La gestiona la página privada /hoteles.html.
+    match /habitaciones/{habId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && isValidHabitacion(request.resource.data);
+      allow delete: if request.auth != null;
+    }
+
     // ---------- CONFIG (textos editables: regalo/IBAN…) ----------
     // Lectura pública (la home muestra la frase y el IBAN); escritura
     // solo con sesión + validación de forma (misma limitación asumida
@@ -143,6 +154,24 @@ service cloud.firestore {
         && d.personas is list && d.personas.size() <= 40
         && (!('regalo' in d.keys()) || d.regalo == null || (d.regalo is number && d.regalo >= 0 && d.regalo <= 100000))
         && (!('regaloMaterial' in d.keys()) || isValidRegaloMaterial(d.regaloMaterial))
+        && (!('orden' in d.keys()) || d.orden is number);
+    }
+
+    function isValidHabitacion(d) {
+      // Habitación del bloqueo del hotel. Fechas como ISO 'aaaa-mm-dd'.
+      // `importe` es lo que debe la habitación (calculado por tarifa);
+      // `cobrado` lo realmente recibido (number) o null (nada apuntado).
+      return d.keys().hasOnly(['tipo', 'entrada', 'salida', 'noches', 'ocupantes', 'cuna', 'importe', 'pagado', 'cobrado', 'notas', 'orden', 'createdAt', 'updatedAt'])
+        && d.tipo in ['individual', 'doble', 'supletoria']
+        && d.entrada is string && d.entrada.size() == 10
+        && d.salida is string && d.salida.size() == 10
+        && d.noches is number && d.noches >= 1 && d.noches <= 30
+        && d.ocupantes is list && d.ocupantes.size() <= 6
+        && d.importe is number && d.importe >= 0 && d.importe <= 100000
+        && d.pagado is bool
+        && (!('cuna' in d.keys()) || d.cuna is bool)
+        && (!('cobrado' in d.keys()) || d.cobrado == null || (d.cobrado is number && d.cobrado >= 0 && d.cobrado <= 100000))
+        && (!('notas' in d.keys()) || (d.notas is string && d.notas.size() <= 1000))
         && (!('orden' in d.keys()) || d.orden is number);
     }
 
