@@ -11,3 +11,6 @@ dist
 
 # Cache local de Firebase Hosting
 .firebase/
+
+# Datos personales (lista real de invitados) — NO subir al repo
+datos/
