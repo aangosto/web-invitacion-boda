@@ -2340,3 +2340,113 @@ a { color: inherit; }
   color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
+
+/* =================================================================
+   15. HOTEL (página privada de gestión · hoteles.html)
+   Reutiliza la base de /invitados (inv-*); aquí solo lo propio.
+   ================================================================= */
+.inv-filtros__row--hotel { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 24rem) {
+  .inv-filtros__row--hotel { grid-template-columns: 1fr 1fr; }
+  .inv-filtros__row--hotel #hot-f-fechas { grid-column: 1 / -1; }
+}
+
+.hot-grupo { margin-bottom: 0.4rem; }
+.hot-grupo__fechas {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--burgundy);
+  margin: 0.7rem 0 0.5rem;
+}
+
+.hot-card { margin-bottom: 0.6rem; }
+.hot-card__title { min-width: 0; }
+.hot-card__ocupantes {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.35;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.hot-card__pendiente {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: #8c2f2f;
+  border: 1px dashed #8c2f2f;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+}
+.hot-card__importe {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--burgundy);
+  white-space: nowrap;
+}
+.hot-card__meta {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin-top: 0.2rem;
+}
+.hot-card__notas {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--ink-soft);
+  margin-top: 0.2rem;
+  overflow-wrap: anywhere;
+}
+.hot-card__parcial {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #9a6b1f;
+  margin-top: 0.2rem;
+}
+.hot-card__acciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(110,36,53,0.12);
+}
+
+/* Botón de estado de pago */
+.hot-pago {
+  min-height: 40px;
+  padding: 0.25rem 0.9rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #8c2f2f;
+  background: rgba(140,47,47,0.06);
+  border: 1.5px solid #8c2f2f;
+  border-radius: 999px;
+}
+.hot-pago.is-pagada {
+  color: #2e6b45;
+  background: rgba(46,107,69,0.07);
+  border-color: #2e6b45;
+}
+
+/* Editor: tipo + fechas en fila (columna en móviles estrechos) */
+.hot-editor__fila { display: grid; gap: 0.9rem; grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 30rem) {
+  .hot-editor__fila { grid-template-columns: 1fr; }
+}
+.hot-editor__importe {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--burgundy);
+}
+.hot-editor__cuna { font-size: 0.85rem; }

@@ -4,11 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#6e2435" />
-  <!-- PANEL PRIVADO de los novios: no se enlaza desde el menú público
-       y no debe indexarse. El acceso pide contraseña y, por debajo, se
-       autentica de forma anónima en Firebase (lee rsvp, gestiona lugares). -->
+  <!-- PÁGINA PRIVADA de gestión del hotel: habitaciones bloqueadas,
+       ocupantes, importes y pagos. Misma protección que el panel
+       (puerta compartida panel-gate.js: contraseña + sesión anónima,
+       con sesión compartida entre páginas de gestión). No indexar. -->
   <meta name="robots" content="noindex, nofollow" />
-  <title>Panel · María & Alberto</title>
+  <title>Hotel · María & Alberto</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -19,15 +20,15 @@
 
   <header class="subpage-header">
     <a class="subpage-header__brand" href="./index.html">María&nbsp;&amp;&nbsp;Alberto</a>
-    <a class="subpage-header__back" href="./index.html">← Volver</a>
+    <a class="subpage-header__back" href="./resultados.html">← Panel</a>
   </header>
 
   <main class="subpage-main">
     <section class="section section--results">
       <div class="floral-rule" aria-hidden="true">✿</div>
-      <h1 class="section__title">Panel de los novios</h1>
+      <h1 class="section__title">Gestión del hotel</h1>
 
-      <!-- Puerta de acceso: contraseña -->
+      <!-- Puerta de acceso compartida (no la pide si ya entraste al panel) -->
       <form id="results-gate" class="results-gate" novalidate>
         <label class="field">
           <span class="field__label">Contraseña</span>
@@ -38,16 +39,8 @@
       </form>
       <p id="results-feedback" class="form-feedback" role="status" aria-live="polite"></p>
 
-      <!-- Panel con pestañas (las genera src/modules/panel.js) -->
-      <div id="panel" class="panel" hidden>
-        <button type="button" class="panel-salir" data-salir>Salir</button>
-        <a class="panel-link" href="./invitados.html">Gestión de invitados
-          <span class="panel-link__sub">lista completa, estados y regalos →</span></a>
-        <a class="panel-link" href="./hoteles.html">Gestión del hotel
-          <span class="panel-link__sub">habitaciones, ocupantes y pagos →</span></a>
-        <nav id="panel-tabs" class="panel-tabs" role="tablist" aria-label="Secciones del panel"></nav>
-        <div id="panel-view" class="panel-view"></div>
-      </div>
+      <!-- App del hotel (la genera src/modules/hoteles-page.js) -->
+      <div id="hot-app" class="panel" hidden></div>
     </section>
   </main>
 
@@ -56,6 +49,6 @@
     <p class="closing__date">24 · 10 · 2026</p>
   </footer>
 
-  <script type="module" src="/src/resultados.js"></script>
+  <script type="module" src="/src/hoteles.js"></script>
 </body>
 </html>
