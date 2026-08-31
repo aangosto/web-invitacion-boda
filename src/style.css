@@ -2227,3 +2227,20 @@ a { color: inherit; }
   padding-top: 0.5rem;
   border-top: 1px solid rgba(110,36,53,0.12);
 }
+
+/* ---- Botón "Salir" de las páginas de gestión (borra la sesión) ---- */
+.panel-salir {
+  display: block;
+  margin: 0 0 0.6rem auto;      /* alineado a la derecha */
+  min-height: 40px;
+  padding: 0.25rem 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  background: none;
+  border: 1px solid rgba(63,58,50,0.3);
+  border-radius: 999px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.panel-salir:hover { color: var(--burgundy); border-color: var(--burgundy); }

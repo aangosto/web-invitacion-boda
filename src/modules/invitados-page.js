@@ -1,8 +1,9 @@
 /* =================================================================
    GESTIÓN DE INVITADOS — página privada (invitados.html).
 
-   Misma protección que el panel /resultados: contraseña
-   (VITE_RESULTS_PASSWORD) → signInAnonymously() → se muestra la app.
+   Misma protección que el panel /resultados: puerta compartida
+   (panel-gate.js) — contraseña → signInAnonymously() → se muestra la
+   app; si ya se entró en otra página de gestión, pasa directa.
 
    Vista: contadores arriba, filtros (lado / etiqueta / estado +
    buscador) y la lista agrupada POR NÚCLEO. Cada persona tiene su
@@ -15,8 +16,7 @@
    Capa de datos: invitados-data.js.
    ================================================================= */
 
-import { app, isConfigured } from '../firebase.js';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { initGate } from './panel-gate.js';
 import {
   ESTADOS, ESTADO_LABEL, fetchNucleos, updateNucleo, createNucleo, deleteNucleo,
 } from './invitados-data.js';
@@ -45,6 +45,7 @@ function fmtEuros(n) {
    ================================================================= */
 async function initApp(root) {
   root.innerHTML = `
+    <button type="button" class="panel-salir" data-salir>Salir</button>
     <p class="adm-hint">Control interno de la lista de invitados: estados,
       etiquetas y regalos. Independiente de las confirmaciones que llegan
       por la web.</p>
@@ -554,61 +555,16 @@ async function initApp(root) {
 }
 
 /* =================================================================
-   Puerta de acceso (idéntica a la del panel /resultados)
+   Puerta de acceso compartida con el resto de páginas de gestión
    ================================================================= */
 export function initInvitadosPage() {
-  const gate = document.getElementById('results-gate');
   const appRoot = document.getElementById('inv-app');
-  if (!gate || !appRoot) return;
+  if (!appRoot) return;
 
-  const feedback = document.getElementById('results-feedback');
-  const passInput = gate.querySelector('input[name="password"]');
-  const submitBtn = gate.querySelector('button[type="submit"]');
-
-  function setFeedback(msg, type) {
-    feedback.textContent = msg || '';
-    feedback.classList.remove('is-ok', 'is-error');
-    if (type) feedback.classList.add(type);
-  }
-
-  gate.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const expected = import.meta.env.VITE_RESULTS_PASSWORD;
-    if (!expected) {
-      setFeedback('Página sin configurar: falta VITE_RESULTS_PASSWORD en el .env.', 'is-error');
-      return;
-    }
-    if (passInput.value !== expected) {
-      setFeedback('Contraseña incorrecta.', 'is-error');
-      passInput.select();
-      return;
-    }
-    if (!isConfigured) {
-      setFeedback('Firebase no está configurado (.env): no hay datos que mostrar.', 'is-error');
-      return;
-    }
-
-    submitBtn.disabled = true;
-    setFeedback('Entrando…');
-    try {
-      // Sesión anónima: las reglas exigen auth para leer/escribir invitados
-      await signInAnonymously(getAuth(app));
-      gate.hidden = true;
+  initGate({
+    async onEnter() {
       appRoot.hidden = false;
-      setFeedback('');
       await initApp(appRoot);
-    } catch (err) {
-      console.error(err);
-      submitBtn.disabled = false;
-      const authOff = err && (
-        err.code === 'auth/operation-not-allowed'
-        || err.code === 'auth/admin-restricted-operation'
-        || err.code === 'auth/configuration-not-found'
-      );
-      setFeedback(authOff
-        ? 'El inicio de sesión ANÓNIMO no está activado en Firebase (Authentication → Método de acceso → Anónimo).'
-        : 'No se ha podido entrar. Inténtalo de nuevo.', 'is-error');
-    }
+    },
   });
 }

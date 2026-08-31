@@ -1,8 +1,9 @@
 /* =================================================================
    PANEL DE LOS NOVIOS — marco general (resultados.html).
 
-   Acceso: contraseña (VITE_RESULTS_PASSWORD) → signInAnonymously() de
-   Firebase Auth por debajo → se muestra el panel con pestañas.
+   Acceso: puerta compartida de las páginas de gestión (panel-gate.js):
+   contraseña → signInAnonymously() → panel con pestañas. La sesión se
+   comparte vía sessionStorage con invitados.html y futuras páginas.
 
    ============================================================
    🧩 CÓMO AÑADIR UNA PESTAÑA NUEVA EN EL FUTURO
@@ -20,8 +21,7 @@
    recién cargados al volver).
    ============================================================ */
 
-import { app, isConfigured } from '../firebase.js';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { initGate } from './panel-gate.js';
 
 import { initRsvpTab } from './admin-rsvp.js';
 import { initTotalesTab } from './admin-totales.js';
@@ -49,15 +49,6 @@ export function initPanel() {
 
   const tabsBar = document.getElementById('panel-tabs');
   const view = document.getElementById('panel-view');
-  const feedback = document.getElementById('results-feedback');
-  const passInput = gate.querySelector('input[name="password"]');
-  const submitBtn = gate.querySelector('button[type="submit"]');
-
-  function setFeedback(msg, type) {
-    feedback.textContent = msg || '';
-    feedback.classList.remove('is-ok', 'is-error');
-    if (type) feedback.classList.add(type);
-  }
 
   /* ---------- Pestañas (se recargan al entrar) ---------- */
   function buildTabs() {
@@ -105,47 +96,13 @@ export function initPanel() {
     }
   }
 
-  /* ---------- Puerta de acceso ---------- */
-  gate.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const expected = import.meta.env.VITE_RESULTS_PASSWORD;
-    if (!expected) {
-      setFeedback('Página sin configurar: falta VITE_RESULTS_PASSWORD en el .env.', 'is-error');
-      return;
-    }
-    if (passInput.value !== expected) {
-      setFeedback('Contraseña incorrecta.', 'is-error');
-      passInput.select();
-      return;
-    }
-    if (!isConfigured) {
-      setFeedback('Firebase no está configurado (.env): no hay datos que mostrar.', 'is-error');
-      return;
-    }
-
-    submitBtn.disabled = true;
-    setFeedback('Entrando…');
-    try {
-      // Sesión anónima: es lo que exigen las reglas para leer rsvp
-      // y escribir en lugares.
-      await signInAnonymously(getAuth(app));
-      gate.hidden = true;
+  /* ---------- Puerta de acceso compartida (panel-gate.js) ---------- */
+  initGate({
+    onEnter() {
       panel.hidden = false;
-      setFeedback('');
-      buildTabs();
+      // Si un intento anterior falló a medias, no duplicar las pestañas
+      if (!tabsBar.childElementCount) buildTabs();
       activate(TABS[0].id);
-    } catch (err) {
-      console.error(err);
-      submitBtn.disabled = false;
-      const authOff = err && (
-        err.code === 'auth/operation-not-allowed'
-        || err.code === 'auth/admin-restricted-operation'
-        || err.code === 'auth/configuration-not-found'
-      );
-      setFeedback(authOff
-        ? 'El inicio de sesión ANÓNIMO no está activado en Firebase (Authentication → Método de acceso → Anónimo).'
-        : 'No se ha podido entrar. Inténtalo de nuevo.', 'is-error');
-    }
+    },
   });
 }
