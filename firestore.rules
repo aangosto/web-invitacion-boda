@@ -135,7 +135,7 @@ service cloud.firestore {
       // `regalo` (dinero, en €) es number o null (null = sin apuntar).
       return d.keys().hasOnly(['nombre', 'lado', 'etiquetas', 'personas', 'regalo', 'orden', 'createdAt', 'updatedAt'])
         && d.nombre is string && d.nombre.size() >= 1 && d.nombre.size() <= 120
-        && d.lado in ['novia', 'novio']
+        && d.lado in ['novia', 'novio', 'ambos']
         && d.etiquetas is list && d.etiquetas.size() <= 15
         && d.personas is list && d.personas.size() <= 40
         && (!('regalo' in d.keys()) || d.regalo == null || (d.regalo is number && d.regalo >= 0 && d.regalo <= 100000))

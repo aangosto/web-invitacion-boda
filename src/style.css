@@ -1665,6 +1665,10 @@ a { color: inherit; }
 }
 .adm-team--novio { background: var(--burgundy); }
 .adm-team--novia { background: var(--taupe-deep); }
+/* Núcleos de los dos (amigos comunes…): mitad de cada color */
+.adm-team--ambos {
+  background: linear-gradient(105deg, var(--taupe-deep) 0 50%, var(--burgundy) 50% 100%);
+}
 
 .adm-editor {
   display: grid;

@@ -34,7 +34,7 @@ function norm(s) {
   return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
-const LADO_LABEL = { novia: 'María', novio: 'Alberto' };
+const LADO_LABEL = { novia: 'María', novio: 'Alberto', ambos: 'Ambos' };
 
 function fmtEuros(n) {
   return Number(n).toLocaleString('es-ES', { maximumFractionDigits: 2 });
@@ -60,6 +60,7 @@ async function initApp(root) {
           <option value="">Lado: todos</option>
           <option value="novia">María (novia)</option>
           <option value="novio">Alberto (novio)</option>
+          <option value="ambos">Solo «ambos»</option>
         </select>
         <select id="inv-f-etiqueta" class="field__input inv-select" aria-label="Filtrar por etiqueta">
           <option value="">Etiqueta: todas</option>
@@ -121,7 +122,13 @@ async function initApp(root) {
 
   /* ---------- Filtros ---------- */
   function nucleoVisible(n) {
-    if (filtros.lado && n.lado !== filtros.lado) return false;
+    // Lado: los núcleos "ambos" son de los dos, así que salen también al
+    // filtrar por María o por Alberto; el filtro «ambos» los muestra solos.
+    if (filtros.lado === 'ambos') {
+      if (n.lado !== 'ambos') return false;
+    } else if (filtros.lado && n.lado !== filtros.lado && n.lado !== 'ambos') {
+      return false;
+    }
     if (filtros.etiqueta && !n.etiquetas.includes(filtros.etiqueta)) return false;
     if (filtros.estado && !n.personas.some((p) => p.estado === filtros.estado)) return false;
     if (filtros.busca) {
@@ -298,7 +305,7 @@ async function initApp(root) {
     const fLadoEd = el('label', 'field');
     fLadoEd.appendChild(el('span', 'field__label', 'Lado'));
     const ladoSel = el('select', 'field__input inv-select');
-    [['novia', 'María (novia)'], ['novio', 'Alberto (novio)']].forEach(([v, t]) => {
+    [['novia', 'María (novia)'], ['novio', 'Alberto (novio)'], ['ambos', 'Ambos (común)']].forEach(([v, t]) => {
       const opt = document.createElement('option');
       opt.value = v; opt.textContent = t;
       ladoSel.appendChild(opt);

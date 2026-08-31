@@ -3,7 +3,7 @@
 
    Cada documento es un NÚCLEO (id autogenerado, nunca el nombre: hay
    núcleos con el mismo nombre en la lista):
-     { nombre, lado: 'novia'|'novio', etiquetas: [string],
+     { nombre, lado: 'novia'|'novio'|'ambos', etiquetas: [string],
        personas: [{ nombre, nino, estado, regalo }],
        regalo,            // dinero regalado del núcleo (number|null)
        orden, createdAt, updatedAt }
@@ -22,6 +22,13 @@ import {
   collection, doc, getDocs, addDoc, updateDoc, deleteDoc,
   orderBy, query, serverTimestamp,
 } from 'firebase/firestore';
+
+export const LADOS = ['novia', 'novio', 'ambos'];
+
+/** Lado válido o 'novia' como respaldo (datos antiguos o corruptos). */
+export function toLado(v) {
+  return LADOS.includes(v) ? v : 'novia';
+}
 
 export const ESTADOS = ['confirmado', 'pendiente', 'no_asiste'];
 export const ESTADO_LABEL = {
@@ -48,7 +55,7 @@ export async function fetchNucleos() {
     return {
       id: d.id,
       nombre: data.nombre || '',
-      lado: data.lado === 'novio' ? 'novio' : 'novia',
+      lado: toLado(data.lado),
       etiquetas: Array.isArray(data.etiquetas) ? data.etiquetas : [],
       personas: (Array.isArray(data.personas) ? data.personas : []).map(toPersona),
       regalo: typeof data.regalo === 'number' ? data.regalo : null,
@@ -69,7 +76,7 @@ export async function updateNucleo(id, cambios) {
 export async function createNucleo({ nombre, lado, etiquetas, personas, orden }) {
   const ref = await addDoc(collection(db, 'invitados'), {
     nombre: String(nombre).trim(),
-    lado: lado === 'novio' ? 'novio' : 'novia',
+    lado: toLado(lado),
     etiquetas: etiquetas || [],
     personas: (personas || []).map(toPersona),
     regalo: null,
