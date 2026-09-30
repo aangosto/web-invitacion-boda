@@ -9,7 +9,9 @@
                              // 'manual|<aleatorio>' (añadido a mano)
          nombre,             // snapshot del nombre al sentarla
          nucleo, lado,       // núcleo y lado (vacíos si es manual)
-         manual }],          // true = escrito a mano, no está en invitados
+         manual,             // true = escrito a mano, no está en invitados
+         preboda }],         // true = viene a la preboda (por defecto
+                             // true; viaja con el comensal al moverlo)
        orden, createdAt, updatedAt }
 
    La página cruza cada `key` con la colección "invitados" al cargar
@@ -31,6 +33,8 @@ function toComensal(c) {
     nucleo: String(c.nucleo || '').trim(),
     lado: ['novia', 'novio', 'ambos'].includes(c.lado) ? c.lado : '',
     manual: c.manual === true,
+    // Por defecto SÍ viene: solo un false explícito lo desactiva
+    preboda: c.preboda !== false,
   };
 }
 
@@ -39,12 +43,16 @@ export async function fetchMesas() {
   const snap = await getDocs(query(collection(db, 'mesas'), orderBy('orden')));
   return snap.docs.map((d) => {
     const data = d.data();
+    const crudos = Array.isArray(data.comensales) ? data.comensales : [];
     return {
       id: d.id,
       nombre: data.nombre || '',
       capacidad: typeof data.capacidad === 'number' ? data.capacidad : 8,
-      comensales: (Array.isArray(data.comensales) ? data.comensales : []).map(toComensal),
+      comensales: crudos.map(toComensal),
       orden: typeof data.orden === 'number' ? data.orden : 0,
+      // Comensales anteriores al flag de preboda: la página se lo añade
+      // (con su valor por defecto) una sola vez al cargar
+      faltaPreboda: crudos.some((c) => typeof c.preboda !== 'boolean'),
     };
   });
 }

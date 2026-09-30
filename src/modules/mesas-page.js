@@ -46,6 +46,10 @@ async function initApp(root) {
 
     <div id="mes-stats" class="res-stats"></div>
     <div id="mes-statdetail"></div>
+    <h3 class="adm-subtitle">Preboda</h3>
+    <div id="mes-preboda" class="res-stats res-stats--two"></div>
+    <div id="mes-prebodanota"></div>
+    <div id="mes-prebodadetail"></div>
     <div id="mes-avisos"></div>
     <p id="mes-feedback" class="form-feedback inv-feedback" role="status" aria-live="polite"></p>
 
@@ -85,6 +89,9 @@ async function initApp(root) {
 
   const statsEl = root.querySelector('#mes-stats');
   const statDetailEl = root.querySelector('#mes-statdetail');
+  const prebodaEl = root.querySelector('#mes-preboda');
+  const prebodaNotaEl = root.querySelector('#mes-prebodanota');
+  const prebodaDetailEl = root.querySelector('#mes-prebodadetail');
   const avisosEl = root.querySelector('#mes-avisos');
   const feedback = root.querySelector('#mes-feedback');
   const listEl = root.querySelector('#mes-list');
@@ -103,6 +110,7 @@ async function initApp(root) {
   let editandoMesa = null;   // id de mesa en edición, 'nueva' o null
   let modoMesa = null;       // mesa a la que se están añadiendo comensales
   let statAbierta = false;   // desplegable de "sin asignar"
+  let prebodaAbierta = null; // desplegable de preboda: 'si', 'no' o null
   const plegadas = new Set(); // ids de mesas plegadas (se recuerda en
                               // memoria mientras dura la sesión: los
                               // renders tras asignar/mover no lo resetean)
@@ -295,6 +303,12 @@ async function initApp(root) {
     });
     const title = el('div', 'inv-card__title');
     title.appendChild(el('h3', 'inv-card__nombre', mesa.nombre));
+    // Recuento de preboda en la cabecera: visible también plegada
+    if (ocupadas) {
+      const vienen = mesa.comensales.filter((c) => c.preboda).length;
+      title.appendChild(el('span', `mes-card__preboda${vienen < ocupadas ? ' is-parcial' : ''}`,
+        `${vienen}/${ocupadas} a la preboda`));
+    }
     head.appendChild(title);
     const headRight = el('div', 'inv-card__headright');
     const chip = el('span', `mes-aforo${sobre ? ' is-sobre' : ''}`, `${ocupadas}/${mesa.capacidad}`);
@@ -389,6 +403,7 @@ async function initApp(root) {
     }
     const nuevos = personas.map((p) => ({
       key: p.key, nombre: p.nombre, nucleo: p.nucleoNombre, lado: p.lado, manual: false,
+      preboda: true,
     }));
     seleccion.clear();
     modoMesa = null;
@@ -431,6 +446,24 @@ async function initApp(root) {
     render();
   }
 
+  /** Activa/desactiva la preboda de un comensal y lo guarda al momento.
+      Se muta el propio objeto (mover/quitar lo localizan por identidad)
+      y se pinta ya; si falla el guardado se deshace. */
+  async function cambiaPreboda(mesa, comensal, valor) {
+    comensal.preboda = valor;
+    render();
+    setFeedback('Guardando…');
+    try {
+      await updateMesa(mesa.id, { comensales: mesa.comensales });
+      setFeedback(`${comensal.nombre}: ${valor ? 'viene' : 'no viene'} a la preboda ✓`, 'is-ok');
+    } catch (err) {
+      console.error(err);
+      comensal.preboda = !valor;
+      setFeedback('No se ha podido guardar. Inténtalo de nuevo.', 'is-error');
+      render();
+    }
+  }
+
   /** Comensal escrito a mano (no está en la lista de invitados). */
   async function anadirManual(mesa) {
     const nombre = (window.prompt(`Comensal a mano para "${mesa.nombre}" (no está en la lista de invitados):`) || '').trim();
@@ -442,7 +475,7 @@ async function initApp(root) {
     }
     const comensal = {
       key: `manual|${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      nombre, nucleo: '', lado: '', manual: true,
+      nombre, nucleo: '', lado: '', manual: true, preboda: true,
     };
     plegadas.delete(mesa.id);
     await guardarMesa(mesa, { comensales: [...mesa.comensales, comensal] },
@@ -469,6 +502,15 @@ async function initApp(root) {
       row.appendChild(info);
 
       const acciones = el('div', 'mes-comensal__acciones');
+      const pb = el('label', `mes-pb${c.preboda ? ' is-on' : ''}`);
+      pb.title = c.preboda ? 'Viene a la preboda (toca para quitar)' : 'No viene a la preboda (toca para marcar)';
+      const pbCheck = document.createElement('input');
+      pbCheck.type = 'checkbox';
+      pbCheck.checked = c.preboda;
+      pbCheck.setAttribute('aria-label', `${c.nombre} viene a la preboda`);
+      pbCheck.addEventListener('change', () => cambiaPreboda(mesa, c, pbCheck.checked));
+      pb.append(pbCheck, el('span', 'mes-pb__txt', 'Preboda'));
+      acciones.appendChild(pb);
       const moverBtn = el('button', 'adm-row__btn mes-mini', '⇄');
       moverBtn.type = 'button';
       moverBtn.title = 'Mover a otra mesa';
@@ -704,6 +746,58 @@ async function initApp(root) {
     }
   }
 
+  /* ---------- Recuento de preboda (sobre los SENTADOS) ---------- */
+  function renderPreboda() {
+    const sentados = mesas.flatMap((m) => m.comensales.map((c) => ({ c, m })));
+    const grupos = {
+      si: sentados.filter(({ c }) => c.preboda),
+      no: sentados.filter(({ c }) => !c.preboda),
+    };
+    const mapa = mapaSentados();
+    const sinAsignar = personasAsignables().filter((p) => !mapa.has(p.key)).length;
+
+    prebodaEl.innerHTML = '';
+    [['si', 'vienen'], ['no', 'no vienen']].forEach(([k, label]) => {
+      const btn = el('button', 'res-stat res-stat--btn');
+      btn.type = 'button';
+      btn.classList.toggle('is-open', prebodaAbierta === k);
+      btn.setAttribute('aria-expanded', String(prebodaAbierta === k));
+      btn.appendChild(el('span', 'res-stat__num', String(grupos[k].length)));
+      btn.appendChild(el('span', 'res-stat__label', label));
+      btn.appendChild(el('span', 'tot-exp__chev', '▾'));
+      btn.addEventListener('click', () => {
+        prebodaAbierta = prebodaAbierta === k ? null : k;
+        renderPreboda();
+      });
+      prebodaEl.appendChild(btn);
+    });
+
+    prebodaNotaEl.innerHTML = '';
+    prebodaNotaEl.appendChild(el('p', 'tot-note mes-preboda__total',
+      `Sobre ${sentados.length} persona${sentados.length === 1 ? '' : 's'} sentada${sentados.length === 1 ? '' : 's'} en mesas.`));
+    if (sinAsignar) {
+      prebodaNotaEl.appendChild(el('p', 'mes-aviso mes-aviso--warn',
+        `⚠ ${sinAsignar} persona${sinAsignar === 1 ? '' : 's'} sin asignar, no incluida${sinAsignar === 1 ? '' : 's'} `
+        + 'en el recuento: la cuenta está incompleta hasta sentar a todo el mundo.'));
+    }
+
+    prebodaDetailEl.innerHTML = '';
+    if (!prebodaAbierta) return;
+    const lista = el('div', 'tot-detail tot-detail--scroll');
+    const members = grupos[prebodaAbierta];
+    if (members.length === 0) {
+      lista.appendChild(el('p', 'tot-person tot-person--empty', 'Nadie.'));
+    }
+    members.forEach(({ c, m }) => {
+      const line = el('p', 'tot-person');
+      line.appendChild(el('span', null, c.nombre));
+      line.appendChild(el('span', 'tot-person__by',
+        ` — ${c.manual ? 'a mano' : c.nucleo} · ${m.nombre}`));
+      lista.appendChild(line);
+    });
+    prebodaDetailEl.appendChild(lista);
+  }
+
   /* ---------- Avisos (sobreaforo, duplicados, no asiste, borrados) ---------- */
   function renderAvisos() {
     avisosEl.innerHTML = '';
@@ -774,6 +868,7 @@ async function initApp(root) {
   /* ---------- Render general ---------- */
   function render() {
     renderStats();
+    renderPreboda();
     renderAvisos();
     listEl.innerHTML = '';
     if (editandoMesa === 'nueva') listEl.appendChild(creaEditorMesa(null));
@@ -814,6 +909,14 @@ async function initApp(root) {
   nucleos = nucleosCargados;
   rellenaFiltros();
   render();
+
+  // Comensales sentados antes de existir el flag de preboda: se les
+  // añade con su valor por defecto (sí), sin tocar nada más. Una sola
+  // vez: a partir de ahí todos lo llevan guardado.
+  const pendientes = mesas.filter((m) => m.faltaPreboda);
+  mesas.forEach((m) => { delete m.faltaPreboda; });
+  await Promise.all(pendientes.map((m) =>
+    updateMesa(m.id, { comensales: m.comensales }).catch((err) => console.error(err))));
 }
 
 /* =================================================================

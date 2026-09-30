@@ -2714,3 +2714,44 @@ a { color: inherit; }
 .mes-card__chev { flex: 0 0 auto; }
 .mes-card__head .tot-exp__chev { transition: transform 0.2s ease; }
 .mes-card__head.is-open .tot-exp__chev { transform: rotate(-180deg); }
+
+/* ---- Preboda (flag por comensal en /mesas) ---- */
+/* Recuento en la cabecera de la mesa ("6/8 a la preboda"): se ve
+   también con la mesa plegada; ámbar si alguien no viene. */
+.mes-card__preboda {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: #2e6b45;
+  white-space: nowrap;
+}
+.mes-card__preboda.is-parcial { color: #7a5a1e; }
+#mes-preboda { margin-bottom: 0.4rem; }
+.mes-preboda__total { margin: 0 0 0.5rem; text-align: center; }
+#mes-prebodadetail:not(:empty) { margin-top: 0.2rem; }
+
+/* Toggle "Preboda" en la línea del comensal: píldora tocable,
+   verde rellena = viene; gris tachada = no viene. */
+.mes-pb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 40px;
+  padding: 0 0.55rem;
+  border: 1.5px solid rgba(63,58,50,0.3);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: rgba(46,107,69,0.12);
+}
+.mes-pb input { width: 18px; height: 18px; margin: 0; accent-color: #2e6b45; }
+.mes-pb:not(.is-on) .mes-pb__txt { text-decoration: line-through; }
+.mes-pb.is-on {
+  color: #2e6b45;
+  border-color: #2e6b45;
+  background: rgba(46,107,69,0.1);
+  font-weight: 500;
+}
