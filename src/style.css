@@ -2755,3 +2755,47 @@ a { color: inherit; }
   background: rgba(46,107,69,0.1);
   font-weight: 500;
 }
+
+/* ---- Exportar PDF (panel · src/modules/admin-export.js) ---- */
+.export-pdf { margin-bottom: 1.4rem; }
+.export-pdf__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-height: 52px;
+  padding: 0.6rem 1rem;
+  border-radius: 14px;
+}
+.export-pdf__sub {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--ink-soft);
+}
+.export-pdf__progreso { margin-top: 0.8rem; }
+.export-pdf__estado {
+  margin-top: 0.45rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
+.export-pdf__resultado {
+  margin-top: 0.7rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.export-pdf__resultado.is-warn { color: var(--burgundy); }
+.export-pdf__aviso { display: block; }
+.export-pdf__link {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.4rem 0;        /* zona táctil cómoda */
+  color: var(--burgundy);
+  font-weight: 500;
+}

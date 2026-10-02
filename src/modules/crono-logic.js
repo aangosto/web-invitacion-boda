@@ -26,6 +26,23 @@ export function formatDia(iso) {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
+/** Línea descriptiva de una entrada: medio, lugar y plazas de coche.
+    `icono` precede a las plazas (el PDF lo pasa vacío: sin emojis). */
+export function describeEntrada(entrada, tipo, icono = '🚗 ') {
+  const partes = [];
+  const modo = CRONO_MODE_LABELS[entrada.mode] || (entrada.mode ? entrada.mode : '');
+  if (modo) partes.push(modo);
+  if (entrada.lugar) partes.push(tipo === 'llegadas' ? `desde ${entrada.lugar}` : `hacia ${entrada.lugar}`);
+  if (entrada.plazas) {
+    const s = entrada.plazas.seats;
+    let texto = s ? `${s} plaza${Number(s) === 1 ? '' : 's'} libre${Number(s) === 1 ? '' : 's'}` : 'plazas libres';
+    if (entrada.plazas.hora) texto += ` (sale ~${entrada.plazas.hora})`;
+    partes.push(`${icono}${texto}`);
+  }
+  if (entrada.motivo) partes.push(entrada.motivo);
+  return partes.join(' · ');
+}
+
 /**
  * Construye la cronología de un sentido.
  * @param docs  documentos rsvp ya filtrados (sin papelera ni reenvíos)

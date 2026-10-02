@@ -19,6 +19,11 @@ cinematográfica (el sobre se abre) como pieza central. Datos en **Firebase
   (CRUD de los puntos de la ilustración; el punto se coloca tocando sobre
   la miniatura). Para añadir pestañas futuras: módulo `admin-*.js` + una
   entrada en el array `TABS` de `src/modules/panel.js`.
+  Botón **Exportar PDF**: vuelco de todos los datos (invitados, alergias y
+  menús, transporte, alpargatas, mesas, hotel sin importes y comentarios)
+  generado en el cliente con jsPDF, cargado de forma lazy
+  (`admin-export.js` → `export-datos.js` solo lectura → `export-pdf.js`).
+  Prueba con datos sintéticos: `node scripts/test-pdf.mjs <carpeta>`.
 
 ## Arrancar el proyecto
 

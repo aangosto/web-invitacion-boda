@@ -10,7 +10,7 @@
 import { db } from '../firebase.js';
 import { collection, getDocs } from 'firebase/firestore';
 import { splitResubmissions } from './rsvp-dedupe.js';
-import { buildCronologia, formatDia, CRONO_MODE_LABELS } from './crono-logic.js';
+import { buildCronologia, formatDia, describeEntrada } from './crono-logic.js';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -19,29 +19,13 @@ function el(tag, className, text) {
   return node;
 }
 
-/** Línea descriptiva de una entrada: medio, lugar y plazas de coche. */
-function metaDe(entrada, tipo) {
-  const partes = [];
-  const modo = CRONO_MODE_LABELS[entrada.mode] || (entrada.mode ? entrada.mode : '');
-  if (modo) partes.push(modo);
-  if (entrada.lugar) partes.push(tipo === 'llegadas' ? `desde ${entrada.lugar}` : `hacia ${entrada.lugar}`);
-  if (entrada.plazas) {
-    const s = entrada.plazas.seats;
-    let texto = s ? `${s} plaza${Number(s) === 1 ? '' : 's'} libre${Number(s) === 1 ? '' : 's'}` : 'plazas libres';
-    if (entrada.plazas.hora) texto += ` (sale ~${entrada.plazas.hora})`;
-    partes.push(`🚗 ${texto}`);
-  }
-  if (entrada.motivo) partes.push(entrada.motivo);
-  return partes.join(' · ');
-}
-
 function filaEntrada(entrada, tipo) {
   const row = el('div', 'crono-item');
   row.appendChild(el('span', 'crono-item__hora', entrada.time ? `~${entrada.time}` : 'sin hora'));
   const info = el('div', 'crono-item__info');
   info.appendChild(el('p', 'crono-item__nombre',
     `${entrada.nombre} (${entrada.personas} pers.)`));
-  const meta = metaDe(entrada, tipo);
+  const meta = describeEntrada(entrada, tipo);
   if (meta) info.appendChild(el('p', 'crono-item__meta', meta));
   row.appendChild(info);
   return row;
@@ -99,7 +83,7 @@ export async function initCronologiaTab(container) {
         const row = el('div', 'crono-item crono-item--sinfecha');
         const info = el('div', 'crono-item__info');
         info.appendChild(el('p', 'crono-item__nombre', `${e.nombre} (${e.personas} pers.)`));
-        info.appendChild(el('p', 'crono-item__meta', metaDe(e, tipo)));
+        info.appendChild(el('p', 'crono-item__meta', describeEntrada(e, tipo)));
         row.appendChild(info);
         bloque.appendChild(row);
       });

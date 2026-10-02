@@ -31,6 +31,7 @@ import { initScoresTab } from './admin-scores.js';
 import { initRegaloTab } from './admin-regalo.js';
 import { initPapeleraTab } from './admin-papelera.js';
 import { initAuditoriaTab } from './admin-auditoria.js';
+import { initExportButton } from './admin-export.js';
 
 /** Registro de pestañas del panel (añade aquí las futuras). */
 const TABS = [
@@ -104,6 +105,7 @@ export function initPanel() {
       panel.hidden = false;
       // Si un intento anterior falló a medias, no duplicar las pestañas
       if (!tabsBar.childElementCount) buildTabs();
+      initExportButton(document.getElementById('panel-export'));
       activate(TABS[0].id);
     },
   });
