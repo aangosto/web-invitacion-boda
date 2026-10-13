@@ -24,12 +24,13 @@
 import { initGate } from './panel-gate.js';
 import {
   fetchPlano, savePlano, fetchMesasPlano, updateMesaPlano, setPresidencial,
+  guardaPosiciones, crearCopia, fetchCopias, borraCopia,
 } from './plano-data.js';
 import { iconoMesa } from './mesas-iconos.js';
 import {
   FORMAS, FORMA_LABEL, SILLA_R, numPuestos, tamanoMesa, puestosLocales,
   semiCaja, limitaDentro, imanta, cm, normAng, haciaMesa, cercania, rumbo,
-  ordenPuestos, colocacionInicial,
+  ordenPuestos, colocacionInicial, distribuir,
 } from './plano-geom.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -89,6 +90,10 @@ async function initApp(root) {
         <button type="button" class="pla-ico" data-zoom="fit" aria-label="Ver el salón entero">⤢</button>
       </div>
     </div>
+    <div class="pla-dist">
+      <button type="button" id="pla-distribuir" class="btn btn--ghost pla-dist__btn">✦ Distribuir mesas</button>
+      <button type="button" id="pla-deshacer-dist" class="btn btn--ghost pla-dist__btn" hidden>↶ Deshacer distribución</button>
+    </div>
     <div class="pla-estado" data-estado></div>
 
     <div id="pla-stage" class="pla-stage">
@@ -127,6 +132,7 @@ async function initApp(root) {
             <option value="0.25">25 cm</option><option value="0.5">50 cm</option><option value="1">1 m</option>
           </select></label>
       </div>
+      <p class="adm-hint">Por defecto 24 × 17 m: proporción de folio apaisado (√2:1).</p>
       <button type="button" id="pla-salon-ok" class="btn btn--ghost btn--block">Guardar medidas</button>
     </details>
 
@@ -164,6 +170,8 @@ async function initApp(root) {
     renderEstado();
     try {
       await updateMesaPlano(mesa.id, cambios);
+      // Última posición GUARDADA (es la que copia "Distribuir mesas")
+      ['x', 'y', 'rot'].forEach((k) => { if (k in cambios) mesa.orig[k] = cambios[k]; });
       guardado.errores.delete(mesa.id);
       guardado.ultimo = new Date();
       return true;
@@ -225,6 +233,11 @@ async function initApp(root) {
   function aplicaCam() {
     cam.h = cam.w * aspecto();
     svg.setAttribute('viewBox', `${cam.x} ${cam.y} ${cam.w} ${cam.h}`);
+  }
+  /** Fuera de edición el lienzo toma la proporción del salón (con su
+      margen), así se ve entero y centrado sin huecos ni deformarlo. */
+  function ajustaEscenario() {
+    svg.style.aspectRatio = `${plano.ancho + 3.2} / ${plano.largo + 3.2}`;
   }
   function encuadra() {
     const margen = 1.6;
@@ -376,14 +389,15 @@ async function initApp(root) {
   function renderPlano() {
     svg.innerHTML = '';
     const { ancho, largo } = plano;
-    // Suelo, rejilla y paredes
+    // Suelo, rejilla y paredes (la cota del ancho va abajo: arriba está
+    // la presidencial pegada a la pared)
     svg.appendChild(sv('rect', { x: 0, y: 0, width: ancho, height: largo, class: 'pla-suelo', 'data-suelo': '' }));
     const rej = sv('g', { class: 'pla-rejilla' });
     for (let x = 1; x < ancho; x += 1) rej.appendChild(sv('line', { x1: x, y1: 0, x2: x, y2: largo }));
     for (let y = 1; y < largo; y += 1) rej.appendChild(sv('line', { x1: 0, y1: y, x2: ancho, y2: y }));
     svg.appendChild(rej);
     svg.appendChild(sv('rect', { x: 0, y: 0, width: ancho, height: largo, class: 'pla-paredes' }));
-    svg.appendChild(sv('text', { x: ancho / 2, y: -0.55, class: 'pla-cota', 'font-size': 0.42 }, fmtM(ancho)));
+    svg.appendChild(sv('text', { x: ancho / 2, y: largo + 0.6, class: 'pla-cota', 'font-size': 0.42 }, fmtM(ancho)));
     svg.appendChild(sv('text', {
       x: -0.55, y: largo / 2, class: 'pla-cota', 'font-size': 0.42,
       transform: `rotate(-90 ${-0.55} ${largo / 2})`,
@@ -946,6 +960,7 @@ async function initApp(root) {
         if (!m.provisional) guardarPos(m);
       }
     });
+    ajustaEscenario();
     encuadra();
     render();
   });
@@ -953,6 +968,118 @@ async function initApp(root) {
     plano.iman = imanInput.checked;
     guardaPlano();
   });
+
+  /* ---------- Distribución automática ---------- */
+  let copias = [];          // copias de colocación (más reciente primero)
+  const distBtn = $('#pla-distribuir');
+  const deshacerDistBtn = $('#pla-deshacer-dist');
+
+  /** Sin posición guardada → colocación provisional; fuera de las paredes
+      (p. ej. tras cambiar las medidas) → dentro, también provisional. */
+  function colocaPendientes() {
+    const sinPos = mesas.filter((m) => m.x == null || m.y == null);
+    if (sinPos.length) {
+      const ini = colocacionInicial(mesas, plano);
+      sinPos.forEach((m) => { Object.assign(m, ini.get(m.id)); m.provisional = true; });
+    }
+    mesas.forEach((m) => {
+      const p = limitaDentro(m.x, m.y, m, plano);
+      if (Math.abs(p.x - m.x) > 0.005 || Math.abs(p.y - m.y) > 0.005) {
+        Object.assign(m, p);
+        m.provisional = true;
+      }
+    });
+  }
+
+  function renderDistBtns() {
+    deshacerDistBtn.hidden = copias.length === 0;
+    const c = copias[0];
+    if (c) {
+      const hora = c.fecha ? c.fecha.toLocaleString('es-ES', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+      deshacerDistBtn.textContent = `↶ Deshacer distribución${copias.length > 1 ? ` (${copias.length})` : ''}`;
+      deshacerDistBtn.title = `Vuelve a la colocación anterior${hora ? ` (copia del ${hora})` : ''}`;
+    }
+    distBtn.disabled = guardado.pendientes > 0;
+  }
+
+  async function distribuirMesas() {
+    const res = distribuir(mesas, plano);
+    if (!res) {
+      window.alert('No caben todas las mesas con pasillos entre ellas en un salón de '
+        + `${fmtM(plano.ancho)} × ${fmtM(plano.largo)}. Amplía las medidas del salón o colócalas a mano.`);
+      return;
+    }
+    const ok = window.confirm(`¿Distribuir automáticamente las ${mesas.length} mesas?\n\n`
+      + '⚠ Se SOBRESCRIBE la colocación actual, también la que hayas hecho a mano.\n\n'
+      + 'Antes se guarda una copia y podrás volver a ella con «Deshacer distribución».');
+    if (!ok) return;
+    guardado.pendientes += 1;
+    renderEstado();
+    renderDistBtns();
+    try {
+      // 1) Copia de lo que hay guardado ahora (null = sin posición)
+      const previa = mesas.map((m) => ({
+        id: m.id, nombre: m.nombre,
+        x: m.orig.x ?? null, y: m.orig.y ?? null, rot: m.orig.rot ?? 0,
+      }));
+      const copiaId = await crearCopia(previa, 'distribuir');
+      copias.unshift({ id: copiaId, mesas: previa, fecha: new Date() });
+      // 2) Nueva colocación, todas de una vez
+      const lista = mesas.map((m) => {
+        const p = res.pos.get(m.id);
+        return { id: m.id, x: cm(p.x), y: cm(p.y), rot: normAng(p.rot) };
+      });
+      await guardaPosiciones(lista);
+      lista.forEach((p) => {
+        const m = porId(p.id);
+        Object.assign(m, { x: p.x, y: p.y, rot: p.rot, provisional: false });
+        m.orig = { x: p.x, y: p.y, rot: p.rot };
+        guardado.errores.delete(m.id);
+      });
+      undo.length = 0;
+      selId = null;
+      guardado.ultimo = new Date();
+    } catch (err) {
+      console.error(err);
+      window.alert('No se ha podido distribuir (no se ha cambiado nada guardado). Inténtalo de nuevo.');
+    } finally {
+      guardado.pendientes -= 1;
+      render();
+    }
+  }
+
+  async function deshacerDistribucion() {
+    const c = copias[0];
+    if (!c) return;
+    if (!window.confirm('¿Volver a la colocación anterior a la última distribución?\n\nSe pierde la distribución actual.')) return;
+    guardado.pendientes += 1;
+    renderEstado();
+    renderDistBtns();
+    try {
+      const lista = c.mesas.filter((e) => porId(e.id))
+        .map((e) => ({ id: e.id, x: e.x, y: e.y, rot: e.rot }));
+      await guardaPosiciones(lista);
+      await borraCopia(c.id);
+      copias.shift();
+      lista.forEach((e) => {
+        const m = porId(e.id);
+        Object.assign(m, { x: e.x, y: e.y, rot: e.rot || 0, provisional: false });
+        m.orig = { x: e.x, y: e.y, rot: e.rot || 0 };
+      });
+      colocaPendientes();
+      undo.length = 0;
+      selId = null;
+      guardado.ultimo = new Date();
+    } catch (err) {
+      console.error(err);
+      window.alert('No se ha podido deshacer la distribución. Inténtalo de nuevo.');
+    } finally {
+      guardado.pendientes -= 1;
+      render();
+    }
+  }
+  distBtn.addEventListener('click', distribuirMesas);
+  deshacerDistBtn.addEventListener('click', deshacerDistribucion);
 
   /* ---------- Botones ---------- */
   editarBtn.addEventListener('click', () => setEditando(!editando));
@@ -979,6 +1106,7 @@ async function initApp(root) {
 
   /* ---------- Render general ---------- */
   function render() {
+    renderDistBtns();
     renderStatsYAvisos();
     renderPlano();
     renderSel();
@@ -987,14 +1115,13 @@ async function initApp(root) {
   }
 
   /* ---------- Carga inicial ---------- */
-  [plano, mesas] = await Promise.all([fetchPlano(), fetchMesasPlano()]);
-  // Mesas sin posición guardada: colocación provisional (se avisa)
-  const sinPos = mesas.filter((m) => m.x == null || m.y == null);
-  if (sinPos.length) {
-    const ini = colocacionInicial(mesas, plano);
-    sinPos.forEach((m) => { Object.assign(m, ini.get(m.id)); m.provisional = true; });
-  }
+  [plano, mesas, copias] = await Promise.all([
+    fetchPlano(), fetchMesasPlano(), fetchCopias().catch((err) => { console.error(err); return []; }),
+  ]);
+  mesas.forEach((m) => { m.orig = { x: m.x, y: m.y, rot: m.rot }; });
+  colocaPendientes();
   rellenaSalon();
+  ajustaEscenario();
   encuadra();
   render();
 }

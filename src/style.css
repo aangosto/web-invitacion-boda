@@ -2822,6 +2822,8 @@ html.pla-modal, html.pla-modal body { overflow: hidden; overscroll-behavior: non
 }
 .pla-toolbar__editar { flex: 1; min-height: 44px; }
 .pla-zoom { display: flex; gap: 0.3rem; }
+.pla-dist { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.4rem; }
+.pla-dist__btn { flex: 1 1 10rem; min-height: 44px; }
 
 /* Botón cuadrado de icono (zoom, girar, subir/bajar…) */
 .pla-ico {
@@ -2878,7 +2880,8 @@ html.pla-modal, html.pla-modal body { overflow: hidden; overscroll-behavior: non
 .pla-svg {
   display: block;
   width: 100%;
-  height: min(72vh, 44rem);
+  height: auto;                        /* aspect-ratio = proporción del salón (JS) */
+  max-height: 80vh;
   touch-action: manipulation;          /* fuera de edición: scroll normal */
   user-select: none;
   -webkit-user-select: none;
@@ -2901,6 +2904,8 @@ html.pla-modal, html.pla-modal body { overflow: hidden; overscroll-behavior: non
 .pla-stage.is-editing .pla-svg {
   flex: 1;
   height: auto;
+  max-height: none;
+  aspect-ratio: auto !important;       /* a pantalla completa ocupa todo */
   min-height: 0;
   touch-action: none;                  /* el navegador NO hace scroll ni zoom */
   cursor: grab;

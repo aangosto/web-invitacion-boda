@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {
   numPuestos, tamanoMesa, puestosLocales, semiCaja, limitaDentro,
   haciaMesa, cercania, rumbo, ordenPuestos, colocacionInicial, normAng,
+  distribuir, rngSemilla, zonaDespejada, PLANO_DEFAULT,
 } from '../src/modules/plano-geom.js';
 
 let ok = 0;
@@ -101,6 +102,62 @@ t('normAng', () => {
   assert.equal(normAng(370), 10);
   assert.equal(normAng(-190), 170);
   assert.equal(normAng(180), 180);
+});
+
+/* ---------- Distribución automática (las 16 mesas reales) ---------- */
+const REALES = [['Novios', 6, 'redonda', true], ['Ámbar', 9], ['Chuches', 16, 'rectangular'], ['Espetos', 11],
+  ['Estrella', 11], ['Guardia Civil', 11], ['Huevo Gamba', 12], ['Jamón', 9], ['Limón', 10], ['Marinera', 9],
+  ['Melocotón', 10], ['Naranja', 11], ['Paparajote', 11], ['Patatas', 11], ['Uvas', 9], ['Vermut', 10]]
+  .map(([id, cap, forma = 'redonda', pres = false]) => ({
+    id, capacidad: cap, comensales: Array.from({ length: cap }, (_, i) => c(`${id}${i}`)), forma, rot: 0, presidencial: pres,
+  }));
+const caja = (m, p) => ({ ...semiCaja(m.forma, numPuestos(m), p.rot), x: p.x, y: p.y });
+
+t('salón por defecto apaisado tipo folio (√2:1)', () => {
+  assert.ok(PLANO_DEFAULT.ancho > PLANO_DEFAULT.largo);
+  assert.ok(Math.abs(PLANO_DEFAULT.ancho / PLANO_DEFAULT.largo - Math.SQRT2) < 0.02);
+});
+
+t('distribuir: sin solapes, dentro, con pasillo y zona despejada (50 semillas)', () => {
+  for (let s = 1; s <= 50; s++) {
+    const r = distribuir(REALES, PLANO_DEFAULT, rngSemilla(s));
+    assert.ok(r, `semilla ${s}: no cabe`);
+    assert.equal(r.pos.size, 16);
+    const cajas = REALES.map((m) => ({ m, ...caja(m, r.pos.get(m.id)) }));
+    cajas.forEach((a, i) => {
+      assert.ok(a.x - a.hx >= -1e-6 && a.x + a.hx <= PLANO_DEFAULT.ancho + 1e-6, `${a.m.id} se sale (x)`);
+      assert.ok(a.y - a.hy >= -1e-6 && a.y + a.hy <= PLANO_DEFAULT.largo + 1e-6, `${a.m.id} se sale (y)`);
+      cajas.slice(i + 1).forEach((b) => {
+        // Pasillo mínimo entre sillas (el más estrecho que admite el algoritmo)
+        const sep = Math.max(Math.abs(a.x - b.x) - a.hx - b.hx, Math.abs(a.y - b.y) - a.hy - b.hy);
+        const sepCirc = Math.hypot(a.x - b.x, a.y - b.y) - Math.max(a.hx, a.hy) - Math.max(b.hx, b.hy);
+        const ambasRedondas = a.m.forma === 'redonda' && b.m.forma === 'redonda';
+        assert.ok((ambasRedondas ? sepCirc : sep) >= 0.6, `semilla ${s}: ${a.m.id}/${b.m.id} sin pasillo`);
+      });
+    });
+    const pres = cajas.find((x) => x.m.presidencial);
+    assert.equal(pres.x, PLANO_DEFAULT.ancho / 2);
+    assert.ok(pres.y - pres.hy < 0.3, 'presidencial pegada a la pared de arriba');
+    assert.equal(r.pos.get('Novios').rot, 0, 'presidencial mirando al salón');
+    const z = zonaDespejada(pres, PLANO_DEFAULT);
+    cajas.filter((x) => x !== pres).forEach((b) => {
+      const dentroZona = Math.abs(b.x - z.x) < z.hx + b.hx - 1e-6 && Math.abs(b.y - z.y) < z.hy + b.hy - 1e-6;
+      assert.ok(!dentroZona, `semilla ${s}: ${b.m.id} invade la zona despejada`);
+    });
+  }
+});
+
+t('distribuir: cada vez distinta y no en cuadrícula', () => {
+  const a = distribuir(REALES, PLANO_DEFAULT, rngSemilla(1)).pos;
+  const b = distribuir(REALES, PLANO_DEFAULT, rngSemilla(2)).pos;
+  assert.ok(REALES.some((m) => Math.hypot(a.get(m.id).x - b.get(m.id).x, a.get(m.id).y - b.get(m.id).y) > 1));
+  // En una cuadrícula muchas mesas comparten x o y; aquí casi ninguna
+  const xs = [...a.values()].map((p) => Math.round(p.x * 2) / 2);
+  assert.ok(new Set(xs).size >= 12, `x repetidas: ${xs}`);
+});
+
+t('distribuir: devuelve null si el salón es demasiado pequeño', () => {
+  assert.equal(distribuir(REALES, { ...PLANO_DEFAULT, ancho: 8, largo: 6 }, rngSemilla(1)), null);
 });
 
 console.log(`\n${ok} pruebas OK`);

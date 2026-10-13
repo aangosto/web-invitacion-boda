@@ -9,12 +9,18 @@
      NUNCA `comensales` (ni su flag de preboda): el reparto de gente
      sigue siendo cosa de mesas.html. Todo con updateDoc (no pisa el
      resto del documento).
+   · Copias de seguridad de la colocación: colección planoCopias
+       { motivo, mesas: [{ id, nombre, x, y, rot }], createdAt }
+     (x/y null = la mesa no tenía posición guardada). "Distribuir mesas"
+     crea una ANTES de sobrescribir; "Deshacer distribución" restaura la
+     última y la borra (pila: deshaciendo varias veces se vuelve atrás
+     distribución a distribución hasta la colocación manual).
    ================================================================= */
 
 import { db } from '../firebase.js';
 import {
-  collection, doc, getDoc, getDocs, setDoc, updateDoc, writeBatch,
-  orderBy, query, serverTimestamp,
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, writeBatch,
+  orderBy, query, limit, serverTimestamp, deleteField,
 } from 'firebase/firestore';
 import { FORMAS, PLANO_DEFAULT } from './plano-geom.js';
 
@@ -86,4 +92,45 @@ export async function setPresidencial(id, mesas) {
     }
   });
   await batch.commit();
+}
+
+/**
+ * Guarda de golpe (un batch atómico) la posición de varias mesas.
+ * `x`/`y` null borra la posición (la mesa vuelve a "sin colocar").
+ */
+export async function guardaPosiciones(lista) {
+  const batch = writeBatch(db);
+  lista.forEach(({ id, x, y, rot }) => {
+    const sinPos = x == null || y == null;
+    batch.update(doc(db, 'mesas', id), {
+      x: sinPos ? deleteField() : x,
+      y: sinPos ? deleteField() : y,
+      rot: typeof rot === 'number' ? rot : 0,
+      updatedAt: serverTimestamp(),
+    });
+  });
+  await batch.commit();
+}
+
+/** Copia de la colocación actual. Devuelve su id. */
+export async function crearCopia(mesas, motivo) {
+  const ref = await addDoc(collection(db, 'planoCopias'), {
+    motivo: String(motivo).slice(0, 60),
+    mesas: mesas.map((m) => ({ id: m.id, nombre: m.nombre, x: m.x, y: m.y, rot: m.rot })),
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+/** Copias guardadas, de la más reciente a la más antigua. */
+export async function fetchCopias() {
+  const snap = await getDocs(query(collection(db, 'planoCopias'), orderBy('createdAt', 'desc'), limit(50)));
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return { id: d.id, mesas: data.mesas || [], fecha: data.createdAt ? data.createdAt.toDate() : null };
+  });
+}
+
+export async function borraCopia(id) {
+  await deleteDoc(doc(db, 'planoCopias', id));
 }

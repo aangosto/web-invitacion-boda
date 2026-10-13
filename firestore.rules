@@ -143,6 +143,16 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---------- COPIAS DE LA COLOCACIÓN DEL PLANO ----------
+    // "Distribuir mesas" (/plano.html) guarda aquí la colocación previa
+    // antes de sobrescribirla; "Deshacer distribución" la restaura y la
+    // borra. Inmutables (sin update). Sesión obligatoria, como mesas.
+    match /planoCopias/{copiaId} {
+      allow read, delete: if request.auth != null;
+      allow create: if request.auth != null && isValidCopiaPlano(request.resource.data);
+      allow update: if false;
+    }
+
     // ---------- CONFIG (textos editables: regalo/IBAN…) ----------
     // Lectura pública (la home muestra la frase y el IBAN); escritura
     // solo con sesión + validación de forma (misma limitación asumida
@@ -208,6 +218,14 @@ service cloud.firestore {
         && (!('rot' in d.keys()) || (d.rot is number && d.rot >= -360 && d.rot <= 720))
         && (!('icono' in d.keys()) || (d.icono is string && d.icono.size() <= 60))
         && (!('asientos' in d.keys()) || (d.asientos is list && d.asientos.size() <= 100));
+    }
+
+    function isValidCopiaPlano(d) {
+      // `mesas` = [{ id, nombre, x, y, rot }] (x/y null = sin posición).
+      return d.keys().hasOnly(['motivo', 'mesas', 'createdAt'])
+        && d.motivo is string && d.motivo.size() <= 60
+        && d.mesas is list && d.mesas.size() <= 100
+        && d.createdAt == request.time;            // obliga a serverTimestamp()
     }
 
     function isValidPlano(d) {
