@@ -2993,13 +2993,23 @@ html.pla-modal, html.pla-modal body { overflow: hidden; overscroll-behavior: non
 .pla-nombre { font-family: var(--font-serif); font-weight: 600; fill: var(--ink); }
 .pla-ocupa { font-family: var(--font-sans); fill: #2e6b45; }
 .pla-ocupa.is-sobre { fill: #8c2f2f; font-weight: 600; }
-.pla-icono, .pla-inicial, .pla-inicial__txt { pointer-events: none; }
+.pla-medallon { pointer-events: none; }
+.pla-medallon__fondo { fill: #fff; }
+.pla-medallon__aro { fill: none; stroke: rgba(110,36,53,0.4); stroke-width: 0.035; }
 
 /* ---- Detalle de una mesa (hoja inferior) ---- */
 .pla-detalle { z-index: 80; }
 .pla-detalle__panel { max-width: 40rem; max-height: 92vh; max-height: 92dvh; overscroll-behavior: contain; gap: 0.6rem; }
 .pla-detalle__head { display: flex; align-items: center; gap: 0.7rem; }
-.pla-detalle__icono { width: 3rem; height: 3rem; object-fit: contain; flex: 0 0 auto; }
+.pla-detalle__icono {
+  flex: 0 0 auto;
+  width: 3.6rem;
+  height: 3.6rem;
+  object-fit: cover;            /* cuadrada → recorte circular sin deformar */
+  border-radius: 50%;
+  border: 1px solid rgba(110,36,53,0.4);
+  background: #fff;
+}
 .pla-detalle__inicial {
   flex: 0 0 auto;
   display: grid;

@@ -2,39 +2,38 @@
    ICONOS DE LAS MESAS — único sitio donde se asocia cada mesa con su
    dibujo (lo usa el plano del salón, plano.html).
 
-   🖼  PARA AÑADIR UN DIBUJO NUEVO:
-     1. Copia la imagen (PNG con fondo transparente, cuadrada si puede
-        ser) a la carpeta public/  →  p. ej. public/nov_uvas.png
+   🖼  PARA AÑADIR O CAMBIAR UN DIBUJO:
+     1. Copia la imagen (cuadrada; vale con fondo blanco, el plano la
+        recorta en círculo) a la carpeta public/ → p. ej. public/mesa_uvas.webp
      2. Pon su nombre de archivo aquí abajo, en la mesa que toque:
-          'uvas': 'nov_uvas.png',
+          'uvas': 'mesa_uvas.webp',
      3. Build + deploy. Nada más: no hay que tocar otro código.
 
    La clave es el nombre de la mesa en minúsculas, sin tildes y con
    guiones ("Jamón con chorreras" → 'jamon-con-chorreras'). Si una mesa
-   tiene `null` (o no está en la lista) se dibuja un marcador
-   provisional con la inicial de su nombre.
+   tiene `null`, no está en la lista o su imagen no carga, se dibuja
+   un marcador con la inicial de su nombre.
    ================================================================= */
 
 export const ICONOS_MESAS = {
-  // ---- Ya dibujadas (archivos existentes en public/) ----
-  'limon': 'nov_limon.png',
-  'espetos': 'nov_espeto.png',
-  'marinera': 'nov_marinera.png',
-  'vermut': 'nio_vermut.png',
-
-  // ---- Pendientes de dibujo (marcador con la inicial) ----
-  'novios': null,
-  'ambar': null,
-  'chuches': null,
-  'estrella': null,
-  'guardia-civil': null,
-  'huevo-gamba': null,
-  'jamon-con-chorreras': null,
-  'melocoton': null,
-  'naranja': null,
-  'paparajote': null,
-  'patatas': null,
-  'uvas': null,
+  // Meseros reales de la boda (mismo ilustrador que la mesa física):
+  // cuadrados de 320px en WebP, fondo blanco con mancha de acuarela.
+  'novios': 'mesa_novios.webp',
+  'ambar': 'mesa_ambar.webp',
+  'chuches': 'mesa_chuches.webp',
+  'espetos': 'mesa_espetos.webp',
+  'estrella': 'mesa_estrella.webp',
+  'guardia-civil': 'mesa_guardia_civil.webp',
+  'huevo-gamba': 'mesa_huevo_gamba.webp',
+  'jamon-con-chorreras': 'mesa_jamon_chorreras.webp',
+  'limon': 'mesa_limon.webp',
+  'marinera': 'mesa_marinera.webp',
+  'melocoton': 'mesa_melocoton.webp',
+  'naranja': 'mesa_naranja.webp',
+  'paparajote': 'mesa_paparajote.webp',
+  'patatas': 'mesa_patatas.webp',
+  'uvas': 'mesa_uvas.webp',
+  'vermut': 'mesa_vermut.webp',
 };
 
 /** "Jamón con chorreras" → 'jamon-con-chorreras' */

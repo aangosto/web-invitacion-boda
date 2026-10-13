@@ -34,6 +34,8 @@ import {
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const CAPACIDADES_RAPIDAS = [6, 8, 10, 13];
+/** Ampliación del dibujo dentro del medallón (recorta el blanco del borde). */
+const ZOOM_DIBUJO = 1.3;
 /** "Mira hacia" de la presidencial → rotación (la mesa mira a +y local). */
 const MIRA = [
   { label: '↑', titulo: 'Mira hacia arriba', rot: 180 },
@@ -232,7 +234,7 @@ async function initApp(root) {
     cam.x = plano.ancho / 2 - cam.w / 2;
     cam.y = plano.largo / 2 - cam.h / 2;
     aplicaCam();
-    if (editando) renderPlano();
+    renderPlano();
   }
   function zoom(factor, cx, cy) {
     const maxW = Math.max(plano.ancho, plano.largo) * 3;
@@ -244,7 +246,7 @@ async function initApp(root) {
     cam.y = py - (py - cam.y) * k;
     cam.w = w;
     aplicaCam();
-    if (editando) renderPlano(); // el tirador de giro escala con el zoom
+    renderPlano(); // tirador de giro y nivel de detalle de las etiquetas
   }
   function aPlano(clientX, clientY) {
     const r = svg.getBoundingClientRect();
@@ -260,6 +262,37 @@ async function initApp(root) {
   }
 
   /* ---------- Dibujo del plano ---------- */
+  /**
+   * Dibujo de la mesa en un medallón circular: recorte redondo algo
+   * ampliado (fuera el blanco de los bordes y la firma; la mancha de
+   * acuarela hace de fondo) con un aro fino. Sin dibujo, o si la imagen
+   * no carga, la inicial en el estilo de la web.
+   */
+  function medallon(mesa, cx, cy, d) {
+    const ic = iconoMesa(mesa);
+    const g = sv('g', { class: 'pla-medallon' });
+    const inicial = () => {
+      g.innerHTML = '';
+      g.appendChild(sv('circle', { cx, cy, r: d / 2, class: 'pla-inicial' }));
+      g.appendChild(sv('text', { x: cx, y: cy, class: 'pla-inicial__txt', 'font-size': d * 0.62 }, ic.inicial));
+    };
+    if (!ic.url) { inicial(); return g; }
+    const clipId = `med-${mesa.id}`;
+    const clip = sv('clipPath', { id: clipId });
+    clip.appendChild(sv('circle', { cx, cy, r: d / 2 }));
+    g.appendChild(clip);
+    g.appendChild(sv('circle', { cx, cy, r: d / 2, class: 'pla-medallon__fondo' }));
+    const z = d * ZOOM_DIBUJO;
+    const img = sv('image', {
+      href: ic.url, x: cx - z / 2, y: cy - z / 2, width: z, height: z,
+      'clip-path': `url(#${clipId})`, preserveAspectRatio: 'xMidYMid slice',
+    });
+    img.addEventListener('error', inicial, { once: true });
+    g.appendChild(img);
+    g.appendChild(sv('circle', { cx, cy, r: d / 2, class: 'pla-medallon__aro' }));
+    return g;
+  }
+
   function dibujaMesa(mesa) {
     const n = numPuestos(mesa);
     const { w, h } = tamanoMesa(mesa.forma, n);
@@ -307,26 +340,36 @@ async function initApp(root) {
     }
     g.appendChild(giro);
 
-    // Etiquetas (sin rotar, siempre legibles)
-    const ic = iconoMesa(mesa);
+    // Etiquetas (sin rotar, siempre legibles). Nivel de detalle según el
+    // zoom: si el dibujo se ve lo bastante grande va centrado sobre el
+    // nombre; si no se leería, manda el NOMBRE (a tamaño legible en
+    // pantalla) y el dibujo queda como acento pequeño en el borde.
     const lado = Math.min(w, h);
-    const tamIcono = Math.min(1.1, Math.max(0.5, lado * 0.5));
-    const yIcono = -tamIcono / 2 - 0.12;
-    if (ic.url) {
-      g.appendChild(sv('image', {
-        href: ic.url, x: -tamIcono / 2, y: yIcono, width: tamIcono, height: tamIcono,
-        class: 'pla-icono', preserveAspectRatio: 'xMidYMid meet',
-      }));
-    } else {
-      g.appendChild(sv('circle', { cx: 0, cy: yIcono + tamIcono / 2, r: tamIcono / 2, class: 'pla-inicial' }));
+    const fNombre = Math.max(0.3, px(11));
+    const fOcupa = Math.max(0.26, px(10));
+    const altoTexto = (fNombre + fOcupa) * 1.15;
+    const dMed = Math.min(1.25, lado * 0.62, lado * 0.92 - altoTexto);
+    const ocupa = `${ocupadas}/${mesa.capacidad}${sobre ? ' ⚠' : ''}`;
+    const claseOcupa = `pla-ocupa${sobre ? ' is-sobre' : ''}`;
+    if (dMed >= px(34)) {
+      const top = -(dMed + 0.06 + altoTexto) / 2;
+      g.appendChild(medallon(mesa, 0, top + dMed / 2, dMed));
+      const yN = top + dMed + 0.06 + fNombre * 0.6;
+      g.appendChild(sv('text', { x: 0, y: yN, class: 'pla-nombre', 'font-size': fNombre }, corto(mesa.nombre, 16)));
       g.appendChild(sv('text', {
-        x: 0, y: yIcono + tamIcono / 2, class: 'pla-inicial__txt', 'font-size': tamIcono * 0.62,
-      }, ic.inicial));
+        x: 0, y: yN + fNombre * 0.55 + fOcupa * 0.6, class: claseOcupa, 'font-size': fOcupa,
+      }, ocupa));
+    } else {
+      // Pila centrada: acento pequeño, nombre corto y ocupación
+      const dA = px(18);
+      const top = -(dA + px(2) + altoTexto) / 2;
+      g.appendChild(medallon(mesa, 0, top + dA / 2, dA));
+      const yN = top + dA + px(2) + fNombre * 0.6;
+      g.appendChild(sv('text', { x: 0, y: yN, class: 'pla-nombre', 'font-size': fNombre }, corto(mesa.nombre, 11)));
+      g.appendChild(sv('text', {
+        x: 0, y: yN + fNombre * 0.55 + fOcupa * 0.6, class: claseOcupa, 'font-size': fOcupa,
+      }, ocupa));
     }
-    g.appendChild(sv('text', { x: 0, y: 0.34, class: 'pla-nombre', 'font-size': 0.3 }, corto(mesa.nombre, 16)));
-    g.appendChild(sv('text', {
-      x: 0, y: 0.68, class: `pla-ocupa${sobre ? ' is-sobre' : ''}`, 'font-size': 0.27,
-    }, `${ocupadas}/${mesa.capacidad}${sobre ? ' ⚠' : ''}`));
     return g;
   }
 
@@ -737,6 +780,7 @@ async function initApp(root) {
       const img = el('img', 'pla-detalle__icono');
       img.src = ic.url;
       img.alt = '';
+      img.addEventListener('error', () => img.replaceWith(el('span', 'pla-detalle__inicial', ic.inicial)), { once: true });
       head.appendChild(img);
     } else {
       head.appendChild(el('span', 'pla-detalle__inicial', ic.inicial));
@@ -931,7 +975,7 @@ async function initApp(root) {
     render();
     guardarPos(m);
   });
-  new ResizeObserver(() => { if (plano) aplicaCam(); }).observe(svg);
+  new ResizeObserver(() => { if (plano) { aplicaCam(); renderPlano(); } }).observe(svg);
 
   /* ---------- Render general ---------- */
   function render() {
