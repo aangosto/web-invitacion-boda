@@ -16,6 +16,7 @@ export default defineConfig({
         invitados: 'invitados.html',   // privada (gestión de invitados)
         hoteles: 'hoteles.html',       // privada (gestión del hotel)
         mesas: 'mesas.html',           // privada (mesas del banquete)
+        plano: 'plano.html',           // privada (plano del salón)
       },
     },
   },

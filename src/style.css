@@ -2799,3 +2799,335 @@ a { color: inherit; }
   color: var(--burgundy);
   font-weight: 500;
 }
+
+/* =================================================================
+   16. PLANO DEL SALÓN (página privada · plano.html)
+   Mobile-first. Fuera de edición el plano deja hacer scroll a la
+   página (touch-action normal); en edición pasa a pantalla completa
+   con touch-action:none para que arrastrar nunca se pelee con el
+   scroll.
+   ================================================================= */
+.pla-app { max-width: 46rem; }
+
+/* Bloqueo de scroll de la página (edición a pantalla completa / detalle) */
+html.pla-lock, html.pla-lock body,
+html.pla-modal, html.pla-modal body { overflow: hidden; overscroll-behavior: none; }
+
+.pla-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0.4rem 0;
+}
+.pla-toolbar__editar { flex: 1; min-height: 44px; }
+.pla-zoom { display: flex; gap: 0.3rem; }
+
+/* Botón cuadrado de icono (zoom, girar, subir/bajar…) */
+.pla-ico {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--burgundy);
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(110,36,53,0.3);
+  border-radius: 10px;
+  touch-action: manipulation;
+}
+.pla-ico:disabled { opacity: 0.35; }
+.pla-ico.is-on { background: var(--burgundy); color: #fff; border-color: var(--burgundy); }
+.pla-ico--txt { font-size: 0.82rem; padding: 0 0.7rem; }
+
+/* Estado de guardado de las posiciones */
+.pla-estado {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.6rem;
+  min-height: 1.6rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.pla-estado.is-ok { color: #2e6b45; }
+.pla-estado.is-warn { color: #7a5a1e; }
+.pla-estado.is-busy { color: var(--taupe-deep); }
+.pla-estado__btn {
+  min-height: 36px;
+  padding: 0.2rem 0.8rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--burgundy);
+  background: #fff;
+  border: 1px solid var(--burgundy);
+  border-radius: 999px;
+}
+
+/* Escenario del plano */
+.pla-stage {
+  position: relative;
+  border: 1px solid rgba(110,36,53,0.2);
+  border-radius: 10px;
+  background: #efe9de;
+  overflow: hidden;
+}
+.pla-svg {
+  display: block;
+  width: 100%;
+  height: min(72vh, 44rem);
+  touch-action: manipulation;          /* fuera de edición: scroll normal */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.pla-edithead, .pla-editbar { display: none; }
+
+/* Edición: pantalla completa y gestos solo para el plano */
+.pla-stage.is-editing {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+  overscroll-behavior: none;
+}
+.pla-stage.is-editing .pla-svg {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  touch-action: none;                  /* el navegador NO hace scroll ni zoom */
+  cursor: grab;
+}
+.pla-stage.is-editing .pla-edithead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: calc(0.4rem + env(safe-area-inset-top)) 0.8rem 0.4rem;
+  background: var(--cream, #faf6f0);
+  border-bottom: 1px solid rgba(110,36,53,0.2);
+}
+.pla-estado--edit { margin: 0; flex: 1; }
+.pla-listo { min-height: 44px; padding: 0.4rem 1.2rem; }
+.pla-stage.is-editing .pla-editbar {
+  display: block;
+  padding: 0.4rem 0.6rem calc(0.5rem + env(safe-area-inset-bottom));
+  background: var(--cream, #faf6f0);
+  border-top: 1px solid rgba(110,36,53,0.2);
+}
+.pla-editbar__sel {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  text-align: center;
+  margin-bottom: 0.35rem;
+}
+.pla-editbar__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+}
+.pla-iman {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  padding: 0 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  color: var(--ink);
+  border: 1px solid rgba(110,36,53,0.3);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.7);
+}
+.pla-iman input { width: 1.1rem; height: 1.1rem; accent-color: var(--burgundy); }
+.pla-leyenda { margin-top: 0.5rem; }
+
+/* ---- Dibujo SVG del salón (unidades: metros) ---- */
+.pla-suelo { fill: #fbf8f2; }
+.pla-rejilla line { stroke: rgba(122,107,84,0.14); stroke-width: 0.02; }
+.pla-paredes { fill: none; stroke: var(--ink); stroke-width: 0.22; }
+.pla-cota {
+  font-family: var(--font-sans);
+  fill: var(--taupe-deep);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+.pla-mesa { cursor: pointer; }
+.pla-tablero { fill: #fff; stroke: var(--taupe-deep); stroke-width: 0.05; }
+.pla-silla { fill: #fbf8f2; stroke: var(--taupe); stroke-width: 0.03; }
+.pla-silla.is-ocupada { fill: #d9cdb9; stroke: var(--taupe-deep); }
+.pla-silla.is-exceso { fill: rgba(140,47,47,0.25); stroke: #8c2f2f; }
+.pla-mesa.is-pres .pla-tablero { fill: #f7ecee; stroke: var(--burgundy); stroke-width: 0.1; }
+.pla-pared-pres { stroke: var(--burgundy); stroke-width: 0.14; stroke-linecap: round; }
+.pla-mira { fill: var(--burgundy); }
+.pla-mesa.is-prov .pla-tablero { stroke-dasharray: 0.15 0.1; }
+.pla-mesa.is-sel .pla-tablero { stroke: var(--burgundy); stroke-width: 0.12; }
+.pla-rotar { fill: var(--burgundy); stroke: #fff; stroke-width: 0.04; cursor: grab; }
+.pla-rotar__linea { stroke: var(--burgundy); stroke-width: 0.04; stroke-dasharray: 0.1 0.08; }
+.pla-rotar__txt { fill: #fff; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.pla-inicial { fill: rgba(110,36,53,0.08); stroke: rgba(110,36,53,0.45); stroke-width: 0.03; }
+.pla-inicial__txt {
+  font-family: var(--font-display);
+  fill: var(--burgundy);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.pla-nombre, .pla-ocupa {
+  text-anchor: middle;
+  dominant-baseline: middle;
+  paint-order: stroke;
+  stroke: rgba(255,255,255,0.9);
+  stroke-width: 0.08;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.pla-nombre { font-family: var(--font-serif); font-weight: 600; fill: var(--ink); }
+.pla-ocupa { font-family: var(--font-sans); fill: #2e6b45; }
+.pla-ocupa.is-sobre { fill: #8c2f2f; font-weight: 600; }
+.pla-icono, .pla-inicial, .pla-inicial__txt { pointer-events: none; }
+
+/* ---- Detalle de una mesa (hoja inferior) ---- */
+.pla-detalle { z-index: 80; }
+.pla-detalle__panel { max-width: 40rem; max-height: 92vh; max-height: 92dvh; overscroll-behavior: contain; gap: 0.6rem; }
+.pla-detalle__head { display: flex; align-items: center; gap: 0.7rem; }
+.pla-detalle__icono { width: 3rem; height: 3rem; object-fit: contain; flex: 0 0 auto; }
+.pla-detalle__inicial {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  color: var(--burgundy);
+  background: rgba(110,36,53,0.08);
+  border: 1px solid rgba(110,36,53,0.45);
+  border-radius: 50%;
+}
+.pla-detalle__tit { flex: 1; min-width: 0; }
+.pla-detalle__nombre { font-family: var(--font-serif); font-size: 1.35rem; color: var(--burgundy); line-height: 1.15; }
+.pla-detalle__grupo { font-family: var(--font-sans); font-size: 0.78rem; color: var(--ink-soft); }
+.pla-detalle__cerrar { flex: 0 0 auto; }
+.pla-detalle__msg { font-family: var(--font-sans); font-size: 0.8rem; color: #2e6b45; }
+.pla-detalle__msg.is-error { color: #8c2f2f; }
+
+/* Hacia los novios */
+.pla-novios {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.8rem;
+  padding: 0.6rem 0.8rem;
+  background: rgba(110,36,53,0.05);
+  border: 1px solid rgba(110,36,53,0.2);
+  border-radius: 10px;
+}
+.pla-novios.is-vacio { background: rgba(201,161,90,0.12); border-color: #c9a15a; }
+.pla-novios__txt { flex: 1; min-width: 12rem; font-family: var(--font-sans); font-size: 0.85rem; color: var(--ink); }
+.pla-novios__txt strong { color: var(--burgundy); font-weight: 500; }
+.pla-novios__nota { display: block; font-size: 0.72rem; color: var(--ink-soft); margin-top: 0.15rem; }
+.pla-brujula { width: 3.4rem; height: 3.4rem; flex: 0 0 auto; }
+.pla-brujula__aro { fill: #fff; stroke: rgba(110,36,53,0.35); stroke-width: 1.5; }
+.pla-brujula__flecha { fill: none; stroke: var(--burgundy); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.pla-mira-btns { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+.pla-mira-btns__label { font-family: var(--font-sans); font-size: 0.8rem; color: var(--ink-soft); }
+
+/* Dibujo de puestos */
+.pla-puestos { display: block; width: 100%; max-width: 26rem; margin: 0 auto; aspect-ratio: 1; }
+.pla-puestos__novios path { fill: none; stroke: rgba(110,36,53,0.55); stroke-width: 0.07; stroke-linecap: round; stroke-linejoin: round; }
+.pla-puesto { cursor: pointer; }
+.pla-puesto circle { fill: #fbf8f2; stroke: var(--taupe); stroke-width: 0.03; }
+.pla-puesto.is-ocupada circle { fill: #d9cdb9; stroke: var(--taupe-deep); }
+.pla-puesto.is-exceso circle { fill: rgba(140,47,47,0.25); stroke: #8c2f2f; }
+.pla-puesto.is-marcado circle { fill: var(--burgundy); stroke: var(--burgundy); }
+.pla-puesto__num { font-family: var(--font-sans); fill: var(--ink); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.pla-puesto.is-marcado .pla-puesto__num { fill: #fff; }
+.pla-puesto__nombre { font-family: var(--font-sans); fill: var(--ink); dominant-baseline: central; }
+.pla-puesto.is-marcado .pla-puesto__nombre { fill: var(--burgundy); font-weight: 600; }
+
+/* Lista de orden (subir/bajar o tocar dos para intercambiar) */
+.pla-orden { list-style: none; padding: 0; display: grid; gap: 0.3rem; }
+.pla-orden__fila { display: flex; align-items: center; gap: 0.3rem; }
+.pla-orden__nombre {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.3rem 0.7rem;
+  font: inherit;
+  text-align: left;
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(110,36,53,0.18);
+  border-radius: 10px;
+  touch-action: manipulation;
+}
+.pla-orden__num {
+  flex: 0 0 auto;
+  min-width: 1.7rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--taupe-deep);
+}
+.pla-orden__quien { font-family: var(--font-serif); font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pla-orden__quien.is-vacio { font-weight: 400; font-style: italic; color: var(--ink-soft); }
+.pla-orden__fila.is-marcado .pla-orden__nombre { background: var(--burgundy); border-color: var(--burgundy); }
+.pla-orden__fila.is-marcado .pla-orden__quien,
+.pla-orden__fila.is-marcado .pla-orden__num { color: #fff; }
+.pla-orden__fila.is-exceso .pla-orden__nombre { border-color: #8c2f2f; background: rgba(140,47,47,0.06); }
+
+/* Forma / capacidad */
+.pla-seg { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; }
+.pla-seg__label { font-family: var(--font-sans); font-size: 0.8rem; color: var(--ink-soft); min-width: 3.4rem; }
+.pla-seg__btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.3rem 0.8rem;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--burgundy);
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(110,36,53,0.3);
+  border-radius: 999px;
+  touch-action: manipulation;
+}
+.pla-seg__btn.is-on { background: var(--burgundy); color: #fff; border-color: var(--burgundy); }
+.pla-cap { width: 5rem; min-height: 44px; }
+.pla-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+}
+.pla-check input { width: 1.2rem; height: 1.2rem; accent-color: var(--burgundy); }
+
+/* Medidas del salón */
+.pla-salon {
+  margin-top: 1rem;
+  padding: 0.6rem 0.9rem;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(110,36,53,0.15);
+  border-radius: 10px;
+}
+.pla-salon summary {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--burgundy);
+  cursor: pointer;
+}
+.pla-salon__campos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 0.4rem 0 0.6rem; }

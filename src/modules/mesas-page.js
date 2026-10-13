@@ -40,6 +40,8 @@ const ESTADO_CORTO = { confirmado: 'C', pendiente: 'P' };
 async function initApp(root) {
   root.innerHTML = `
     <button type="button" class="panel-salir" data-salir>Salir</button>
+    <a class="panel-link" href="./plano.html">Plano del salón
+      <span class="panel-link__sub">colocar mesas y ordenar puestos →</span></a>
     <p class="adm-hint">Reparto del banquete: crea mesas con su capacidad y
       sienta a la gente por toque. Salen confirmados y pendientes (los
       «no asiste» quedan fuera).</p>

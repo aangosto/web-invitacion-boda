@@ -25,6 +25,20 @@ cinematográfica (el sobre se abre) como pieza central. Datos en **Firebase
   (`admin-export.js` → `export-datos.js` solo lectura → `export-pdf.js`).
   Prueba con datos sintéticos: `node scripts/test-pdf.mjs <carpeta>`.
 
+- **`mesas.html`** — PRIVADA: reparto de invitados por mesas (colección
+  **`mesas`**), por toque.
+- **`plano.html`** — PRIVADA: plano del salón sobre la MISMA colección
+  `mesas` (solo escribe forma, posición `x`/`y` en metros, `rot`, `icono`,
+  orden de `asientos`, capacidad y `presidencial`; nunca los comensales).
+  Medidas del salón en `plano/salon`. "Editar posición" pasa el plano a
+  pantalla completa con `touch-action:none` (arrastrar no se pelea con el
+  scroll). Dibujos de las mesas: **un solo sitio**,
+  `src/modules/mesas-iconos.js` (copia el PNG a `public/` y pon su nombre).
+  Pruebas de geometría: `node scripts/test-plano.mjs`.
+  Reparto definitivo: `scripts/inspeccionar-mesas.mjs` (solo lectura) y
+  `scripts/reconciliar-mesas.mjs` (idempotente) sobre
+  `datos/mesas-banquete.txt` (no se sube al repo).
+
 ## Arrancar el proyecto
 
 ```bash
