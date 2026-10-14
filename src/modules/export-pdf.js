@@ -26,58 +26,29 @@ import { aggregate, MENU_LABELS } from './totales-logic.js';
 import { buildCronologia, formatDia, describeEntrada } from './crono-logic.js';
 import { TIPO_LABEL } from './habitaciones-precios.js';
 
-/* ---------- Identidad visual (sobria: poca tinta) ---------- */
-const BURDEOS = [110, 36, 53];
-const INK = [63, 58, 50];
-const SOFT = [109, 97, 82];
-const HEAD_FILL = [244, 234, 236];   // rosa muy claro en las cabeceras
-const STRIPE = [250, 247, 245];
-const LINE = [214, 204, 198];
-const VERDE = [47, 107, 58];
-const AMBAR = [138, 90, 0];
-const GRIS = [140, 134, 126];
+import {
+  BURDEOS, INK, SOFT, HEAD_FILL, VERDE, AMBAR, GRIS, SERIF, SANS, M,
+  txt, pl, tick, fechaHumana, estiloTabla, portadaCabecera, cabecerasYPies as cabecerasYPiesComunes,
+} from './pdf-estilo.js';
 
-const SERIF = 'times';      // títulos (eco de Cormorant Garamond)
-const SANS = 'helvetica';   // texto y tablas (eco de Jost)
+export { fechaArchivo } from './pdf-estilo.js';
 
 const PAGE_W = 210;
 const PAGE_H = 297;
-const M = { top: 20, bottom: 18, left: 14, right: 14 };
 const CONTENT_W = PAGE_W - M.left - M.right;
 
 const LADO_LABEL = { novia: 'Novia', novio: 'Novio', ambos: 'Ambos' };
 const ESTADO_LABEL = { confirmado: 'Confirmado', pendiente: 'Pendiente', no_asiste: 'No asiste' };
 const ESTADO_COLOR = { Confirmado: VERDE, Pendiente: AMBAR, 'No asiste': GRIS, Pagada: VERDE, 'Sin pagar': AMBAR, 'Sin asignar': GRIS };
 
-/* Las fuentes estándar de PDF solo cubren Latin-1: se sustituyen los
-   signos tipográficos habituales y se quitan emojis y demás. */
-const SUSTITUTOS = {
-  '—': '-', '–': '-', '‘': "'", '’': "'", '“': '"', '”': '"', '„': '"',
-  '…': '...', '•': '·', '→': '->', '←': '<-', '€': 'EUR', '✓': 'si', '✗': 'no',
-};
-function txt(v) {
-  return String(v ?? '')
-    .replace(/[^\n\x20-\xFF]/g, (c) => SUSTITUTOS[c] ?? (/\s/.test(c) ? ' ' : ''))
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim();
-}
-
 function norm(s) {
   return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .trim().toLowerCase().replace(/\s+/g, ' ');
 }
-const pl = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
-const dd = (n) => String(n).padStart(2, '0');
 const fechaCorta = (iso) => {
   const [y, m, d] = String(iso || '').split('-');
   return y && m && d ? `${d}/${m}` : '-';
 };
-const tick = () => new Promise((r) => setTimeout(r, 0));
-
-/** Fecha local 'aaaa-mm-dd' (para el nombre del archivo). */
-export function fechaArchivo(fecha = new Date()) {
-  return `${fecha.getFullYear()}-${dd(fecha.getMonth() + 1)}-${dd(fecha.getDate())}`;
-}
 
 /* =================================================================
    Preparación de datos (todo lo que comparten varias secciones)
@@ -200,15 +171,9 @@ function tabla(ctx, { head, body, columnStyles, fontSize = 9, filasTotal = [], c
     body: body.map((fila) => fila.map((c) => (c && typeof c === 'object')
       ? { ...c, content: txt(c.content) } : txt(c))),
     margin: { left: M.left, right: M.right, top: M.top, bottom: M.bottom },
-    theme: 'grid',
+    ...estiloTabla({ fontSize }),
     showHead: 'everyPage',
     rowPageBreak: 'avoid',
-    styles: {
-      font: SANS, fontSize, textColor: INK, cellPadding: { top: 1.6, bottom: 1.6, left: 2, right: 2 },
-      lineColor: LINE, lineWidth: 0.15, valign: 'top', overflow: 'linebreak',
-    },
-    headStyles: { fillColor: HEAD_FILL, textColor: BURDEOS, fontStyle: 'bold', lineColor: LINE },
-    alternateRowStyles: { fillColor: STRIPE },
     columnStyles,
     didParseCell(data) {
       if (data.section !== 'body') return;
@@ -614,30 +579,7 @@ function secComentarios(ctx, p) {
 function portada(ctx, p, generado) {
   const { doc } = ctx;
   doc.setPage(1);
-  let y = 46;
-  doc.setFont(SANS, 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...SOFT);
-  doc.text('DATOS DE LA BODA', PAGE_W / 2, y, { align: 'center', charSpace: 1 });
-  y += 16;
-  doc.setFont(SERIF, 'italic');
-  doc.setFontSize(34);
-  doc.setTextColor(...BURDEOS);
-  doc.text('María & Alberto', PAGE_W / 2, y, { align: 'center' });
-  y += 10;
-  doc.setFont(SERIF, 'normal');
-  doc.setFontSize(13);
-  doc.text('24 · 10 · 2026', PAGE_W / 2, y, { align: 'center' });
-  y += 6;
-  doc.setDrawColor(...BURDEOS);
-  doc.setLineWidth(0.4);
-  doc.line(PAGE_W / 2 - 20, y, PAGE_W / 2 + 20, y);
-  y += 8;
-  doc.setFont(SANS, 'normal');
-  doc.setFontSize(9.5);
-  doc.setTextColor(...SOFT);
-  doc.text(`Generado el ${fechaHumana(generado)}`, PAGE_W / 2, y, { align: 'center' });
-  y += 12;
+  let y = portadaCabecera(doc, 'DATOS DE LA BODA', generado);
 
   // Resumen de cifras globales
   const filas = [];
@@ -719,30 +661,15 @@ function portada(ctx, p, generado) {
   }
 }
 
-function fechaHumana(f) {
-  return `${dd(f.getDate())}/${dd(f.getMonth() + 1)}/${f.getFullYear()} a las ${dd(f.getHours())}:${dd(f.getMinutes())}`;
-}
-
-/** Cabecera corrida y pie con "Página X de Y" en todas menos la portada. */
+/** Cabecera corrida (con la sección) y pie con "Página X de Y". */
 function cabecerasYPies(ctx, generado) {
-  const { doc } = ctx;
-  const total = doc.getNumberOfPages();
-  for (let i = 1; i <= total; i += 1) {
-    doc.setPage(i);
-    doc.setFont(SANS, 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...SOFT);
-    if (i > 1) {
+  cabecerasYPiesComunes(ctx.doc, {
+    pie: `Datos de la boda · generado el ${fechaHumana(generado)}`,
+    derecha: (i) => {
       const sec = [...ctx.secciones].reverse().find((s) => s.pagina <= i);
-      doc.text('María & Alberto · 24·10·2026', M.left, 11);
-      if (sec) doc.text(txt(`${sec.num} · ${sec.titulo}`), PAGE_W - M.right, 11, { align: 'right' });
-      doc.setDrawColor(...LINE);
-      doc.setLineWidth(0.2);
-      doc.line(M.left, 13, PAGE_W - M.right, 13);
-    }
-    doc.text(`Datos de la boda · generado el ${fechaHumana(generado)}`, M.left, PAGE_H - 9);
-    doc.text(`Página ${i} de ${total}`, PAGE_W - M.right, PAGE_H - 9, { align: 'right' });
-  }
+      return sec ? `${sec.num} · ${sec.titulo}` : '';
+    },
+  });
 }
 
 /* =================================================================

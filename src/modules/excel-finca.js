@@ -53,6 +53,20 @@ export function nombreArchivo(fecha = new Date()) {
   return `Distribucion_mesas_Alberto_Maria_${fecha.getFullYear()}-${p(fecha.getMonth() + 1)}-${p(fecha.getDate())}.xlsx`;
 }
 
+/** Niños: keys '<nucleoId>|<nombre>' (la misma que usa mesas.html) de
+    las personas marcadas como niño en la lista de invitados. */
+export function clavesNinos(nucleos = []) {
+  const ninos = new Set();
+  nucleos.forEach((n) => (n.personas || []).forEach((p) => {
+    if (p.nino === true) ninos.add(`${n.id}|${p.nombre}`);
+  }));
+  return ninos;
+}
+/** ¿Es niño/a este comensal? (los añadidos a mano nunca lo son) */
+export function esNino(c, ninos) {
+  return !String(c.key).startsWith('manual|') && ninos.has(c.key);
+}
+
 /**
  * Prepara el reparto en bloques, sin tocar ningún Excel.
  *   mesas:   [{ id, nombre, numero, presidencial, capacidad,
@@ -67,13 +81,10 @@ export function planificar(mesas, nucleos = []) {
   const avisos = [];
   const errores = [];
 
-  // Niños: key '<nucleoId>|<nombre>' (la misma que usa mesas.html)
-  const ninos = new Set();
+  const ninos = clavesNinos(nucleos);
   const asignables = [];
   nucleos.forEach((n) => (n.personas || []).forEach((p) => {
-    const key = `${n.id}|${p.nombre}`;
-    if (p.nino === true) ninos.add(key);
-    if (p.estado !== 'no_asiste') asignables.push({ key, nombre: p.nombre });
+    if (p.estado !== 'no_asiste') asignables.push({ key: `${n.id}|${p.nombre}`, nombre: p.nombre });
   }));
 
   // Bloque de cada mesa: presidencial → 0; número N → N; el resto (sin
@@ -133,7 +144,7 @@ export function planificar(mesas, nucleos = []) {
   [...destino].sort((a, b) => a[1] - b[1]).forEach(([id, n]) => {
     const mesa = mesas.find((m) => m.id === id);
     const personas = ordenPuestos(mesa).filter(Boolean).map((c) => {
-      const tipo = !String(c.key).startsWith('manual|') && ninos.has(c.key) ? TIPO_NINO : '';
+      const tipo = esNino(c, ninos) ? TIPO_NINO : '';
       return { nombre: String(c.nombre || '').trim() || '(sin nombre)', tipo };
     });
     if (personas.length > MAX_POR_BLOQUE) {

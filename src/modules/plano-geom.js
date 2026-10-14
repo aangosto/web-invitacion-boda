@@ -229,6 +229,34 @@ export function ordenPuestos(mesa) {
   return slots;
 }
 
+/** Margen alrededor de las paredes (m) en la imagen del plano para el
+    PDF: SALIDAS a los lados, cota del ancho abajo. */
+const MARGEN_DIBUJO = { izq: 1.5, dcha: 1.5, arriba: 0.35, abajo: 0.95 };
+
+/** Zona del dibujo (en metros) que sale en la imagen del plano. */
+export function recortePlano(plano) {
+  return {
+    x: -MARGEN_DIBUJO.izq, y: -MARGEN_DIBUJO.arriba,
+    w: plano.ancho + MARGEN_DIBUJO.izq + MARGEN_DIBUJO.dcha,
+    h: plano.largo + MARGEN_DIBUJO.arriba + MARGEN_DIBUJO.abajo,
+  };
+}
+
+/**
+ * Copia de las mesas con posición para dibujarlas (lo mismo que hace
+ * plano.html al cargar): sin posición guardada → colocación provisional;
+ * fuera de las paredes → dentro. No cambia las mesas recibidas.
+ */
+export function completaPosiciones(mesas, plano) {
+  const copia = mesas.map((m) => ({ ...m, rot: m.rot || 0 }));
+  if (copia.some((m) => m.x == null || m.y == null)) {
+    const ini = colocacionInicial(copia, plano);
+    copia.forEach((m) => { if (m.x == null || m.y == null) Object.assign(m, ini.get(m.id)); });
+  }
+  copia.forEach((m) => Object.assign(m, limitaDentro(m.x, m.y, m, plano)));
+  return copia;
+}
+
 /**
  * Colocación provisional para las mesas sin posición guardada: la
  * presidencial centrada contra la pared de arriba y el resto en filas.

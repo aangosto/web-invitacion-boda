@@ -15,6 +15,7 @@
 import { initGate } from './panel-gate.js';
 import { fetchNucleos } from './invitados-data.js';
 import { initExportFinca } from './export-finca.js';
+import { initExportPlanner } from './export-planner.js';
 import {
   fetchMesas, updateMesa, createMesa, deleteMesa,
 } from './mesas-data.js';
@@ -44,6 +45,7 @@ async function initApp(root) {
     <a class="panel-link" href="./plano.html">Plano del salón
       <span class="panel-link__sub">colocar mesas y ordenar puestos →</span></a>
     <div id="mes-excel" class="exf"></div>
+    <div id="mes-planner" class="exf"></div>
     <p class="adm-hint">Reparto del banquete: crea mesas con su capacidad y
       sienta a la gente por toque. Salen confirmados y pendientes (los
       «no asiste» quedan fuera).</p>
@@ -92,6 +94,7 @@ async function initApp(root) {
   `;
 
   initExportFinca(root.querySelector('#mes-excel'));
+  initExportPlanner(root.querySelector('#mes-planner'));
   const statsEl = root.querySelector('#mes-stats');
   const statDetailEl = root.querySelector('#mes-statdetail');
   const prebodaEl = root.querySelector('#mes-preboda');
