@@ -27,6 +27,7 @@ import {
   guardaPosiciones, crearCopia, fetchCopias, borraCopia,
 } from './plano-data.js';
 import { iconoMesa } from './mesas-iconos.js';
+import { initExportFinca } from './export-finca.js';
 import {
   FORMAS, FORMA_LABEL, SILLA_R, numPuestos, tamanoMesa, puestosLocales,
   semiCaja, limitaDentro, imanta, cm, normAng, haciaMesa, cercania, rumbo,
@@ -125,6 +126,8 @@ async function initApp(root) {
       suelo desplaza el plano; dos dedos hacen zoom. El círculo pequeño junto
       a la mesa seleccionada la gira.</p>
 
+    <div id="pla-excel" class="exf"></div>
+
     <details class="pla-salon">
       <summary>Medidas del salón</summary>
       <div class="pla-salon__campos">
@@ -155,6 +158,7 @@ async function initApp(root) {
   const undoBtn = $('#pla-undo');
   const imanInput = $('#pla-iman');
   const detalleEl = $('#pla-detalle');
+  initExportFinca($('#pla-excel'));
 
   let plano;
   let mesas = [];

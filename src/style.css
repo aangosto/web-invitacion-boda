@@ -2792,6 +2792,12 @@ a { color: inherit; }
 }
 .export-pdf__resultado.is-warn { color: var(--burgundy); }
 .export-pdf__aviso { display: block; }
+.exf { margin: 0.6rem 0 1rem; }
+.exf-panel { margin-top: 0.6rem; }
+.exf-panel .mes-aviso { overflow-wrap: anywhere; }
+.exf-ok { color: #2e6b45; margin: 0.4rem 0; }
+.exf-acciones { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
+.exf-acciones .btn { flex: 1 1 9rem; min-height: 44px; }
 .export-pdf__link {
   display: inline-block;
   margin-top: 0.3rem;
