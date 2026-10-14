@@ -348,6 +348,277 @@ export function colocarFinca(mesas, plano) {
   return { pos, sinNumero, conflictos: [...conflictos.values()] };
 }
 
+/* =================================================================
+   SEPARACIÓN SIN SOLAPES ("Colocar como la finca" e "Intercambiar")
+
+   Parte de unas posiciones OBJETIVO (las del plano de la finca, o las
+   actuales tras un intercambio) y mueve cada mesa lo mínimo para que:
+   · ninguna se pise con otra contando las sillas, con el pasillo mínimo
+     de "Distribuir mesas" entre sillas de mesas vecinas;
+   · ninguna se salga de las paredes (sillas a PASO_PARED de la pared) ni
+     tape las SALIDAS;
+   · se conserve la ESTRUCTURA: si en el objetivo una mesa estaba a la
+     izquierda (o encima) de otra con holgura, lo sigue estando.
+   La presidencial (si está) queda FIJA: arriba, centrada contra la pared.
+
+   Método: proyección iterativa de restricciones (como un sistema de
+   muelles rígidos) con un tirón suave hacia el objetivo, quedándose con
+   la solución válida que menos desplaza las mesas. Determinista.
+   ================================================================= */
+
+/** Pasillo mínimo entre sillas: el más estrecho que admite "Distribuir mesas". */
+export const PASILLO_MIN = PASILLOS[PASILLOS.length - 1];
+/** Diferencia mínima (m) en el objetivo para exigir que se conserve el orden. */
+const ORDEN_TOL = 0.6;
+/** Fondo de la zona libre delante de cada salida (m, desde la pared). */
+const SALIDA_FONDO = 1.4;
+
+/** Zonas que deben quedar libres delante de las salidas. */
+export function zonasSalida(plano) {
+  return FINCA_SALIDAS.map((s) => ({
+    x: s.pared === 'izquierda' ? SALIDA_FONDO / 2 : plano.ancho - SALIDA_FONDO / 2,
+    y: s.y * plano.largo,
+    hx: SALIDA_FONDO / 2,
+    hy: SALIDA_ANCHO / 2 + 0.3,
+  }));
+}
+
+/** Posición de la presidencial: arriba, centrada, contra la pared (rot 0). */
+export function sitioPresidencial(pres, plano) {
+  const { hy } = semiCaja('redonda', numPuestos(pres), 0);
+  return { x: plano.ancho / 2, y: hy + 0.15, rot: 0, forma: 'redonda' };
+}
+
+/** Empuje mínimo (a lo largo de un eje o de la normal) para separar a y b. */
+function empuje(a, b, hueco, ox, oy) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  if (a.redonda && b.redonda) {
+    const d = Math.hypot(dx, dy);
+    const falta = a.r + b.r + hueco - d;
+    if (falta <= 0) return null;
+    if (d > 1e-6) return { nx: dx / d, ny: dy / d, falta };
+    const n = Math.hypot(ox, oy) || 1;
+    return { nx: (ox || (oy ? 0 : 1)) / n, ny: oy / n, falta };
+  }
+  const sepX = a.hx + b.hx + hueco;
+  const sepY = a.hy + b.hy + hueco;
+  if (Math.abs(dx) >= sepX || Math.abs(dy) >= sepY) return null;
+  // Eje y sentido que respetan el orden del objetivo; el que menos mueve
+  const sx = ox || Math.sign(dx) || 1;
+  const sy = oy || Math.sign(dy) || 1;
+  const fx = sepX - sx * dx;
+  const fy = sepY - sy * dy;
+  return fx <= fy ? { nx: sx, ny: 0, falta: fx } : { nx: 0, ny: sy, falta: fy };
+}
+
+/**
+ * Separa las mesas. `items`: [{ id, mesa, x, y, rot, forma, fijo }] con la
+ * posición OBJETIVO. Devuelve { ok, pos: Map(id → {x, y}), max } (max =
+ * mayor desplazamiento respecto al objetivo, en m).
+ */
+export function separar(items, plano, hueco = PASILLO_MIN) {
+  const cs = items.map((it) => {
+    const m = { ...it.mesa, rot: it.rot ?? it.mesa.rot ?? 0, forma: it.forma || it.mesa.forma };
+    const c = cuerpo(m, it.x, it.y);
+    return { ...c, tx: it.x, ty: it.y, fijo: !!it.fijo };
+  });
+  const zonas = zonasSalida(plano).map((z) => ({ ...z, redonda: false, fijo: true, r: Math.max(z.hx, z.hy) }));
+  const pares = [];
+  cs.forEach((a, i) => cs.slice(i + 1).forEach((b) => {
+    if (a.fijo && b.fijo) return;
+    const tdx = b.tx - a.tx;
+    const tdy = b.ty - a.ty;
+    pares.push({ a, b, ox: Math.abs(tdx) >= ORDEN_TOL ? Math.sign(tdx) : 0, oy: Math.abs(tdy) >= ORDEN_TOL ? Math.sign(tdy) : 0 });
+  }));
+  const mueve = (a, b, nx, ny, d) => {
+    const wa = a.fijo ? 0 : 1;
+    const wb = b.fijo ? 0 : 1;
+    if (!wa && !wb) return;
+    const ka = (d * wa) / (wa + wb);
+    const kb = (d * wb) / (wa + wb);
+    a.x -= nx * ka; a.y -= ny * ka;
+    b.x += nx * kb; b.y += ny * kb;
+  };
+  const pared = (c) => {
+    if (c.fijo) return;
+    const lx = c.hx + PASO_PARED;
+    const ly = c.hy + PASO_PARED;
+    c.x = Math.min(Math.max(c.x, lx), Math.max(lx, plano.ancho - lx));
+    c.y = Math.min(Math.max(c.y, ly), Math.max(ly, plano.largo - ly));
+  };
+  const proyecta = () => {
+    let max = 0;
+    pares.forEach(({ a, b, ox, oy }) => {
+      const e = empuje(a, b, hueco, ox, oy);
+      if (e) { mueve(a, b, e.nx, e.ny, e.falta + 1e-4); max = Math.max(max, e.falta); }
+      // Orden relativo del objetivo
+      if (ox && ox * (b.x - a.x) < 0) { const f = -ox * (b.x - a.x); mueve(a, b, ox, 0, f); max = Math.max(max, f); }
+      if (oy && oy * (b.y - a.y) < 0) { const f = -oy * (b.y - a.y); mueve(a, b, 0, oy, f); max = Math.max(max, f); }
+    });
+    cs.forEach((c) => {
+      if (c.fijo) return;
+      zonas.forEach((z) => {
+        const e = empuje(z, c, 0, 0, 0);
+        if (e) { mueve(z, c, e.nx, e.ny, e.falta + 1e-4); max = Math.max(max, e.falta); }
+      });
+      pared(c);
+    });
+    return max;
+  };
+  const valido = () => {
+    const tol = 0.01;
+    return pares.every(({ a, b, ox, oy }) => !empuje(a, b, hueco - tol, ox, oy)
+        && !(ox && ox * (b.x - a.x) < -tol) && !(oy && oy * (b.y - a.y) < -tol))
+      && cs.every((c) => c.fijo || (zonas.every((z) => !empuje(z, c, -tol, 0, 0))
+        && c.x - c.hx >= PASO_PARED - tol && c.x + c.hx <= plano.ancho - PASO_PARED + tol
+        && c.y - c.hy >= PASO_PARED - tol && c.y + c.hy <= plano.largo - PASO_PARED + tol));
+  };
+  const coste = () => cs.reduce((s, c) => s + (c.x - c.tx) ** 2 + (c.y - c.ty) ** 2, 0);
+
+  cs.forEach(pared);
+  let mejor = null;
+  const ITER = 260;
+  for (let it = 0; it < ITER; it++) {
+    // Tirón suave hacia el objetivo (las últimas vueltas, sin tirón: asentar)
+    const k = it < ITER - 40 ? 0.12 : 0;
+    if (k) cs.forEach((c) => { if (!c.fijo) { c.x += k * (c.tx - c.x); c.y += k * (c.ty - c.y); } });
+    for (let s = 0; s < 25; s++) if (proyecta() < 1e-4) break;
+    if (valido()) {
+      const v = coste();
+      if (!mejor || v < mejor.v - 1e-9) mejor = { v, pos: new Map(cs.map((c) => [c.id, { x: c.x, y: c.y }])) };
+    }
+  }
+  if (!mejor) return { ok: false, pos: null, max: null };
+  const max = Math.max(0, ...cs.map((c) => { const p = mejor.pos.get(c.id); return Math.hypot(p.x - c.tx, p.y - c.ty); }));
+  return { ok: true, pos: mejor.pos, max };
+}
+
+/** Objetivos de "Colocar como la finca" (presidencial fija; sin número, donde están). */
+function objetivosFinca(mesas, plano, escalaSinNumero = 1) {
+  const base = colocarFinca(mesas, plano);
+  const items = [];
+  mesas.forEach((m) => {
+    if (m.presidencial) {
+      const p = sitioPresidencial(m, plano);
+      items.push({ id: m.id, mesa: m, ...p, fijo: true });
+    } else if (base.pos.has(m.id)) {
+      const p = base.pos.get(m.id);
+      items.push({ id: m.id, mesa: m, x: p.x, y: p.y, rot: p.rot, forma: p.forma });
+    } else if (m.x != null && m.y != null) {
+      items.push({ id: m.id, mesa: m, x: m.x * escalaSinNumero, y: m.y * escalaSinNumero, rot: m.rot || 0, sinNumero: true });
+    }
+  });
+  return { items, sinNumero: base.sinNumero };
+}
+
+/**
+ * Medidas mínimas (misma proporción que `plano`, de 0,5 en 0,5 m, desde
+ * `desde` m de ancho) con las que `intenta(planoPrueba, escala)` sale
+ * bien. null si ni al triple.
+ */
+function medidasMinimas(plano, intenta, desde = plano.ancho) {
+  const prop = plano.largo / plano.ancho;
+  const redondea = (v) => Math.ceil(v * 2 - 1e-9) / 2;
+  for (let ancho = redondea(desde); ancho <= plano.ancho * 3; ancho += 0.5) {
+    const p = { ...plano, ancho, largo: redondea(ancho * prop) };
+    if (intenta(p, ancho / plano.ancho)) return { ancho: p.ancho, largo: p.largo };
+  }
+  return null;
+}
+
+/**
+ * "Colocar como el plano de la finca" SIN solapes. Devuelve
+ *   { ok: true, pos: Map(id → {x, y, rot, forma?}), sinNumero: [mesa],
+ *     apartadas: [mesa] (sin número que se han tenido que mover), max }
+ * o, si no caben, { ok: false, minimo: { ancho, largo } | null }.
+ */
+export function medidasMinimasFinca(mesas, plano, desde = 6) {
+  return medidasMinimas(plano, (p, s) => separar(objetivosFinca(mesas, p, s).items, p).ok, desde);
+}
+
+export function colocarFincaSinSolapes(mesas, plano) {
+  const { items, sinNumero } = objetivosFinca(mesas, plano);
+  const r = separar(items, plano);
+  if (!r.ok) {
+    return { ok: false, minimo: medidasMinimasFinca(mesas, plano, plano.ancho + 0.5) };
+  }
+  const pos = new Map();
+  const apartadas = [];
+  items.forEach((it) => {
+    const p = r.pos.get(it.id);
+    if (it.sinNumero) {
+      if (Math.hypot(p.x - it.x, p.y - it.y) < 0.01) return;
+      apartadas.push(it.mesa);
+    }
+    pos.set(it.id, { x: p.x, y: p.y, rot: it.rot ?? 0, ...(it.forma && it.mesa.presidencial ? { forma: it.forma } : {}) });
+  });
+  return { ok: true, pos, sinNumero, apartadas, max: r.max };
+}
+
+/**
+ * Separa la colocación ACTUAL (p. ej. tras un intercambio): cada mesa
+ * parte de donde está; la presidencial no se mueve. Mismo resultado que
+ * colocarFincaSinSolapes, con `pos` solo de las mesas que se mueven.
+ */
+export function separarActual(mesas, plano) {
+  const items = mesas.filter((m) => m.x != null && m.y != null)
+    .map((m) => ({ id: m.id, mesa: m, x: m.x, y: m.y, rot: m.rot || 0, fijo: m.presidencial }));
+  const r = separar(items, plano);
+  if (!r.ok) {
+    const minimo = medidasMinimas(plano, (p, s) => separar(items.map((it) => ({ ...it, x: it.x * s, y: it.y * s })), p).ok,
+      plano.ancho + 0.5);
+    return { ok: false, minimo };
+  }
+  const pos = new Map();
+  items.forEach((it) => {
+    const p = r.pos.get(it.id);
+    if (Math.hypot(p.x - it.x, p.y - it.y) >= 0.01) pos.set(it.id, { x: p.x, y: p.y, rot: it.rot });
+  });
+  return { ok: true, pos, max: r.max };
+}
+
+/** Mesas que se pisan (sillas contra sillas, sin pasillo) en la colocación actual. */
+export function mesasQueSePisan(mesas) {
+  const cs = mesas.filter((m) => m.x != null && m.y != null).map((m) => ({ ...cuerpo(m, m.x, m.y), mesa: m }));
+  const pisan = new Set();
+  cs.forEach((a, i) => cs.slice(i + 1).forEach((b) => {
+    if (solape(a, b, -0.01)) { pisan.add(a.mesa); pisan.add(b.mesa); }
+  }));
+  return [...pisan];
+}
+
+/* =================================================================
+   INTERCAMBIO Y GIRO
+   ================================================================= */
+
+/**
+ * Intercambia dos mesas: cambian de SITIO (x, y) y de NÚMERO (el número
+ * va ligado al sitio). Cada una conserva su giro, forma, comensales…
+ * Devuelve los cambios a guardar: [{ id, x, y, rot, numero }].
+ */
+export function intercambio(a, b) {
+  return [
+    { id: a.id, x: b.x, y: b.y, rot: a.rot || 0, numero: b.numero ?? null },
+    { id: b.id, x: a.x, y: a.y, rot: b.rot || 0, numero: a.numero ?? null },
+  ];
+}
+
+/**
+ * Gira a TODOS los comensales `paso` puestos alrededor de la mesa (+1 =
+ * cada uno al puesto siguiente en el sentido en que se numeran/dibujan,
+ * el de las agujas del reloj; −1 al contrario). Los puestos vacíos giran
+ * con el resto. Devuelve el nuevo `asientos` (keys o '').
+ */
+export function giraPuestos(mesa, paso) {
+  const slots = ordenPuestos(mesa);
+  const n = slots.length;
+  const k = ((paso % n) + n) % n;
+  const nuevo = new Array(n);
+  slots.forEach((c, i) => { nuevo[(i + k) % n] = c ? c.key : ''; });
+  return nuevo;
+}
+
 /** Cuerpo de colisión de una mesa: centro, semiejes y si es circular. */
 function cuerpo(m, x, y) {
   const { hx, hy } = semiCaja(m.forma, numPuestos(m), m.rot || 0);

@@ -13,7 +13,8 @@
    · Copias de seguridad de la colocación: colección planoCopias
        { motivo, mesas: [{ id, nombre, x, y, rot, forma? }], createdAt }
      (x/y null = la mesa no tenía posición guardada; `forma` solo en las
-     copias de "Colocar como la finca", que cambia la de la presidencial).
+     copias de "Colocar como la finca", que cambia la de la presidencial;
+     `numero` solo en las de "Intercambiar", que cambia números).
      "Distribuir mesas" y "Colocar como la finca" crean una ANTES de sobrescribir; "Deshacer distribución" restaura la
      última y la borra (pila: deshaciendo varias veces se vuelve atrás
      distribución a distribución hasta la colocación manual).
@@ -101,11 +102,13 @@ export async function setPresidencial(id, mesas) {
 /**
  * Guarda de golpe (un batch atómico) la posición de varias mesas.
  * `x`/`y` null borra la posición (la mesa vuelve a "sin colocar").
- * `forma` (opcional) también se guarda si viene.
+ * `forma` y `numero` (opcionales) también se guardan si vienen (numero
+ * null = sin número; lo usa "Intercambiar mesas" y su deshacer).
  */
 export async function guardaPosiciones(lista) {
   const batch = writeBatch(db);
-  lista.forEach(({ id, x, y, rot, forma }) => {
+  lista.forEach((item) => {
+    const { id, x, y, rot, forma } = item;
     const sinPos = x == null || y == null;
     const cambios = {
       x: sinPos ? deleteField() : x,
@@ -114,6 +117,7 @@ export async function guardaPosiciones(lista) {
       updatedAt: serverTimestamp(),
     };
     if (FORMAS.includes(forma)) cambios.forma = forma;
+    if ('numero' in item) cambios.numero = numeroValido(item.numero) ?? deleteField();
     batch.update(doc(db, 'mesas', id), cambios);
   });
   await batch.commit();
@@ -126,6 +130,7 @@ export async function crearCopia(mesas, motivo) {
     mesas: mesas.map((m) => {
       const e = { id: m.id, nombre: m.nombre, x: m.x, y: m.y, rot: m.rot };
       if (m.forma) e.forma = m.forma;
+      if ('numero' in m) e.numero = m.numero ?? null;
       return e;
     }),
     createdAt: serverTimestamp(),
