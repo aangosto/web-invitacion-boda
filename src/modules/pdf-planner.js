@@ -28,10 +28,11 @@ import {
   txt, pl, tick, fechaArchivo, fechaHumana, estiloTabla, portadaCabecera, cabecerasYPies,
 } from './pdf-estilo.js';
 import {
-  numPuestos, tamanoMesa, puestosLocales, ordenPuestos, haciaMesa, rumbo,
+  ordenPuestos, haciaMesa, rumbo,
   recortePlano, FORMA_LABEL,
 } from './plano-geom.js';
 import { planificar, clavesNinos, esNino, TIPO_NINO } from './excel-finca.js';
+import { disenaMesa } from './mesa-etiquetas.js';
 
 const A4 = { corto: 210, largo: 297 };
 const PT = 25.4 / 72;            // mm por punto tipográfico
@@ -95,302 +96,111 @@ export function resumenPlanner(mesas, nucleos) {
 }
 
 /* =================================================================
-   Geometría de las etiquetas (mm): cajas orientadas y círculos
+   Dibujo de la mesa (cálculo compartido con plano.html:
+   mesa-etiquetas.js; aquí solo se pinta con jsPDF, unidades = mm)
    ================================================================= */
-/** Caja orientada: centro, eje u (unitario), semiancho y semialto. */
-const caja = (cx, cy, ux, uy, hw, hh) => ({ cx, cy, ux, uy, hw, hh });
-const esquinas = (b) => {
-  const vx = -b.uy; const vy = b.ux;
-  return [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([i, j]) => [
-    b.cx + b.ux * b.hw * i + vx * b.hh * j, b.cy + b.uy * b.hw * i + vy * b.hh * j]);
-};
-const infla = (b, p) => ({ ...b, hw: b.hw + p, hh: b.hh + p });
-
-function solapanCajas(a, b) {
-  const ejes = [[a.ux, a.uy], [-a.uy, a.ux], [b.ux, b.uy], [-b.uy, b.ux]];
-  const ea = esquinas(a);
-  const eb = esquinas(b);
-  return ejes.every(([x, y]) => {
-    const pa = ea.map(([px, py]) => px * x + py * y);
-    const pb = eb.map(([px, py]) => px * x + py * y);
-    return Math.max(...pa) > Math.min(...pb) && Math.max(...pb) > Math.min(...pa);
-  });
-}
-function solapaCirculo(b, c) {
-  const dx = c.x - b.cx; const dy = c.y - b.cy;
-  const lx = dx * b.ux + dy * b.uy;         // en ejes de la caja
-  const ly = -dx * b.uy + dy * b.ux;
-  const qx = Math.max(-b.hw, Math.min(b.hw, lx));
-  const qy = Math.max(-b.hh, Math.min(b.hh, ly));
-  return Math.hypot(lx - qx, ly - qy) < c.r;
-}
-
-const FUENTES = [9, 8.5, 8, 7.5, 7];   // puntos de los nombres alrededor de la mesa
-const FUENTE_MIN = 6.5;
-const ESCALA = { min: 10, max: 22 };   // mm por metro del dibujo
-
-/**
- * Elementos del dibujo de una mesa a escala `s` (mm/m), centrada en 0,0:
- * sillas, obstáculos y la etiqueta de cada asiento ocupado.
- *   modo 'horizontal': nombres en horizontal junto a la silla
- *   modo 'radial':     nombres en la dirección de la silla (hacia fuera)
- */
-export function geometria(mesa, s, modo, fs, anchos, sinNombre) {
-  const n = numPuestos(mesa);
-  const { w, h } = tamanoMesa(mesa.forma, n);
-  const rad = ((mesa.rot || 0) * Math.PI) / 180;
-  const cos = Math.cos(rad); const sin = Math.sin(rad);
-  const gira = (x, y) => [(x * cos - y * sin) * s, (x * sin + y * cos) * s];
-  const rS = Math.max(2.4, 0.22 * s);
-  const th = fs * PT * 0.95;               // alto de la letra (con acentos)
-  const media = fs * PT * 0.35;            // de la línea media a la base
-
-  const sillas = puestosLocales(mesa.forma, n).map((p, i) => {
-    const [x, y] = gira(p.x, p.y);
-    return { i, x, y, r: rS, a: p.ang + rad };
-  });
-
-  // Obstáculo fijo: el tablero
-  const obst = [];
-  if (mesa.forma === 'redonda') obst.push({ circ: { x: 0, y: 0, r: (w / 2) * s } });
-  else obst.push({ caja: caja(0, 0, cos, sin, (w / 2) * s, (h / 2) * s) });
-
-  const etiquetas = [];
-  sillas.forEach((si) => {
-    const tw = anchos[si.i];
-    if (tw == null || sinNombre.has(si.i)) return;
-    const ca = Math.cos(si.a); const sa = Math.sin(si.a);
-    const d0 = si.r + 1.0;
-    const px = si.x + ca * d0; const py = si.y + sa * d0;
-    if (modo === 'horizontal') {
-      // El texto se apoya en la silla por su lado (o esquina) más cercano:
-      // a la derecha/izquierda, encima/debajo o en diagonal
-      // Arriba/abajo, cada nombre hacia su lado (el de la izquierda a la
-      // izquierda…) para que los vecinos no se monten
-      const lim = (v) => Math.max(-1, Math.min(1, v / 0.35));
-      const lado = Math.abs(si.x) > si.r * 0.5 ? Math.sign(si.x) : 0;
-      const hx = Math.abs(ca) >= 0.35 ? Math.sign(ca) : lado || lim(ca);
-      const cx = px + hx * tw / 2;
-      const cy = py + lim(sa) * th / 2;
-      etiquetas.push({
-        i: si.i, caja: caja(cx, cy, 1, 0, tw / 2, th / 2),
-        x: cx - tw / 2, y: cy + media, ang: 0,
-      });
-    } else {
-      const derecho = ca > 0.01 || (Math.abs(ca) <= 0.01 && sa < 0);
-      const b = derecho ? si.a : si.a + Math.PI;
-      const ux = Math.cos(b); const uy = Math.sin(b);
-      const sx = derecho ? px : px + ca * tw;
-      const sy = derecho ? py : py + sa * tw;
-      etiquetas.push({
-        i: si.i, caja: caja(px + ca * tw / 2, py + sa * tw / 2, ux, uy, tw / 2, th / 2),
-        x: sx - uy * media, y: sy + ux * media, ang: (-b * 180) / Math.PI,
-      });
-    }
-  });
-
-  // Presidencial: la cabecera (pared) por detrás de sillas y nombres, y
-  // el triángulo "mira hacia" por delante, sin pisar ningún nombre
-  let pres = null;
-  if (mesa.presidencial) {
-    const ux = sin; const uy = -cos;            // "arriba" de la mesa (hacia la pared)
-    const pts = [];
-    sillas.forEach((c) => pts.push([c.x, c.y, c.r]));
-    etiquetas.forEach((e) => esquinas(e.caja).forEach(([x, y]) => pts.push([x, y, 0])));
-    const arriba = Math.max(...pts.map(([x, y, r]) => x * ux + y * uy + r)) + 1.6;
-    const abajo = Math.max(...pts.map(([x, y, r]) => -(x * ux + y * uy) + r)) + 1.2;
-    const grosor = Math.max(0.8, 0.14 * s);
-    pres = {
-      linea: { cx: ux * arriba, cy: uy * arriba, ax: cos, ay: sin, half: (w / 2) * s, grosor },
-      tri: { cx: -ux * abajo, cy: -uy * abajo, dx: -ux, dy: -uy, ax: cos, ay: sin, base: 0.22 * s, alto: 0.32 * s },
-    };
-  }
-
-  // Caja que lo engloba todo
-  let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
-  const mete = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
-  sillas.forEach((c) => { mete(c.x - c.r, c.y - c.r); mete(c.x + c.r, c.y + c.r); });
-  obst.forEach((o) => {
-    if (o.circ) { mete(-o.circ.r, -o.circ.r); mete(o.circ.r, o.circ.r); } else esquinas(o.caja).forEach(([x, y]) => mete(x, y));
-  });
-  etiquetas.forEach((e) => esquinas(e.caja).forEach(([x, y]) => mete(x, y)));
-  if (pres) {
-    const { linea: l, tri: t } = pres;
-    mete(l.cx - l.ax * l.half - l.grosor, l.cy - l.ay * l.half - l.grosor);
-    mete(l.cx + l.ax * l.half + l.grosor, l.cy + l.ay * l.half + l.grosor);
-    [[t.ax * t.base, t.ay * t.base], [-t.ax * t.base, -t.ay * t.base], [t.dx * t.alto, t.dy * t.alto]]
-      .forEach(([dx, dy]) => mete(t.cx + dx, t.cy + dy));
-  }
-  return { s, rS, sillas, obst, etiquetas, pres, bbox: { x0, y0, x1, y1 } };
-}
-
-/** Pares de etiquetas que se pisan (entre sí, con sillas, tablero…). Devuelve
-    cuántos choques tiene cada etiqueta (Map i → nº). */
-export function choques(g) {
-  const cuenta = new Map();
-  const suma = (i) => cuenta.set(i, (cuenta.get(i) || 0) + 1);
-  g.etiquetas.forEach((e, k) => {
-    const b = infla(e.caja, 0.3);
-    g.sillas.forEach((c) => { if (solapaCirculo(b, c)) suma(e.i); });
-    g.obst.forEach((o) => {
-      if (o.circ ? solapaCirculo(b, o.circ) : solapanCajas(b, o.caja)) suma(e.i);
-    });
-    g.etiquetas.slice(k + 1).forEach((f) => {
-      if (solapanCajas(infla(e.caja, 0.25), infla(f.caja, 0.25))) { suma(e.i); suma(f.i); }
-    });
-  });
-  return cuenta;
-}
-
-/** Mayor escala (mm/m) a la que todo cabe en W × H, o null. */
-export function escalaQueCabe(mesa, modo, fs, anchos, sinNombre, W, H) {
-  const cabe = (s) => {
-    const { bbox } = geometria(mesa, s, modo, fs, anchos, sinNombre);
-    return bbox.x1 - bbox.x0 <= W && bbox.y1 - bbox.y0 <= H;
+/** Opciones del dibujo en el PDF: letra de 9 a 7 pt. */
+function opcionesPdf(doc) {
+  return {
+    fuentes: [9, 8.5, 8, 7.5, 7],
+    altoLinea: (fs) => fs * PT * 1.2,
+    medir: (t, fs) => {
+      doc.setFont(SANS, 'normal');
+      doc.setFontSize(fs);
+      return doc.getTextWidth(txt(t));
+    },
+    unidad: 0.35,
+    separacion: 1.6,
+    sillaMin: 2.4,
+    trazoMin: 0.4,
+    escala: { min: 9.5, max: 24 },
+    fraccionMesa: 0.62,
   };
-  if (!cabe(ESCALA.min)) return null;
-  if (cabe(ESCALA.max)) return ESCALA.max;
-  let lo = ESCALA.min; let hi = ESCALA.max;
-  for (let k = 0; k < 18; k++) {
-    const mid = (lo + hi) / 2;
-    if (cabe(mid)) lo = mid; else hi = mid;
-  }
-  return lo;
 }
 
-/** Ancho (mm) de cada nombre a `fs` puntos: índice de asiento → mm. */
-export function anchosNombres(doc, puestos, fs) {
-  doc.setFont(SANS, 'normal');
-  doc.setFontSize(fs);
-  const res = {};
-  puestos.forEach((p, i) => { if (p.nombre) res[i] = doc.getTextWidth(txt(p.nombre)); });
-  return res;
-}
-
-/**
- * Busca cómo dibujar la mesa en un hueco de W × H mm: la letra más
- * grande (9 → 7 pt) en horizontal o, si no, en radial, sin que ningún
- * nombre pise a otro, a una silla o al tablero, ni se salga.
- * Con `ultimoRecurso`, baja a 6,5 pt y quita el nombre del dibujo (solo
- * el número de asiento; el nombre sigue en la lista) a los que chocan.
- */
-export function disenaDibujo(doc, mesa, puestos, W, H, { ultimoRecurso = false } = {}) {
-  const prueba = (fs, modo, sinNombre = new Set()) => {
-    const anchos = anchosNombres(doc, puestos, fs);
-    const s = escalaQueCabe(mesa, modo, fs, anchos, sinNombre, W, H);
-    if (s == null) return null;
-    const g = geometria(mesa, s, modo, fs, anchos, sinNombre);
-    return { g, fs, modo, sinNombre, anchos, choques: choques(g) };
+/** Desplaza un diseño (coordenadas del área) a la página. */
+function aPagina(d, dx, dy) {
+  const P = ([x, y]) => [x + dx, y + dy];
+  const L = (l) => [l[0] + dx, l[1] + dy, l[2] + dx, l[3] + dy];
+  return {
+    ...d,
+    sillas: d.sillas.map((c) => ({ ...c, x: c.x + dx, y: c.y + dy })),
+    tablero: d.tablero.circ ? { circ: { ...d.tablero.circ, x: d.tablero.circ.x + dx, y: d.tablero.circ.y + dy } }
+      : { pts: d.tablero.pts.map(P) },
+    flecha: d.flecha && { ...d.flecha, linea: L(d.flecha.linea), punta: d.flecha.punta.map(P) },
+    cabecera: d.cabecera && { ...d.cabecera, linea: L(d.cabecera.linea), tri: d.cabecera.tri.map(P) },
+    etiquetas: d.etiquetas.map((e) => ({
+      ...e, x: e.x + dx, guia: e.guia && L(e.guia),
+      caja: { x0: e.caja.x0 + dx, y0: e.caja.y0 + dy, x1: e.caja.x1 + dx, y1: e.caja.y1 + dy },
+    })),
   };
-  for (const modo of ['horizontal', 'radial']) {
-    for (const fs of FUENTES) {
-      const r = prueba(fs, modo);
-      if (r && r.choques.size === 0) return r;
-    }
-  }
-  if (!ultimoRecurso) return null;
-  for (const modo of ['radial', 'horizontal']) {
-    const r = prueba(FUENTE_MIN, modo);
-    if (r && r.choques.size === 0) return r;
-  }
-  // Solo número en el dibujo para los nombres que chocan o no caben
-  const sinNombre = new Set();
-  const anchos = anchosNombres(doc, puestos, FUENTE_MIN);
-  for (let vuelta = 0; vuelta <= puestos.length; vuelta++) {
-    const r = prueba(FUENTE_MIN, 'radial', sinNombre);
-    if (r && r.choques.size === 0) return r;
-    let peor = null;
-    if (r) {
-      // El que más choca (a igualdad, el más largo)
-      r.choques.forEach((nc, i) => {
-        if (!peor || nc > peor.nc || (nc === peor.nc && anchos[i] > anchos[peor.i])) peor = { i, nc };
-      });
-    } else {
-      // No cabe ni a la escala mínima: fuera el nombre más largo
-      Object.keys(anchos).map(Number).filter((i) => !sinNombre.has(i))
-        .forEach((i) => { if (!peor || anchos[i] > anchos[peor.i]) peor = { i }; });
-    }
-    if (!peor) break;
-    sinNombre.add(peor.i);
-  }
-  return prueba(FUENTE_MIN, 'radial', sinNombre);
 }
 
-/* =================================================================
-   Dibujo (jsPDF)
-   ================================================================= */
 function poligono(doc, pts, estilo) {
   const [x0, y0] = pts[0];
   const segs = pts.slice(1).map(([x, y], k) => [x - pts[k][0], y - pts[k][1]]);
   doc.lines(segs, x0, y0, [1, 1], estilo, true);
 }
 
-function pintaDibujo(doc, mesa, pres, puestos, d, ox, oy) {
-  const { g, fs } = d;
-  const n = numPuestos(mesa);
-  const { w, h } = tamanoMesa(mesa.forma, n);
-  const rad = ((mesa.rot || 0) * Math.PI) / 180;
-  const cos = Math.cos(rad); const sin = Math.sin(rad);
-  const s = g.s;
-  const P = (x, y) => [ox + (x * cos - y * sin) * s, oy + (x * sin + y * cos) * s];
-
+function pintaDibujo(doc, mesa, puestos, d) {
   // Tablero
   doc.setLineWidth(mesa.presidencial ? 0.5 : 0.35);
   doc.setDrawColor(...(mesa.presidencial ? BURDEOS : C.tableroBorde));
   doc.setFillColor(...(mesa.presidencial ? C.presFill : C.tablero));
-  if (mesa.forma === 'redonda') doc.circle(ox, oy, (w / 2) * s, 'FD');
-  else poligono(doc, [P(-w / 2, -h / 2), P(w / 2, -h / 2), P(w / 2, h / 2), P(-w / 2, h / 2)], 'FD');
+  if (d.tablero.circ) doc.circle(d.tablero.circ.x, d.tablero.circ.y, d.tablero.circ.r, 'FD');
+  else poligono(doc, d.tablero.pts, 'FD');
 
   // Presidencial: cabecera y "mira hacia"; el resto, flecha hacia los novios
-  if (g.pres) {
-    const { linea: l, tri: t } = g.pres;
+  if (d.cabecera) {
     doc.setDrawColor(...BURDEOS);
-    doc.setLineWidth(l.grosor);
+    doc.setLineWidth(d.cabecera.grosor);
     doc.setLineCap('round');
-    doc.line(ox + l.cx - l.ax * l.half, oy + l.cy - l.ay * l.half, ox + l.cx + l.ax * l.half, oy + l.cy + l.ay * l.half);
+    doc.line(...d.cabecera.linea);
     doc.setLineCap('butt');
     doc.setFillColor(...BURDEOS);
-    doc.triangle(ox + t.cx + t.ax * t.base, oy + t.cy + t.ay * t.base, ox + t.cx - t.ax * t.base, oy + t.cy - t.ay * t.base,
-      ox + t.cx + t.dx * t.alto, oy + t.cy + t.dy * t.alto, 'F');
-  } else if (pres) {
-    const { ang } = haciaMesa(mesa, pres);
-    const a = (ang * Math.PI) / 180;
-    const r0 = (Math.min(w, h) / 2 - 0.15) * s;
-    const ux = Math.cos(a); const uy = Math.sin(a); const vx = -uy; const vy = ux;
-    const pt = (t, v = 0) => [ox + ux * t + vx * v, oy + uy * t + vy * v];
+    doc.triangle(...d.cabecera.tri.flat(), 'F');
+  }
+  if (d.flecha) {
     doc.setDrawColor(...C.flecha);
-    doc.setLineWidth(Math.max(0.4, 0.05 * s));
+    doc.setLineWidth(d.flecha.grosor);
     doc.setLineCap('round');
     doc.setLineJoin('round');
-    doc.line(...pt(-r0 + 0.2 * s), ...pt(r0 - 0.05 * s));
-    doc.lines([[ux * 0.3 * s - vx * 0.2 * s, uy * 0.3 * s - vy * 0.2 * s], [-ux * 0.3 * s - vx * 0.2 * s, -uy * 0.3 * s - vy * 0.2 * s]],
-      ...pt(r0 - 0.3 * s, 0.2 * s), [1, 1], 'S', false);
+    doc.line(...d.flecha.linea);
+    const [a, b, c] = d.flecha.punta;
+    doc.lines([[b[0] - a[0], b[1] - a[1]], [c[0] - b[0], c[1] - b[1]]], a[0], a[1], [1, 1], 'S', false);
     doc.setLineCap('butt');
     doc.setLineJoin('miter');
   }
 
+  // Guías (debajo de las sillas)
+  doc.setDrawColor(...C.sillaBorde);
+  doc.setLineWidth(0.2);
+  d.etiquetas.forEach((e) => { if (e.guia) doc.line(...e.guia); });
+
   // Sillas con su número
-  const numFs = Math.min(8, Math.max(5, g.rS * 2.1));
-  g.sillas.forEach((c) => {
+  const numFs = Math.min(8, Math.max(5, d.rS * 2.1));
+  d.sillas.forEach((c) => {
     const ocupada = Boolean(puestos[c.i].nombre);
     const exceso = c.i >= mesa.capacidad;
     const [fill, borde] = exceso ? [C.exceso, C.excesoBorde] : ocupada ? [C.ocupada, C.ocupadaBorde] : [C.silla, C.sillaBorde];
     doc.setFillColor(...fill);
     doc.setDrawColor(...borde);
     doc.setLineWidth(0.25);
-    doc.circle(ox + c.x, oy + c.y, c.r, 'FD');
+    doc.circle(c.x, c.y, c.r, 'FD');
     doc.setFont(SANS, 'bold');
     doc.setFontSize(numFs);
     doc.setTextColor(...(ocupada ? INK : GRIS));
-    doc.text(String(c.i + 1), ox + c.x, oy + c.y + numFs * PT * 0.35, { align: 'center' });
+    doc.text(String(c.i + 1), c.x, c.y + numFs * PT * 0.35, { align: 'center' });
   });
 
-  // Nombres
+  // Nombres completos, en una o dos líneas
   doc.setFont(SANS, 'normal');
-  doc.setFontSize(fs);
   doc.setTextColor(...INK);
-  g.etiquetas.forEach((e) => {
-    doc.text(txt(puestos[e.i].nombre), ox + e.x, oy + e.y, e.ang ? { angle: e.ang } : undefined);
+  d.etiquetas.forEach((e) => {
+    doc.setFontSize(e.fs);
+    e.lineas.forEach((l, k) => {
+      doc.text(txt(l), e.x, e.caja.y0 + e.lh * (k + 0.5) + e.fs * PT * 0.35, { align: e.align });
+    });
   });
 }
 
@@ -440,18 +250,20 @@ function altoLista(medidor, puestos) {
   return alto;
 }
 
-/** Diseña la ficha: media página si cabe con letra ≥ 7 pt; si no, entera. */
-function planFicha(doc, medidor, mesa, ninos) {
+/** Diseña la ficha: media página si el dibujo cabe; si no, entera. */
+function planFicha(doc, medidor, mesa, ninos, pres) {
   const puestos = puestosMesa(mesa, ninos);
   const lista = altoLista(medidor, puestos);
   const W = A4.corto - M.left - M.right;
+  const nombres = puestos.map((p) => p.nombre);
+  let d;
   for (const alto of ['mitad', 'util']) {
     const H = ALTO[alto] - CAB - NOTA - lista - 3;
     if (alto === 'mitad' && H < DIBUJO_MIN) continue;
-    const d = disenaDibujo(doc, mesa, puestos, W, H, { ultimoRecurso: alto === 'util' });
-    if (d) return { mesa, puestos, lista, alto, d, W, H };
+    d = disenaMesa(mesa, pres, nombres, { ...opcionesPdf(doc), ancho: W, altoMax: H });
+    if (d.cabe || alto === 'util') return { mesa, puestos, lista, alto, d, W, H };
   }
-  return null; // no ocurre: a página entera siempre hay último recurso
+  return null;
 }
 
 function pintaFicha(doc, f, y0, pres, meseros) {
@@ -491,12 +303,10 @@ function pintaFicha(doc, f, y0, pres, meseros) {
   doc.setLineWidth(0.2);
   doc.line(x0, y0 + 14.5, x0 + W, y0 + 14.5);
 
-  // Dibujo centrado en su hueco
+  // Dibujo: la mesa centrada en el ancho y el conjunto, en su hueco
   const yD = y0 + CAB;
-  const { bbox } = d.g;
-  const ox = x0 + W / 2 - (bbox.x0 + bbox.x1) / 2;
-  const oy = yD + H / 2 - (bbox.y0 + bbox.y1) / 2;
-  pintaDibujo(doc, mesa, pres, puestos, d, ox, oy);
+  const dp = aPagina(d, x0, yD + Math.max(0, (H - d.alto) / 2));
+  pintaDibujo(doc, mesa, puestos, dp);
 
   // Nota bajo el dibujo
   const yN = yD + H + 4;
@@ -506,10 +316,6 @@ function pintaFicha(doc, f, y0, pres, meseros) {
     const { ang, dist } = haciaMesa(mesa, pres);
     nota = `La flecha señala hacia los novios (${rumbo(ang)} en el plano, a ${dist.toLocaleString('es-ES', { maximumFractionDigits: 1 })} m).`;
   } else nota = 'No hay mesa presidencial marcada.';
-  if (d.sinNombre.size) {
-    nota += ` En el dibujo, ${d.sinNombre.size === 1 ? 'el asiento' : 'los asientos'} `
-      + `${[...d.sinNombre].sort((a, b) => a - b).map((i) => i + 1).join(', ')} solo con su número: el nombre está en la lista.`;
-  }
   doc.setFont(SANS, 'italic');
   doc.setFontSize(8);
   doc.setTextColor(...SOFT);
@@ -520,14 +326,10 @@ function pintaFicha(doc, f, y0, pres, meseros) {
   listaOpciones(puestos, x0, W, yL).forEach((o) => autoTable(doc, o));
 
   return {
-    id: mesa.id, titulo: tituloMesa(mesa), alto: f.alto, fs: d.fs, modo: d.modo, escala: d.g.s,
-    sinNombre: [...d.sinNombre], area: { x: x0, y: yD, w: W, h: H },
-    // Cajas en coordenadas de página (para comprobar solapes en las pruebas)
-    etiquetas: d.g.etiquetas.map((e) => ({ i: e.i, nombre: puestos[e.i].nombre, caja: { ...e.caja, cx: e.caja.cx + ox, cy: e.caja.cy + oy } })),
-    sillas: d.g.sillas.map((c) => ({ i: c.i, x: c.x + ox, y: c.y + oy, r: c.r })),
-    pres: d.g.pres ? { ...d.g.pres, ox, oy } : null,
-    obstaculos: d.g.obst.map((o) => (o.circ ? { circ: { ...o.circ, x: o.circ.x + ox, y: o.circ.y + oy } }
-      : { caja: { ...o.caja, cx: o.caja.cx + ox, cy: o.caja.cy + oy } })),
+    id: mesa.id, titulo: tituloMesa(mesa), alto: f.alto, fs: d.fs, escala: d.s, cabe: d.cabe,
+    area: { x: x0, y: yD, w: W, h: H },
+    // Dibujo en coordenadas de página (para comprobar solapes en las pruebas)
+    dibujo: dp,
     lista: puestos,
   };
 }
@@ -686,7 +488,7 @@ export async function construirPdfPlanner(datos, {
   const fichas = [];
   let libre = null; // y de la media página libre en la página actual
   for (const mesa of ordenFichas(mesas)) {
-    const f = planFicha(doc, medidor, mesa, ninos);
+    const f = planFicha(doc, medidor, mesa, ninos, pres);
     let y0;
     if (f.alto === 'mitad' && libre != null) {
       y0 = libre;

@@ -3053,7 +3053,7 @@ html.pla-modal, html.pla-modal body { overflow: hidden; overscroll-behavior: non
 
 /* ---- Detalle de una mesa (hoja inferior) ---- */
 .pla-detalle { z-index: 80; }
-.pla-detalle__panel { max-width: 40rem; max-height: 92vh; max-height: 92dvh; overscroll-behavior: contain; gap: 0.6rem; }
+.pla-detalle__panel { max-width: 40rem; max-height: 92vh; max-height: 92dvh; overscroll-behavior: contain; gap: 0.6rem; grid-template-columns: minmax(0, 1fr); overflow-x: hidden; }
 .pla-detalle__head { display: flex; align-items: center; gap: 0.7rem; }
 .pla-detalle__icono {
   flex: 0 0 auto;
@@ -3106,20 +3106,27 @@ html.pla-modal, html.pla-modal body { overflow: hidden; overscroll-behavior: non
 .pla-mira-btns__label { font-family: var(--font-sans); font-size: 0.8rem; color: var(--ink-soft); }
 
 /* Dibujo de puestos */
-.pla-puestos { display: block; width: 100%; max-width: 26rem; margin: 0 auto; aspect-ratio: 1; }
-.pla-puestos__novios path { fill: none; stroke: rgba(110,36,53,0.55); stroke-width: 0.07; stroke-linecap: round; stroke-linejoin: round; }
+/* Dibujo de la mesa con sus puestos (unidades = px; lo calcula mesa-etiquetas.js) */
+.pla-puestos-box { width: 100%; min-width: 0; }
+.pla-puestos { display: block; width: 100%; height: auto; overflow: visible; }
+.pla-puestos__tablero { fill: #fff; stroke: var(--taupe-deep); stroke-width: 1.2; }
+.pla-puestos__tablero.is-pres { fill: #f7ecee; stroke: var(--burgundy); stroke-width: 2; }
+.pla-puestos__novios { fill: none; stroke: rgba(110,36,53,0.55); stroke-linecap: round; stroke-linejoin: round; }
+.pla-puestos__cabecera { stroke: var(--burgundy); stroke-linecap: round; }
+.pla-puestos__mira { fill: var(--burgundy); }
 .pla-puesto { cursor: pointer; }
-.pla-puesto circle { fill: #fbf8f2; stroke: var(--taupe); stroke-width: 0.03; }
+.pla-puesto circle { fill: #fbf8f2; stroke: var(--taupe); stroke-width: 1; }
 .pla-puesto.is-ocupada circle { fill: #d9cdb9; stroke: var(--taupe-deep); }
 .pla-puesto.is-exceso circle { fill: rgba(140,47,47,0.25); stroke: #8c2f2f; }
 .pla-puesto.is-marcado circle { fill: var(--burgundy); stroke: var(--burgundy); }
-.pla-puesto__num { font-family: var(--font-sans); fill: var(--ink); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.pla-puesto__num { font-family: var(--font-sans); font-weight: 500; fill: var(--ink); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 .pla-puesto.is-marcado .pla-puesto__num { fill: #fff; }
-.pla-puesto__nombre { font-family: var(--font-sans); fill: var(--ink); dominant-baseline: central; }
-.pla-puesto.is-marcado .pla-puesto__nombre { fill: var(--burgundy); font-weight: 600; }
+.pla-puesto__nombre { font-family: var(--font-sans); font-weight: 400; fill: var(--ink); dominant-baseline: central; }
+.pla-puesto.is-marcado .pla-puesto__nombre { fill: var(--burgundy); text-decoration: underline; }
+.pla-puesto__guia { fill: none; stroke: var(--taupe); stroke-width: 1; pointer-events: none; }
 
 /* Lista de orden (subir/bajar o tocar dos para intercambiar) */
-.pla-orden { list-style: none; padding: 0; display: grid; gap: 0.3rem; }
+.pla-orden { list-style: none; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
 .pla-orden__fila { display: flex; align-items: center; gap: 0.3rem; }
 .pla-orden__nombre {
   flex: 1;
@@ -3143,7 +3150,7 @@ html.pla-modal, html.pla-modal body { overflow: hidden; overscroll-behavior: non
   font-size: 0.75rem;
   color: var(--taupe-deep);
 }
-.pla-orden__quien { font-family: var(--font-serif); font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pla-orden__quien { font-family: var(--font-serif); font-weight: 600; color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
 .pla-orden__quien.is-vacio { font-weight: 400; font-style: italic; color: var(--ink-soft); }
 .pla-orden__fila.is-marcado .pla-orden__nombre { background: var(--burgundy); border-color: var(--burgundy); }
 .pla-orden__fila.is-marcado .pla-orden__quien,

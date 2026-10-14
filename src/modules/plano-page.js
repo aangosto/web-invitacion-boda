@@ -30,10 +30,12 @@ import { iconoMesa } from './mesas-iconos.js';
 import { initExportFinca } from './export-finca.js';
 import { initExportPlanner } from './export-planner.js';
 import {
-  sv, fmtM, corto, rotulo, dibujaSalon, dibujaMesa as dibujaMesaComun, ajustaRotulos,
+  sv, fmtM, rotulo, dibujaSalon, dibujaMesa as dibujaMesaComun, ajustaRotulos,
+  OPCIONES_PANTALLA, medirPantalla, svgPuestos,
 } from './plano-dibujo.js';
+import { disenaMesa } from './mesa-etiquetas.js';
 import {
-  FORMAS, FORMA_LABEL, numPuestos, tamanoMesa, puestosLocales,
+  FORMAS, FORMA_LABEL,
   semiCaja, limitaDentro, imanta, cm, normAng, haciaMesa, cercania, rumbo,
   ordenPuestos, colocacionInicial, distribuir,
   NUMERO_MAX, numerosRepetidos,
@@ -651,56 +653,31 @@ async function initApp(root) {
     return box;
   }
 
-  /** Dibujo de la mesa con sus puestos y el nombre de cada ocupante. */
-  function dibujoPuestos(mesa) {
-    const n = numPuestos(mesa);
-    const { w, h } = tamanoMesa(mesa.forma, n);
-    const slots = ordenPuestos(mesa);
-    const { hx, hy } = semiCaja(mesa.forma, n, mesa.rot);
-    const half = Math.max(hx, hy) + 2.1;  // sitio para los nombres
-    const svgD = sv('svg', { viewBox: `${-half} ${-half} ${2 * half} ${2 * half}`, class: 'pla-puestos' });
-    const giro = sv('g', { transform: `rotate(${mesa.rot})` });
-    if (mesa.forma === 'redonda') giro.appendChild(sv('circle', { cx: 0, cy: 0, r: w / 2, class: 'pla-tablero' }));
-    else giro.appendChild(sv('rect', { x: -w / 2, y: -h / 2, width: w, height: h, rx: 0.06, class: 'pla-tablero' }));
-    svgD.appendChild(giro);
-
-    // Flecha hacia los novios en el borde (mismo sentido que en el plano)
-    const pres = presidencial();
-    if (pres && !mesa.presidencial) {
-      const { ang } = haciaMesa(mesa, pres);
-      const r0 = Math.min(w, h) / 2 - 0.15;
-      const f = sv('g', { transform: `rotate(${ang})`, class: 'pla-puestos__novios' });
-      f.appendChild(sv('path', { d: `M ${-r0 + 0.2} 0 L ${r0 - 0.05} 0 M ${r0 - 0.3} -0.2 L ${r0} 0 L ${r0 - 0.3} 0.2` }));
-      svgD.appendChild(f);
-    }
-
-    const rad = (mesa.rot * Math.PI) / 180;
-    const cos = Math.cos(rad);
-    const sin = Math.sin(rad);
-    puestosLocales(mesa.forma, n).forEach((p, i) => {
-      const x = p.x * cos - p.y * sin;
-      const y = p.x * sin + p.y * cos;
-      const a = p.ang + rad;
-      const c = slots[i];
-      const exceso = i >= mesa.capacidad;
-      const g = sv('g', {
-        class: `pla-puesto${c ? ' is-ocupada' : ''}${exceso ? ' is-exceso' : ''}${marcado === i ? ' is-marcado' : ''}`,
-        'data-puesto': i, role: 'button', tabindex: 0,
-      });
-      g.appendChild(sv('circle', { cx: x, cy: y, r: 0.24 }));
-      g.appendChild(sv('text', { x, y, class: 'pla-puesto__num', 'font-size': 0.22 }, String(i + 1)));
-      const lx = x + Math.cos(a) * 0.36;
-      const ly = y + Math.sin(a) * 0.36;
-      const ca = Math.cos(a);
-      g.appendChild(sv('text', {
-        x: lx, y: ly, class: 'pla-puesto__nombre', 'font-size': 0.24,
-        'text-anchor': ca > 0.35 ? 'start' : ca < -0.35 ? 'end' : 'middle',
-      }, c ? corto(c.nombre, 14) : '—'));
-      g.addEventListener('click', () => tocaPuesto(mesa, i));
-      svgD.appendChild(g);
-    });
-    return svgD;
+  /** Dibujo de la mesa con sus puestos y el nombre de cada ocupante,
+      con el ancho real del panel (cálculo compartido con el PDF de la
+      wedding planner: mesa-etiquetas.js). */
+  let anchoPuestos = 0;
+  function pintaPuestos(box, mesa) {
+    const ancho = Math.floor(box.clientWidth);
+    if (!ancho) return;
+    anchoPuestos = ancho;
+    const nombres = ordenPuestos(mesa).map((c) => (c ? c.nombre : ''));
+    const d = disenaMesa(mesa, presidencial(), nombres, { ...OPCIONES_PANTALLA, ancho, medir: medirPantalla });
+    box.replaceChildren(svgPuestos(d, { mesa, nombres, marcado, onPuesto: (i) => tocaPuesto(mesa, i) }));
   }
+  // Las medidas del texto dependen de la fuente: al terminar de cargar,
+  // y si cambia el ancho (girar el móvil), se vuelve a calcular
+  if (document.fonts && document.fonts.status !== 'loaded') {
+    document.fonts.ready.then(() => { if (detalleId) renderDetalle(); });
+  }
+  let esperaAncho = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(esperaAncho);
+    esperaAncho = setTimeout(() => {
+      const box = detalleEl.querySelector('.pla-puestos-box');
+      if (detalleId && box && Math.floor(box.clientWidth) !== anchoPuestos) renderDetalle();
+    }, 150);
+  });
 
   /** Nº de mesa del plano de la finca (1-15). Vacío = sin número. Un
       número repetido se guarda igualmente y se avisa. */
@@ -840,7 +817,8 @@ async function initApp(root) {
 
     // Puestos (dibujo + lista de orden)
     panel.appendChild(el('h4', 'adm-subtitle', 'Puestos'));
-    panel.appendChild(dibujoPuestos(mesa));
+    const puestosBox = el('div', 'pla-puestos-box');
+    panel.appendChild(puestosBox);
     if (mesa.comensales.length) {
       const giro = el('div', 'pla-girar');
       giro.appendChild(btn('btn btn--ghost pla-girar__btn', '⟲ Girar', () => girarComensales(mesa, -1),
@@ -949,6 +927,7 @@ async function initApp(root) {
     panel.appendChild(presLabel);
 
     detalleEl.appendChild(panel);
+    pintaPuestos(puestosBox, mesa);
     panel.scrollTop = scroll;
   }
 

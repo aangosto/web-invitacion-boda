@@ -235,3 +235,95 @@ export function ajustaRotulos(svg) {
     }
   });
 }
+
+/* =================================================================
+   Detalle de una mesa: sillas con su número y el nombre de cada
+   comensal por lados (el cálculo, compartido con el PDF, está en
+   mesa-etiquetas.js; aquí solo se pinta en SVG, unidades = px).
+   ================================================================= */
+
+/** Opciones del dibujo en pantalla (px): letra de 13 a 11 px. */
+export const OPCIONES_PANTALLA = {
+  fuentes: [13, 12.5, 12, 11.5, 11],
+  altoLinea: (fs) => fs * 1.2,
+  unidad: 1,
+  separacion: 5,
+  sillaMin: 10,
+  trazoMin: 1.5,
+  escala: { min: 26, max: 70 },
+};
+
+let lienzoMedidas = null;
+/** Mide texto con la fuente de los nombres (Jost) en px. */
+export function medirPantalla(texto, fs) {
+  if (!lienzoMedidas) lienzoMedidas = document.createElement('canvas').getContext('2d');
+  const familia = getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim()
+    || 'Jost, system-ui, sans-serif';
+  lienzoMedidas.font = `400 ${fs}px ${familia}`;
+  return lienzoMedidas.measureText(texto).width;
+}
+
+/**
+ * SVG del detalle a partir del diseño (disenaMesa).
+ *   mesa, nombres ([nombre|''] por asiento), marcado (índice o null),
+ *   onPuesto(i): toque en una silla o en su nombre
+ */
+export function svgPuestos(d, { mesa, nombres, marcado = null, onPuesto }) {
+  const svg = sv('svg', {
+    viewBox: `0 0 ${d.ancho} ${d.alto}`, width: d.ancho, height: d.alto,
+    class: 'pla-puestos', role: 'img', 'aria-label': 'Dibujo de la mesa con sus puestos',
+  });
+  const fig = (o, clase, estilo) => (o.circ
+    ? sv('circle', { cx: o.circ.x, cy: o.circ.y, r: o.circ.r, class: clase, style: estilo || '' })
+    : sv('polygon', { points: o.pts.map((p) => p.join(',')).join(' '), class: clase, style: estilo || '' }));
+  svg.appendChild(fig(d.tablero, `pla-puestos__tablero${mesa.presidencial ? ' is-pres' : ''}`));
+  if (d.cabecera) {
+    const [x1, y1, x2, y2] = d.cabecera.linea;
+    svg.appendChild(sv('line', { x1, y1, x2, y2, class: 'pla-puestos__cabecera', style: `stroke-width:${d.cabecera.grosor}` }));
+    svg.appendChild(fig({ pts: d.cabecera.tri }, 'pla-puestos__mira'));
+  }
+  if (d.flecha) {
+    const [x1, y1, x2, y2] = d.flecha.linea;
+    const p = d.flecha.punta;
+    svg.appendChild(sv('path', {
+      d: `M ${x1} ${y1} L ${x2} ${y2} M ${p[0].join(' ')} L ${p[1].join(' ')} L ${p[2].join(' ')}`,
+      class: 'pla-puestos__novios', style: `stroke-width:${d.flecha.grosor}`,
+    }));
+  }
+  // Guías debajo de las sillas
+  const guias = sv('g', { class: 'pla-puestos__guias' });
+  d.etiquetas.forEach((e) => {
+    if (!e.guia) return;
+    const [x1, y1, x2, y2] = e.guia;
+    guias.appendChild(sv('line', { x1, y1, x2, y2, class: 'pla-puesto__guia' }));
+  });
+  svg.appendChild(guias);
+
+  const numFs = Math.min(12, Math.max(8.5, d.rS * 1.05));
+  const porSilla = new Map(d.etiquetas.map((e) => [e.i, e]));
+  d.sillas.forEach((c) => {
+    const exceso = c.i >= mesa.capacidad;
+    const g = sv('g', {
+      class: `pla-puesto${nombres[c.i] ? ' is-ocupada' : ''}${exceso ? ' is-exceso' : ''}${marcado === c.i ? ' is-marcado' : ''}`,
+      'data-puesto': c.i, role: 'button', tabindex: 0,
+      'aria-label': `Puesto ${c.i + 1}: ${nombres[c.i] || 'vacío'}`,
+    });
+    g.appendChild(sv('circle', { cx: c.x, cy: c.y, r: c.r }));
+    g.appendChild(sv('text', { x: c.x, y: c.y, class: 'pla-puesto__num', 'font-size': numFs }, String(c.i + 1)));
+    const e = porSilla.get(c.i);
+    if (e) {
+      const t = sv('text', {
+        x: e.x, y: e.caja.y0, class: 'pla-puesto__nombre', 'font-size': e.fs,
+        'text-anchor': e.align === 'left' ? 'start' : 'end', 'data-nombre': c.i,
+      });
+      e.lineas.forEach((l, k) => t.appendChild(sv('tspan', { x: e.x, y: e.caja.y0 + e.lh * (k + 0.5) }, l)));
+      g.appendChild(t);
+    }
+    if (onPuesto) {
+      g.addEventListener('click', () => onPuesto(c.i));
+      g.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onPuesto(c.i); } });
+    }
+    svg.appendChild(g);
+  });
+  return svg;
+}
