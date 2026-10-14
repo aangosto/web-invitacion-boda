@@ -8,6 +8,7 @@ import {
   numPuestos, tamanoMesa, puestosLocales, semiCaja, limitaDentro,
   haciaMesa, cercania, rumbo, ordenPuestos, colocacionInicial, normAng,
   distribuir, rngSemilla, zonaDespejada, PLANO_DEFAULT,
+  colocarFinca, numerosRepetidos, numeroValido, FINCA_MESAS, FINCA_PRESIDENCIAL,
 } from '../src/modules/plano-geom.js';
 
 let ok = 0;
@@ -113,9 +114,10 @@ const REALES = [['Novios', 6, 'redonda', true], ['Ámbar', 9], ['Chuches', 16, '
   }));
 const caja = (m, p) => ({ ...semiCaja(m.forma, numPuestos(m), p.rot), x: p.x, y: p.y });
 
-t('salón por defecto apaisado tipo folio (√2:1)', () => {
-  assert.ok(PLANO_DEFAULT.ancho > PLANO_DEFAULT.largo);
-  assert.ok(Math.abs(PLANO_DEFAULT.ancho / PLANO_DEFAULT.largo - Math.SQRT2) < 0.02);
+t('salón por defecto 24 × 18 (proporción de la finca ≈ 1,34:1)', () => {
+  assert.equal(PLANO_DEFAULT.ancho, 24);
+  assert.equal(PLANO_DEFAULT.largo, 18);
+  assert.ok(Math.abs(PLANO_DEFAULT.ancho / PLANO_DEFAULT.largo - 1.34) < 0.01);
 });
 
 t('distribuir: sin solapes, dentro, con pasillo y zona despejada (50 semillas)', () => {
@@ -159,5 +161,91 @@ t('distribuir: cada vez distinta y no en cuadrícula', () => {
 t('distribuir: devuelve null si el salón es demasiado pequeño', () => {
   assert.equal(distribuir(REALES, { ...PLANO_DEFAULT, ancho: 8, largo: 6 }, rngSemilla(1)), null);
 });
+
+/* ---------- Colocar como el plano de la finca (datos sintéticos) ---------- */
+// Numeradas 1..15 en el orden de REALES (la presidencial sin número)
+const conNumero = (lista, quitar = []) => lista.map((m, i) => ({
+  ...m, nombre: m.id, x: 1, y: 1, numero: m.presidencial || quitar.includes(i) ? null : i,
+}));
+
+t('número de mesa: solo enteros 1-15', () => {
+  assert.equal(numeroValido(7), 7);
+  [0, 16, 2.5, '3', null, undefined, -1].forEach((v) => assert.equal(numeroValido(v), null, String(v)));
+  assert.equal(Object.keys(FINCA_MESAS).length, 15);
+});
+
+t('números repetidos (la presidencial no cuenta)', () => {
+  const l = [{ id: 'a', numero: 3 }, { id: 'b', numero: 3 }, { id: 'c', numero: 4 },
+    { id: 'p', numero: 4, presidencial: true }, { id: 'd', numero: null }, { id: 'e', numero: null }];
+  const r = numerosRepetidos(l);
+  assert.deepEqual([...r.keys()], [3]);
+  assert.deepEqual(r.get(3).map((m) => m.id), ['a', 'b']);
+});
+
+t('finca: cada mesa a su porcentaje; presidencial redonda, rot 0', () => {
+  const mesas = conNumero(REALES).map((m) => ({ ...m, rot: 30, forma: m.presidencial ? 'rectangular' : m.forma }));
+  const r = colocarFinca(mesas, PLANO_DEFAULT);
+  assert.equal(r.pos.size, 16);
+  assert.equal(r.sinNumero.length, 0);
+  const pres = r.pos.get('Novios');
+  assert.ok(Math.abs(pres.x - FINCA_PRESIDENCIAL.x * 24) < 1e-9 && Math.abs(pres.y - 0.12 * 18) < 1e-9);
+  assert.equal(pres.rot, 0);
+  assert.equal(pres.forma, 'redonda');
+  const m7 = mesas.find((m) => m.numero === 7);
+  const p7 = r.pos.get(m7.id);
+  assert.ok(Math.abs(p7.x - 0.388 * 24) < 1e-9 && Math.abs(p7.y - 0.411 * 18) < 1e-9);
+  assert.equal(p7.rot, 30, 'el giro de las demás se conserva');
+  assert.equal(p7.forma, undefined, 'la forma de las demás no se toca');
+  // Coordenadas proporcionales: en otro salón, mismos porcentajes
+  const r2 = colocarFinca(mesas, { ancho: 30, largo: 22 });
+  assert.ok(Math.abs(r2.pos.get(m7.id).x - 0.388 * 30) < 1e-9);
+});
+
+t('finca: las mesas sin número no se mueven y se listan', () => {
+  const mesas = conNumero(REALES, [3, 8]);
+  const r = colocarFinca(mesas, PLANO_DEFAULT);
+  assert.equal(r.pos.size, 14);
+  assert.deepEqual(r.sinNumero.map((m) => m.id).sort(), [REALES[3].id, REALES[8].id].sort());
+  r.sinNumero.forEach((m) => assert.ok(!r.pos.has(m.id)));
+});
+
+t('finca: no toca comensales, asientos ni preboda (solo x, y, rot y forma)', () => {
+  const mesas = conNumero(REALES).map((m) => ({ ...m, asientos: ['x'] }));
+  const antes = JSON.stringify(mesas);
+  const r = colocarFinca(mesas, PLANO_DEFAULT);
+  assert.equal(JSON.stringify(mesas), antes, 'no muta las mesas');
+  [...r.pos.values()].forEach((p) => {
+    Object.keys(p).forEach((k) => assert.ok(['x', 'y', 'rot', 'forma'].includes(k), k));
+  });
+});
+
+t('finca: solapes y salidas de pared se marcan sin bloquear', () => {
+  // Salón pequeño: las mesas grandes se pisan y se salen
+  const r = colocarFinca(conNumero(REALES), { ancho: 12, largo: 9 });
+  assert.equal(r.pos.size, 16, 'se colocan igualmente');
+  assert.ok(r.conflictos.some((c) => c.motivos.some((t) => t.startsWith('se solapa con'))));
+  assert.ok(r.conflictos.some((c) => c.motivos.includes('se sale de las paredes')));
+  // Número repetido: las dos en el mismo sitio → solape marcado en ambas
+  const dup = conNumero(REALES).map((m) => (m.numero === 5 ? { ...m, numero: 6 } : m));
+  const rd = colocarFinca(dup, { ancho: 60, largo: 45 });
+  const seis = dup.filter((m) => m.numero === 6).map((m) => m.id);
+  assert.equal(seis.length, 2);
+  seis.forEach((id) => assert.ok(rd.conflictos.some((c) => c.mesa.id === id)));
+  // Una sin número que se queda donde estaba también puede pisarse
+  const quieta = conNumero(REALES, [1]).map((m, i) => (i === 1 ? { ...m, x: 0.388 * 60, y: 0.411 * 45 } : m));
+  const rq = colocarFinca(quieta, { ancho: 60, largo: 45 });
+  const m7 = quieta.find((m) => m.numero === 7);
+  assert.ok(rq.conflictos.some((c) => c.mesa.id === m7.id && c.motivos[0].includes(REALES[1].id)));
+  assert.ok(!rq.conflictos.some((c) => c.mesa.id === REALES[1].id), 'la que no se mueve no se marca');
+});
+
+t('finca: salón grande, sin conflictos', () => {
+  const r = colocarFinca(conNumero(REALES), { ancho: 60, largo: 45 });
+  assert.deepEqual(r.conflictos, []);
+});
+
+/* Informativo: con el tamaño real de las mesas, ¿qué pasa en 24 × 18? */
+const real = colocarFinca(conNumero(REALES), PLANO_DEFAULT);
+console.log(`  (24 × 18 con mesas de prueba: ${real.conflictos.length} con aviso${real.conflictos.length ? `: ${real.conflictos.map((c) => `${c.mesa.id} → ${[...new Set(c.motivos)].join(', ')}`).join(' | ')}` : ''})`);
 
 console.log(`\n${ok} pruebas OK`);

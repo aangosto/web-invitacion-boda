@@ -5,14 +5,16 @@
        { ancho, largo, rejilla, iman, updatedAt }   (metros)
    · Cada mesa: la MISMA colección "mesas" que usa mesas.html. Esta
      página solo escribe los campos del plano:
-       forma, x, y, rot, icono, asientos, capacidad, presidencial
+       forma, x, y, rot, icono, asientos, capacidad, presidencial,
+       numero (nº de mesa 1-15 del plano de la finca; null = se borra)
      NUNCA `comensales` (ni su flag de preboda): el reparto de gente
      sigue siendo cosa de mesas.html. Todo con updateDoc (no pisa el
      resto del documento).
    · Copias de seguridad de la colocación: colección planoCopias
-       { motivo, mesas: [{ id, nombre, x, y, rot }], createdAt }
-     (x/y null = la mesa no tenía posición guardada). "Distribuir mesas"
-     crea una ANTES de sobrescribir; "Deshacer distribución" restaura la
+       { motivo, mesas: [{ id, nombre, x, y, rot, forma? }], createdAt }
+     (x/y null = la mesa no tenía posición guardada; `forma` solo en las
+     copias de "Colocar como la finca", que cambia la de la presidencial).
+     "Distribuir mesas" y "Colocar como la finca" crean una ANTES de sobrescribir; "Deshacer distribución" restaura la
      última y la borra (pila: deshaciendo varias veces se vuelve atrás
      distribución a distribución hasta la colocación manual).
    ================================================================= */
@@ -22,9 +24,9 @@ import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, writeBatch,
   orderBy, query, limit, serverTimestamp, deleteField,
 } from 'firebase/firestore';
-import { FORMAS, PLANO_DEFAULT } from './plano-geom.js';
+import { FORMAS, PLANO_DEFAULT, numeroValido } from './plano-geom.js';
 
-const CAMPOS_PLANO = ['forma', 'x', 'y', 'rot', 'icono', 'asientos', 'capacidad', 'presidencial'];
+const CAMPOS_PLANO = ['forma', 'x', 'y', 'rot', 'icono', 'asientos', 'capacidad', 'presidencial', 'numero'];
 
 /** Medidas del salón (o las de por defecto si aún no se han guardado). */
 export async function fetchPlano() {
@@ -63,6 +65,7 @@ export async function fetchMesasPlano() {
         ? m.comensales.map((c) => ({ key: String(c.key || ''), nombre: String(c.nombre || '') }))
         : [],
       presidencial: m.presidencial === true,
+      numero: numeroValido(m.numero),
       forma: FORMAS.includes(m.forma) ? m.forma : 'redonda',
       x: typeof m.x === 'number' ? m.x : null,
       y: typeof m.y === 'number' ? m.y : null,
@@ -79,6 +82,7 @@ export async function updateMesaPlano(id, cambios) {
   Object.keys(cambios).forEach((k) => {
     if (CAMPOS_PLANO.includes(k)) limpio[k] = cambios[k];
   });
+  if ('numero' in limpio && limpio.numero == null) limpio.numero = deleteField();
   await updateDoc(doc(db, 'mesas', id), { ...limpio, updatedAt: serverTimestamp() });
 }
 
@@ -97,17 +101,20 @@ export async function setPresidencial(id, mesas) {
 /**
  * Guarda de golpe (un batch atómico) la posición de varias mesas.
  * `x`/`y` null borra la posición (la mesa vuelve a "sin colocar").
+ * `forma` (opcional) también se guarda si viene.
  */
 export async function guardaPosiciones(lista) {
   const batch = writeBatch(db);
-  lista.forEach(({ id, x, y, rot }) => {
+  lista.forEach(({ id, x, y, rot, forma }) => {
     const sinPos = x == null || y == null;
-    batch.update(doc(db, 'mesas', id), {
+    const cambios = {
       x: sinPos ? deleteField() : x,
       y: sinPos ? deleteField() : y,
       rot: typeof rot === 'number' ? rot : 0,
       updatedAt: serverTimestamp(),
-    });
+    };
+    if (FORMAS.includes(forma)) cambios.forma = forma;
+    batch.update(doc(db, 'mesas', id), cambios);
   });
   await batch.commit();
 }
@@ -116,7 +123,11 @@ export async function guardaPosiciones(lista) {
 export async function crearCopia(mesas, motivo) {
   const ref = await addDoc(collection(db, 'planoCopias'), {
     motivo: String(motivo).slice(0, 60),
-    mesas: mesas.map((m) => ({ id: m.id, nombre: m.nombre, x: m.x, y: m.y, rot: m.rot })),
+    mesas: mesas.map((m) => {
+      const e = { id: m.id, nombre: m.nombre, x: m.x, y: m.y, rot: m.rot };
+      if (m.forma) e.forma = m.forma;
+      return e;
+    }),
     createdAt: serverTimestamp(),
   });
   return ref.id;

@@ -19,8 +19,63 @@ export const SILLA_OFFSET = 0.32;
 /** Radio de la silla (m). */
 export const SILLA_R = 0.2;
 
-/** Salón por defecto: folio A4 apaisado (√2:1, más ancho que largo). */
-export const PLANO_DEFAULT = { ancho: 24, largo: 17, rejilla: 0.5, iman: true };
+/** Salón por defecto: proporción del plano de la finca (≈1,34:1, más
+    ancho que largo) hasta tener las medidas reales. */
+export const PLANO_DEFAULT = { ancho: 24, largo: 18, rejilla: 0.5, iman: true };
+
+/* =================================================================
+   PLANO OFICIAL DE LA FINCA (plano 15 de La Bastilla, Finca Tierra
+   Bella). Todo en FRACCIONES del ancho/alto del salón, desde la esquina
+   superior izquierda, así vale para cualquier medida del salón.
+   ================================================================= */
+
+/** Línea discontinua vertical: a su izquierda, zona más clara. */
+export const FINCA_ZONA_CLARA = 0.31;
+/** Salidas (puertas): pared y centro de la puerta en fracción del alto. */
+export const FINCA_SALIDAS = [
+  { pared: 'izquierda', y: 0.44 },
+  { pared: 'derecha', y: 0.63 },
+];
+/** Ancho de las puertas (m). */
+export const SALIDA_ANCHO = 1.8;
+/** Centro de la presidencial (se identifica por su flag, no por número). */
+export const FINCA_PRESIDENCIAL = { x: 0.478, y: 0.12 };
+/** Centro de cada mesa por su NÚMERO (1-15). */
+export const FINCA_MESAS = {
+  1: { x: 0.165, y: 0.284 },
+  2: { x: 0.264, y: 0.19 },
+  3: { x: 0.664, y: 0.186 },
+  4: { x: 0.752, y: 0.267 },
+  5: { x: 0.664, y: 0.409 },
+  6: { x: 0.527, y: 0.416 },
+  7: { x: 0.388, y: 0.411 },
+  8: { x: 0.268, y: 0.416 },
+  9: { x: 0.272, y: 0.6 },
+  10: { x: 0.393, y: 0.597 },
+  11: { x: 0.527, y: 0.597 },
+  12: { x: 0.667, y: 0.589 },
+  13: { x: 0.672, y: 0.786 },
+  14: { x: 0.525, y: 0.783 },
+  15: { x: 0.393, y: 0.779 },
+};
+export const NUMERO_MAX = 15;
+
+/** Número de mesa válido (entero 1-15) o null. */
+export function numeroValido(v) {
+  return Number.isInteger(v) && v >= 1 && v <= NUMERO_MAX ? v : null;
+}
+
+/** Números repetidos: Map(número → [mesas]) solo con los que salen >1 vez.
+    La presidencial no lleva número (si lo tuviera, no cuenta). */
+export function numerosRepetidos(mesas) {
+  const por = new Map();
+  mesas.forEach((m) => {
+    if (m.presidencial || m.numero == null) return;
+    if (!por.has(m.numero)) por.set(m.numero, []);
+    por.get(m.numero).push(m);
+  });
+  return new Map([...por].filter(([, l]) => l.length > 1));
+}
 
 /** Puestos que se dibujan: la capacidad o, si hay sobreaforo, uno por comensal. */
 export function numPuestos(mesa) {
@@ -241,6 +296,56 @@ export function zonaDespejada(pres, plano) {
     x: pres.x, y: pres.y + pres.hy + Math.max(2.4, plano.largo * 0.18) / 2,
     hx: mitad, hy: Math.max(2.4, plano.largo * 0.18) / 2,
   };
+}
+
+/**
+ * "Colocar como el plano de la finca": centro de cada mesa según su
+ * NÚMERO (FINCA_MESAS) y la presidencial (por su flag) en su sitio,
+ * redonda y mirando al salón (rot 0). No bloquea nunca:
+ *   · las mesas sin número NO se mueven (lista `sinNumero`);
+ *   · si una mesa colocada se solapa con otra o se sale de las paredes
+ *     por su tamaño, se coloca igualmente y se marca en `conflictos`.
+ * Devuelve { pos: Map(id → {x, y, rot, forma?}), sinNumero: [mesa],
+ *            conflictos: [{ mesa, motivos: [texto] }] }.
+ */
+export function colocarFinca(mesas, plano) {
+  const pos = new Map();
+  const sinNumero = [];
+  mesas.forEach((m) => {
+    if (m.presidencial) {
+      const f = FINCA_PRESIDENCIAL;
+      pos.set(m.id, { x: f.x * plano.ancho, y: f.y * plano.largo, rot: 0, forma: 'redonda' });
+      return;
+    }
+    const f = m.numero != null ? FINCA_MESAS[m.numero] : null;
+    if (!f) { sinNumero.push(m); return; }
+    pos.set(m.id, { x: f.x * plano.ancho, y: f.y * plano.largo, rot: m.rot || 0 });
+  });
+  // Cuerpos finales: las que se mueven en su sitio nuevo y las que no,
+  // donde están (también pueden pisarse con una colocada)
+  const cuerpos = mesas.filter((m) => m.x != null || pos.has(m.id)).map((m) => {
+    const p = pos.get(m.id);
+    const mm = p ? { ...m, rot: p.rot, forma: p.forma || m.forma } : m;
+    return { ...cuerpo(mm, p ? p.x : m.x, p ? p.y : m.y), mesa: m, movida: !!p };
+  });
+  const conflictos = new Map();
+  const marca = (m, motivo) => {
+    if (!conflictos.has(m.id)) conflictos.set(m.id, { mesa: m, motivos: [] });
+    conflictos.get(m.id).motivos.push(motivo);
+  };
+  const tol = 0.005;
+  cuerpos.forEach((a, i) => {
+    if (a.movida && (a.x - a.hx < -tol || a.y - a.hy < -tol
+      || a.x + a.hx > plano.ancho + tol || a.y + a.hy > plano.largo + tol)) {
+      marca(a.mesa, 'se sale de las paredes');
+    }
+    cuerpos.slice(i + 1).forEach((b) => {
+      if (!(a.movida || b.movida) || !solape(a, b, -tol)) return;
+      if (a.movida) marca(a.mesa, `se solapa con ${b.mesa.nombre}`);
+      if (b.movida) marca(b.mesa, `se solapa con ${a.mesa.nombre}`);
+    });
+  });
+  return { pos, sinNumero, conflictos: [...conflictos.values()] };
 }
 
 /** Cuerpo de colisión de una mesa: centro, semiejes y si es circular. */

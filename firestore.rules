@@ -203,9 +203,10 @@ service cloud.firestore {
       // (bool), `forma` de la mesa, posición `x`/`y` del centro en metros
       // dentro del salón, `rot` en grados, `icono` (clave del mapa de
       // dibujos) y `asientos` (orden de los puestos: keys de comensal o
-      // '' para un puesto vacío).
+      // '' para un puesto vacío). `numero`: nº de mesa del plano de la
+      // finca (entero 1-15; la presidencial no lleva; sin él = sin número).
       return d.keys().hasOnly(['nombre', 'capacidad', 'comensales', 'orden', 'createdAt', 'updatedAt',
-                               'grupo', 'presidencial', 'forma', 'x', 'y', 'rot', 'icono', 'asientos'])
+                               'grupo', 'presidencial', 'forma', 'x', 'y', 'rot', 'icono', 'asientos', 'numero'])
         && d.nombre is string && d.nombre.size() >= 1 && d.nombre.size() <= 80
         && d.capacidad is number && d.capacidad >= 1 && d.capacidad <= 100
         && d.comensales is list && d.comensales.size() <= 100
@@ -217,7 +218,8 @@ service cloud.firestore {
         && (!('y' in d.keys()) || (d.y is number && d.y >= 0 && d.y <= 200))
         && (!('rot' in d.keys()) || (d.rot is number && d.rot >= -360 && d.rot <= 720))
         && (!('icono' in d.keys()) || (d.icono is string && d.icono.size() <= 60))
-        && (!('asientos' in d.keys()) || (d.asientos is list && d.asientos.size() <= 100));
+        && (!('asientos' in d.keys()) || (d.asientos is list && d.asientos.size() <= 100))
+        && (!('numero' in d.keys()) || (d.numero is int && d.numero >= 1 && d.numero <= 15));
     }
 
     function isValidCopiaPlano(d) {

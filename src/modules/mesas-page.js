@@ -304,6 +304,13 @@ async function initApp(root) {
       render();
     });
     const title = el('div', 'inv-card__title');
+    // Nº de mesa del plano de la finca (se pone en plano.html)
+    if (!mesa.presidencial) {
+      const num = el('span', `mes-card__num${mesa.numero == null ? ' is-sinnum' : ''}`,
+        mesa.numero == null ? 's/n' : String(mesa.numero));
+      num.title = mesa.numero == null ? 'Sin número de mesa (se pone en el plano del salón)' : `Mesa ${mesa.numero}`;
+      title.appendChild(num);
+    }
     title.appendChild(el('h3', 'inv-card__nombre', mesa.nombre));
     // Recuento de preboda en la cabecera: visible también plegada
     if (ocupadas) {

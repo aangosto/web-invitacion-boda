@@ -12,7 +12,9 @@
          manual,             // true = escrito a mano, no está en invitados
          preboda }],         // true = viene a la preboda (por defecto
                              // true; viaja con el comensal al moverlo)
-       orden, createdAt, updatedAt }
+       orden, createdAt, updatedAt,
+       numero }              // nº de mesa (1-15) del plano de la finca;
+                             // se pone en plano.html, aquí solo se muestra
 
    La página cruza cada `key` con la colección "invitados" al cargar
    (SOLO lectura de invitados) para detectar cambios de estado o
@@ -50,6 +52,8 @@ export async function fetchMesas() {
       capacidad: typeof data.capacidad === 'number' ? data.capacidad : 8,
       comensales: crudos.map(toComensal),
       orden: typeof data.orden === 'number' ? data.orden : 0,
+      numero: Number.isInteger(data.numero) ? data.numero : null,
+      presidencial: data.presidencial === true,
       // Comensales anteriores al flag de preboda: la página se lo añade
       // (con su valor por defecto) una sola vez al cargar
       faltaPreboda: crudos.some((c) => typeof c.preboda !== 'boolean'),

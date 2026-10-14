@@ -31,6 +31,7 @@ import {
   FORMAS, FORMA_LABEL, SILLA_R, numPuestos, tamanoMesa, puestosLocales,
   semiCaja, limitaDentro, imanta, cm, normAng, haciaMesa, cercania, rumbo,
   ordenPuestos, colocacionInicial, distribuir,
+  FINCA_ZONA_CLARA, FINCA_SALIDAS, SALIDA_ANCHO, NUMERO_MAX, numerosRepetidos, colocarFinca,
 } from './plano-geom.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -68,6 +69,9 @@ function btn(className, text, onClick, title) {
 const fmtM = (v) => `${v.toLocaleString('es-ES', { maximumFractionDigits: 1 })} m`;
 const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
 const corto = (s, max = 13) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
+/** "7 · Limón"; la presidencial va sin número y una mesa sin él, "s/n". */
+const rotulo = (m, max) => (m.presidencial ? corto(m.nombre, max)
+  : `${m.numero != null ? m.numero : 's/n'} · ${corto(m.nombre, max)}`);
 
 /* =================================================================
    App (tras pasar la puerta)
@@ -92,6 +96,7 @@ async function initApp(root) {
     </div>
     <div class="pla-dist">
       <button type="button" id="pla-distribuir" class="btn btn--ghost pla-dist__btn">✦ Distribuir mesas</button>
+      <button type="button" id="pla-finca" class="btn btn--ghost pla-dist__btn">⌂ Colocar como el plano de la finca</button>
       <button type="button" id="pla-deshacer-dist" class="btn btn--ghost pla-dist__btn" hidden>↶ Deshacer distribución</button>
     </div>
     <div class="pla-estado" data-estado></div>
@@ -132,7 +137,8 @@ async function initApp(root) {
             <option value="0.25">25 cm</option><option value="0.5">50 cm</option><option value="1">1 m</option>
           </select></label>
       </div>
-      <p class="adm-hint">Por defecto 24 × 17 m: proporción de folio apaisado (√2:1).</p>
+      <p class="adm-hint">Por defecto 24 × 18 m: la proporción del plano de la finca (1,34 : 1)
+        hasta tener las medidas reales.</p>
       <button type="button" id="pla-salon-ok" class="btn btn--ghost btn--block">Guardar medidas</button>
     </details>
 
@@ -171,7 +177,7 @@ async function initApp(root) {
     try {
       await updateMesaPlano(mesa.id, cambios);
       // Última posición GUARDADA (es la que copia "Distribuir mesas")
-      ['x', 'y', 'rot'].forEach((k) => { if (k in cambios) mesa.orig[k] = cambios[k]; });
+      ['x', 'y', 'rot', 'forma'].forEach((k) => { if (k in cambios) mesa.orig[k] = cambios[k]; });
       guardado.errores.delete(mesa.id);
       guardado.ultimo = new Date();
       return true;
@@ -364,11 +370,13 @@ async function initApp(root) {
     const dMed = Math.min(1.25, lado * 0.62, lado * 0.92 - altoTexto);
     const ocupa = `${ocupadas}/${mesa.capacidad}${sobre ? ' ⚠' : ''}`;
     const claseOcupa = `pla-ocupa${sobre ? ' is-sobre' : ''}`;
+    const repe = repetidos.has(mesa.numero) && !mesa.presidencial;
+    const claseNombre = `pla-nombre${!mesa.presidencial && mesa.numero == null ? ' is-sinnum' : ''}${repe ? ' is-repe' : ''}`;
     if (dMed >= px(34)) {
       const top = -(dMed + 0.06 + altoTexto) / 2;
       g.appendChild(medallon(mesa, 0, top + dMed / 2, dMed));
       const yN = top + dMed + 0.06 + fNombre * 0.6;
-      g.appendChild(sv('text', { x: 0, y: yN, class: 'pla-nombre', 'font-size': fNombre }, corto(mesa.nombre, 16)));
+      g.appendChild(sv('text', { x: 0, y: yN, class: claseNombre, 'font-size': fNombre }, rotulo(mesa, 16)));
       g.appendChild(sv('text', {
         x: 0, y: yN + fNombre * 0.55 + fOcupa * 0.6, class: claseOcupa, 'font-size': fOcupa,
       }, ocupa));
@@ -378,7 +386,7 @@ async function initApp(root) {
       const top = -(dA + px(2) + altoTexto) / 2;
       g.appendChild(medallon(mesa, 0, top + dA / 2, dA));
       const yN = top + dA + px(2) + fNombre * 0.6;
-      g.appendChild(sv('text', { x: 0, y: yN, class: 'pla-nombre', 'font-size': fNombre }, corto(mesa.nombre, 11)));
+      g.appendChild(sv('text', { x: 0, y: yN, class: claseNombre, 'font-size': fNombre }, rotulo(mesa, 11)));
       g.appendChild(sv('text', {
         x: 0, y: yN + fNombre * 0.55 + fOcupa * 0.6, class: claseOcupa, 'font-size': fOcupa,
       }, ocupa));
@@ -386,21 +394,52 @@ async function initApp(root) {
     return g;
   }
 
+  let repetidos = new Map();
   function renderPlano() {
+    repetidos = numerosRepetidos(mesas);
     svg.innerHTML = '';
     const { ancho, largo } = plano;
     // Suelo, rejilla y paredes (la cota del ancho va abajo: arriba está
     // la presidencial pegada a la pared)
     svg.appendChild(sv('rect', { x: 0, y: 0, width: ancho, height: largo, class: 'pla-suelo', 'data-suelo': '' }));
+    // Como el plano de la finca: zona más clara a la izquierda de una
+    // línea discontinua vertical
+    const xZona = ancho * FINCA_ZONA_CLARA;
+    svg.appendChild(sv('rect', { x: 0, y: 0, width: xZona, height: largo, class: 'pla-suelo-claro' }));
     const rej = sv('g', { class: 'pla-rejilla' });
     for (let x = 1; x < ancho; x += 1) rej.appendChild(sv('line', { x1: x, y1: 0, x2: x, y2: largo }));
     for (let y = 1; y < largo; y += 1) rej.appendChild(sv('line', { x1: 0, y1: y, x2: ancho, y2: y }));
     svg.appendChild(rej);
+    svg.appendChild(sv('line', { x1: xZona, y1: 0, x2: xZona, y2: largo, class: 'pla-linea-zona' }));
     svg.appendChild(sv('rect', { x: 0, y: 0, width: ancho, height: largo, class: 'pla-paredes' }));
+    // Salidas: hueco en la pared, flecha hacia fuera y rótulo
+    FINCA_SALIDAS.forEach((sa) => {
+      const izq = sa.pared === 'izquierda';
+      const xp = izq ? 0 : ancho;
+      const yc = sa.y * largo;
+      const y1 = yc - SALIDA_ANCHO / 2;
+      const y2 = yc + SALIDA_ANCHO / 2;
+      const s = izq ? -1 : 1;  // hacia fuera
+      const g = sv('g', { class: 'pla-salida' });
+      g.appendChild(sv('line', { x1: xp, y1, x2: xp, y2, class: 'pla-salida__hueco' }));
+      g.appendChild(sv('line', { x1: xp - 0.2, y1, x2: xp + 0.2, y2: y1, class: 'pla-salida__jamba' }));
+      g.appendChild(sv('line', { x1: xp - 0.2, y1: y2, x2: xp + 0.2, y2, class: 'pla-salida__jamba' }));
+      g.appendChild(sv('path', {
+        d: `M ${xp + s * 0.2} ${yc} L ${xp + s * 0.75} ${yc} M ${xp + s * 0.55} ${yc - 0.2} L ${xp + s * 0.8} ${yc} L ${xp + s * 0.55} ${yc + 0.2}`,
+        class: 'pla-salida__flecha',
+      }));
+      const xt = xp + s * 1.15;
+      g.appendChild(sv('text', {
+        x: xt, y: yc, class: 'pla-salida__txt', 'font-size': 0.4,
+        transform: `rotate(${izq ? -90 : 90} ${xt} ${yc})`,
+      }, 'SALIDA'));
+      svg.appendChild(g);
+    });
     svg.appendChild(sv('text', { x: ancho / 2, y: largo + 0.6, class: 'pla-cota', 'font-size': 0.42 }, fmtM(ancho)));
+    // Cota del largo arriba a la derecha (en mitad de las paredes laterales van las salidas)
     svg.appendChild(sv('text', {
-      x: -0.55, y: largo / 2, class: 'pla-cota', 'font-size': 0.42,
-      transform: `rotate(-90 ${-0.55} ${largo / 2})`,
+      x: ancho + 0.55, y: largo * 0.22, class: 'pla-cota', 'font-size': 0.42,
+      transform: `rotate(90 ${ancho + 0.55} ${largo * 0.22})`,
     }, fmtM(largo)));
     // Mesas (la seleccionada encima)
     mesas.filter((m) => m.id !== selId).forEach((m) => svg.appendChild(dibujaMesa(m)));
@@ -436,7 +475,7 @@ async function initApp(root) {
   function renderSel() {
     const m = porId(selId);
     selEl.textContent = m
-      ? `${m.nombre} · giro ${Math.round(normAng(m.rot))}°${m.presidencial ? ' · mira hacia la flecha' : ''}`
+      ? `${rotulo(m, 40)} · giro ${Math.round(normAng(m.rot))}°${m.presidencial ? ' · mira hacia la flecha' : ''}`
       : 'Toca una mesa para seleccionarla.';
     root.querySelector('#pla-rotl').disabled = !m;
     root.querySelector('#pla-rotr').disabled = !m;
@@ -643,6 +682,21 @@ async function initApp(root) {
       avisosEl.appendChild(el('p', 'mes-aviso mes-aviso--warn',
         '⚠ No hay mesa presidencial marcada (se marca desde el detalle de una mesa).'));
     }
+    const sinNum = mesas.filter((m) => !m.presidencial && m.numero == null);
+    if (sinNum.length) {
+      avisosEl.appendChild(el('p', 'mes-aviso mes-aviso--warn',
+        `⚠ ${sinNum.length === 1 ? 'Mesa sin número' : 'Mesas sin número'} (s/n en el plano): ${sinNum.map((m) => m.nombre).join(', ')}. Se pone en el detalle de la mesa.`));
+    }
+    numerosRepetidos(mesas).forEach((lista, n) => {
+      avisosEl.appendChild(el('p', 'mes-aviso mes-aviso--error',
+        `⚠ Número ${n} repetido: ${lista.map((m) => m.nombre).join(', ')}.`));
+    });
+    if (avisoFinca) {
+      const box = el('div', 'mes-aviso mes-aviso--warn pla-aviso-finca');
+      box.appendChild(el('p', null, avisoFinca));
+      box.appendChild(btn('pla-estado__btn', 'Entendido', () => { avisoFinca = ''; renderStatsYAvisos(); }));
+      avisosEl.appendChild(box);
+    }
   }
 
   /* ---------- Detalle de una mesa ---------- */
@@ -780,6 +834,46 @@ async function initApp(root) {
     return svgD;
   }
 
+  /** Nº de mesa del plano de la finca (1-15). Vacío = sin número. Un
+      número repetido se guarda igualmente y se avisa. */
+  function campoNumero(mesa) {
+    const fila = el('div', 'pla-seg');
+    fila.appendChild(el('span', 'pla-seg__label', 'Número'));
+    if (mesa.presidencial) {
+      fila.appendChild(el('span', 'adm-hint pla-numero__nota', 'La presidencial no lleva número.'));
+      return fila;
+    }
+    const input = el('input', 'field__input pla-cap pla-numero');
+    input.type = 'number';
+    input.min = '1';
+    input.max = String(NUMERO_MAX);
+    input.step = '1';
+    input.inputMode = 'numeric';
+    input.placeholder = 's/n';
+    input.value = mesa.numero != null ? String(mesa.numero) : '';
+    input.setAttribute('aria-label', `Número de mesa (1 a ${NUMERO_MAX})`);
+    input.addEventListener('change', () => {
+      const txt = input.value.trim();
+      const n = txt === '' ? null : Number(txt);
+      if (n !== null && !(Number.isInteger(n) && n >= 1 && n <= NUMERO_MAX)) {
+        detalleMsg = `⚠ El número de mesa debe ser un entero del 1 al ${NUMERO_MAX} (o vacío).`;
+        renderDetalle();
+        return;
+      }
+      if (n === mesa.numero) return;
+      mesa.numero = n;
+      const otras = n == null ? [] : mesas.filter((m) => m !== mesa && !m.presidencial && m.numero === n);
+      const msg = n == null ? 'Sin número' : `Número ${n}`;
+      guardarDetalle(mesa, { numero: n }, otras.length
+        ? `⚠ ${msg} guardado, pero también lo tiene ${otras.map((m) => m.nombre).join(', ')}`
+        : msg);
+    });
+    fila.appendChild(input);
+    fila.appendChild(el('span', `adm-hint pla-numero__nota${mesa.numero == null ? ' is-sinnum' : ''}`,
+      mesa.numero == null ? 'Sin número todavía' : `Del 1 al ${NUMERO_MAX}`));
+    return fila;
+  }
+
   function renderDetalle() {
     const mesa = porId(detalleId);
     if (!mesa) { cierraDetalle(); return; }
@@ -800,7 +894,7 @@ async function initApp(root) {
       head.appendChild(el('span', 'pla-detalle__inicial', ic.inicial));
     }
     const tit = el('div', 'pla-detalle__tit');
-    tit.appendChild(el('h3', 'pla-detalle__nombre', mesa.nombre));
+    tit.appendChild(el('h3', 'pla-detalle__nombre', rotulo(mesa, 60)));
     const sub = [...new Set([mesa.grupo, mesa.presidencial ? 'Mesa presidencial' : ''].filter(Boolean))].join(' · ');
     if (sub) tit.appendChild(el('p', 'pla-detalle__grupo', sub));
     head.appendChild(tit);
@@ -808,6 +902,7 @@ async function initApp(root) {
     head.appendChild(el('span', `mes-aforo${sobre ? ' is-sobre' : ''}`, `${mesa.comensales.length}/${mesa.capacidad}`));
     head.appendChild(btn('pla-ico pla-detalle__cerrar', '✕', cierraDetalle, 'Cerrar'));
     panel.appendChild(head);
+    panel.appendChild(campoNumero(mesa));
     if (sobre) {
       panel.appendChild(el('p', 'mes-aviso mes-aviso--error',
         `⚠ Sobreaforo: ${mesa.comensales.length} comensales para ${mesa.capacidad} plazas (se dibujan los puestos de más en rojo).`));
@@ -1000,6 +1095,7 @@ async function initApp(root) {
       deshacerDistBtn.title = `Vuelve a la colocación anterior${hora ? ` (copia del ${hora})` : ''}`;
     }
     distBtn.disabled = guardado.pendientes > 0;
+    fincaBtn.disabled = guardado.pendientes > 0;
   }
 
   async function distribuirMesas() {
@@ -1048,25 +1144,90 @@ async function initApp(root) {
     }
   }
 
+  /** Mensaje (persistente en avisos) tras colocar como la finca. */
+  let avisoFinca = '';
+  const fincaBtn = $('#pla-finca');
+
+  async function colocarComoFinca() {
+    const res = colocarFinca(mesas, plano);
+    if (res.pos.size === 0) {
+      window.alert('Ninguna mesa tiene número ni hay presidencial marcada: no hay nada que colocar.\n\n'
+        + 'Pon el número de cada mesa en su detalle (toca la mesa en el plano).');
+      return;
+    }
+    const nombres = (l) => l.map((m) => m.nombre).join(', ');
+    const repes = [...numerosRepetidos(mesas)].map(([n, l]) => `${n} (${nombres(l)})`);
+    let txt = `¿Colocar ${plural(res.pos.size, 'mesa', 'mesas')} como en el plano de la finca?\n\n`
+      + '⚠ Se SOBRESCRIBE la colocación actual de esas mesas, también la que hayas hecho a mano.\n\n'
+      + 'Antes se guarda una copia y podrás volver a ella con «Deshacer distribución».';
+    if (res.sinNumero.length) txt += `\n\nNo se mueven (sin número): ${nombres(res.sinNumero)}.`;
+    if (repes.length) txt += `\n\n⚠ Números repetidos (quedarán una encima de otra): ${repes.join('; ')}.`;
+    if (!window.confirm(txt)) return;
+    guardado.pendientes += 1;
+    renderEstado();
+    renderDistBtns();
+    try {
+      // 1) Copia de lo que hay guardado ahora (null = sin posición). La
+      //    forma, solo de la mesa a la que se le cambia (la presidencial)
+      const previa = mesas.map((m) => ({
+        id: m.id, nombre: m.nombre,
+        x: m.orig.x ?? null, y: m.orig.y ?? null, rot: m.orig.rot ?? 0,
+        ...(res.pos.get(m.id)?.forma ? { forma: m.orig.forma } : {}),
+      }));
+      const copiaId = await crearCopia(previa, 'finca');
+      copias.unshift({ id: copiaId, mesas: previa, fecha: new Date() });
+      // 2) Posiciones del plano de la finca, de una vez (sin limitar a
+      //    las paredes: van donde dice el plano aunque se salgan)
+      const lista = [...res.pos].map(([id, p]) => ({
+        id, x: cm(p.x), y: cm(p.y), rot: normAng(p.rot), ...(p.forma ? { forma: p.forma } : {}),
+      }));
+      await guardaPosiciones(lista);
+      lista.forEach((p) => {
+        const m = porId(p.id);
+        Object.assign(m, { x: p.x, y: p.y, rot: p.rot, provisional: false });
+        if (p.forma) m.forma = p.forma;
+        m.orig = { x: p.x, y: p.y, rot: p.rot, forma: m.forma };
+        guardado.errores.delete(m.id);
+      });
+      undo.length = 0;
+      selId = null;
+      guardado.ultimo = new Date();
+      const partes = [`✓ ${plural(lista.length, 'mesa colocada', 'mesas colocadas')} como en el plano de la finca.`];
+      if (res.sinNumero.length) partes.push(`Sin número, no se han movido: ${nombres(res.sinNumero)}.`);
+      if (res.conflictos.length) {
+        partes.push(`⚠ Revisa: ${res.conflictos.map((c) => `${c.mesa.nombre} (${[...new Set(c.motivos)].join(', ')})`).join('; ')}.`);
+      }
+      avisoFinca = partes.join(' ');
+    } catch (err) {
+      console.error(err);
+      window.alert('No se ha podido colocar (no se ha cambiado nada guardado). Inténtalo de nuevo.');
+    } finally {
+      guardado.pendientes -= 1;
+      render();
+    }
+  }
+
   async function deshacerDistribucion() {
     const c = copias[0];
     if (!c) return;
-    if (!window.confirm('¿Volver a la colocación anterior a la última distribución?\n\nSe pierde la distribución actual.')) return;
+    if (!window.confirm('¿Volver a la colocación anterior a la última distribución (o colocación como la finca)?\n\nSe pierde la colocación actual.')) return;
     guardado.pendientes += 1;
     renderEstado();
     renderDistBtns();
     try {
       const lista = c.mesas.filter((e) => porId(e.id))
-        .map((e) => ({ id: e.id, x: e.x, y: e.y, rot: e.rot }));
+        .map((e) => ({ id: e.id, x: e.x, y: e.y, rot: e.rot, forma: e.forma }));
       await guardaPosiciones(lista);
       await borraCopia(c.id);
       copias.shift();
       lista.forEach((e) => {
         const m = porId(e.id);
         Object.assign(m, { x: e.x, y: e.y, rot: e.rot || 0, provisional: false });
-        m.orig = { x: e.x, y: e.y, rot: e.rot || 0 };
+        if (FORMAS.includes(e.forma)) m.forma = e.forma;
+        m.orig = { x: e.x, y: e.y, rot: e.rot || 0, forma: m.forma };
       });
       colocaPendientes();
+      avisoFinca = '';
       undo.length = 0;
       selId = null;
       guardado.ultimo = new Date();
@@ -1080,6 +1241,7 @@ async function initApp(root) {
   }
   distBtn.addEventListener('click', distribuirMesas);
   deshacerDistBtn.addEventListener('click', deshacerDistribucion);
+  fincaBtn.addEventListener('click', colocarComoFinca);
 
   /* ---------- Botones ---------- */
   editarBtn.addEventListener('click', () => setEditando(!editando));
@@ -1118,7 +1280,7 @@ async function initApp(root) {
   [plano, mesas, copias] = await Promise.all([
     fetchPlano(), fetchMesasPlano(), fetchCopias().catch((err) => { console.error(err); return []; }),
   ]);
-  mesas.forEach((m) => { m.orig = { x: m.x, y: m.y, rot: m.rot }; });
+  mesas.forEach((m) => { m.orig = { x: m.x, y: m.y, rot: m.rot, forma: m.forma }; });
   colocaPendientes();
   rellenaSalon();
   ajustaEscenario();
