@@ -719,6 +719,13 @@ export function posSilla(mesa, i) {
  * presidencial o falta la posición).
  */
 export function orientacionSilla(mesa, i, pres) {
+  const ang = anguloSilla(mesa, i, pres);
+  if (ang == null) return null;
+  return ang < 60 ? 'cara' : ang <= 120 ? 'lado' : 'espaldas';
+}
+
+/** Ángulo (0-180°) de orientacionSilla: 0 = la presidencial justo enfrente. */
+export function anguloSilla(mesa, i, pres) {
   if (!pres || mesa.presidencial || pres.id === mesa.id) return null;
   if (![mesa.x, mesa.y, pres.x, pres.y].every((v) => typeof v === 'number')) return null;
   const s = posSilla(mesa, i);
@@ -726,8 +733,45 @@ export function orientacionSilla(mesa, i, pres) {
   const px = pres.x - s.x; const py = pres.y - s.y;
   const d = Math.hypot(mx, my) * Math.hypot(px, py);
   if (!d) return null;
-  const ang = (Math.acos(Math.max(-1, Math.min(1, (mx * px + my * py) / d))) * 180) / Math.PI;
-  return ang < 60 ? 'cara' : ang <= 120 ? 'lado' : 'espaldas';
+  return (Math.acos(Math.max(-1, Math.min(1, (mx * px + my * py) / d))) * 180) / Math.PI;
+}
+
+/**
+ * Mejor giro de los comensales para las ★ (sin cambiar a nadie de silla
+ * relativa): prueba los n giros de giraPuestos y elige el de más ★ de
+ * cara; empate → menos de espaldas; empate → menor suma de ángulos (y,
+ * a igualdad, el giro más pequeño). `keys`: las ★ a considerar (por
+ * defecto, las marcadas en la mesa). Devuelve { paso, asientos,
+ * estrellas: [{ i, c, ang, orient }] } o null si no se puede calcular.
+ */
+export function mejorGiroEstrellas(mesa, pres, keys = null) {
+  const n = numPuestos(mesa);
+  const esEstrella = (c) => c && (keys ? keys.includes(c.key) : c.estrella);
+  let mejor = null;
+  for (let paso = 0; paso < n; paso++) {
+    const asientos = giraPuestos(mesa, paso);
+    const girada = { ...mesa, asientos };
+    const estrellas = [];
+    ordenPuestos(girada).forEach((c, i) => {
+      if (!esEstrella(c)) return;
+      const ang = anguloSilla(girada, i, pres);
+      if (ang == null) return;
+      estrellas.push({ i, c, ang, orient: ang < 60 ? 'cara' : ang <= 120 ? 'lado' : 'espaldas' });
+    });
+    if (!estrellas.length) return null;
+    const p = {
+      cara: estrellas.filter((e) => e.orient === 'cara').length,
+      espaldas: estrellas.filter((e) => e.orient === 'espaldas').length,
+      suma: estrellas.reduce((s, e) => s + e.ang, 0),
+    };
+    const dist = Math.min(paso, n - paso);
+    const gana = !mejor || p.cara > mejor.p.cara
+      || (p.cara === mejor.p.cara && (p.espaldas < mejor.p.espaldas
+        || (p.espaldas === mejor.p.espaldas && (p.suma < mejor.p.suma - 1e-9
+          || (Math.abs(p.suma - mejor.p.suma) <= 1e-9 && dist < mejor.dist)))));
+    if (gana) mejor = { paso, asientos, estrellas, p, dist };
+  }
+  return mejor && { paso: mejor.paso, asientos: mejor.asientos, estrellas: mejor.estrellas };
 }
 
 /** Comensales ★ de una mesa: [{ i, n, c, orient }] en orden de número. */

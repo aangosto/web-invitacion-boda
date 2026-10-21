@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import {
   ordenPuestos, giraPuestos, intercambio, numAsiento, inicioAsientos, puestosNumerados,
   orientacionSilla, posSilla, estrellasMesa, hayEstrellaDeEspaldas, conDestacado, numPuestos,
+  anguloSilla, mejorGiroEstrellas,
 } from '../src/modules/plano-geom.js';
 import { toComensal, NOTA_MAX } from '../src/modules/comensal.js';
 import { planificar } from '../src/modules/excel-finca.js';
@@ -196,6 +197,27 @@ t('sin presidencial, o en la propia presidencial: no hay orientación', () => {
   const m = mesa('m');
   assert.equal(orientacionSilla(m, 0, null), null);
   assert.equal(orientacionSilla(PRES, 0, PRES), null);
+});
+
+t('mejor giro: solo GIRA (mismo orden circular) y deja a la ★ de cara con el menor ángulo', () => {
+  const m = mesa('m', { y: 12, comensales: mesa('m').comensales.map((x) => (x.key === 'mc' ? { ...x, estrella: true } : x)) });
+  const g = mejorGiroEstrellas(m, PRES);
+  const girada = { ...m, asientos: g.asientos };
+  const antes = ordenPuestos(m).map((x) => (x ? x.key : ''));
+  const despues = ordenPuestos(girada).map((x) => (x ? x.key : ''));
+  assert.deepEqual(despues, antes.map((_, i) => antes[(i - g.paso + 8) % 8]));
+  const i = despues.indexOf('mc');
+  assert.equal(orientacionSilla(girada, i, PRES), 'cara');
+  const angs = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => anguloSilla(m, k, PRES));
+  assert.equal(anguloSilla(girada, i, PRES), Math.min(...angs));
+});
+
+t('mejor giro con varias ★: prima las de cara; solo cuenta las keys pedidas', () => {
+  const m = mesa('m', { y: 12 });
+  const g = mejorGiroEstrellas(m, PRES, ['ma', 'mb']);
+  assert.equal(g.estrellas.length, 2);
+  assert.ok(g.estrellas.every((e) => e.orient === 'cara'));
+  assert.equal(mejorGiroEstrellas(m, PRES), null, 'sin ★ no hay giro que elegir');
 });
 
 /* ---------- 4 · PDF para la wedding planner ---------- */
