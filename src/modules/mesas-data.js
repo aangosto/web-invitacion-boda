@@ -10,8 +10,11 @@
          nombre,             // snapshot del nombre al sentarla
          nucleo, lado,       // núcleo y lado (vacíos si es manual)
          manual,             // true = escrito a mano, no está en invitados
-         preboda }],         // true = viene a la preboda (por defecto
+         preboda,            // true = viene a la preboda (por defecto
                              // true; viaja con el comensal al moverlo)
+         estrella, nota }],  // invitado destacado (★) y nota corta
+                             // (≤60); opcionales, se ponen en plano.html
+       asientoInicio,        // silla que lleva el nº 1 (plano.html)
        orden, createdAt, updatedAt,
        numero }              // nº de mesa (1-15) del plano de la finca;
                              // se pone en plano.html, aquí solo se muestra
@@ -27,18 +30,7 @@ import {
   collection, doc, getDocs, addDoc, updateDoc, deleteDoc,
   orderBy, query, serverTimestamp,
 } from 'firebase/firestore';
-
-function toComensal(c) {
-  return {
-    key: String(c.key || ''),
-    nombre: String(c.nombre || '').trim(),
-    nucleo: String(c.nucleo || '').trim(),
-    lado: ['novia', 'novio', 'ambos'].includes(c.lado) ? c.lado : '',
-    manual: c.manual === true,
-    // Por defecto SÍ viene: solo un false explícito lo desactiva
-    preboda: c.preboda !== false,
-  };
-}
+import { toComensal } from './comensal.js';
 
 /** Todas las mesas, por orden de creación. */
 export async function fetchMesas() {

@@ -6,10 +6,12 @@
    · Cada mesa: la MISMA colección "mesas" que usa mesas.html. Esta
      página solo escribe los campos del plano:
        forma, x, y, rot, icono, asientos, capacidad, presidencial,
-       numero (nº de mesa 1-15 del plano de la finca; null = se borra)
-     NUNCA `comensales` (ni su flag de preboda): el reparto de gente
-     sigue siendo cosa de mesas.html. Todo con updateDoc (no pisa el
-     resto del documento).
+       numero (nº de mesa 1-15 del plano de la finca; null = se borra),
+       asientoInicio (silla física que lleva el nº 1; 0 = la cabecera)
+     De `comensales` SOLO toca `estrella` (bool) y `nota` (≤60) de UN
+     comensal, en una transacción que conserva todo lo demás
+     (guardaDestacado). El reparto de gente sigue siendo cosa de
+     mesas.html. Todo con updateDoc (no pisa el resto del documento).
    · Copias de seguridad de la colocación: colección planoCopias
        { motivo, mesas: [{ id, nombre, x, y, rot, forma? }], createdAt }
      (x/y null = la mesa no tenía posición guardada; `forma` solo en las
@@ -23,11 +25,13 @@
 import { db } from '../firebase.js';
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, writeBatch,
-  orderBy, query, limit, serverTimestamp, deleteField,
+  orderBy, query, limit, serverTimestamp, deleteField, runTransaction,
 } from 'firebase/firestore';
-import { FORMAS, PLANO_DEFAULT, numeroValido } from './plano-geom.js';
+import {
+  FORMAS, PLANO_DEFAULT, numeroValido, NOTA_MAX, conDestacado,
+} from './plano-geom.js';
 
-const CAMPOS_PLANO = ['forma', 'x', 'y', 'rot', 'icono', 'asientos', 'capacidad', 'presidencial', 'numero'];
+const CAMPOS_PLANO = ['forma', 'x', 'y', 'rot', 'icono', 'asientos', 'capacidad', 'presidencial', 'numero', 'asientoInicio'];
 
 /** Medidas del salón (o las de por defecto si aún no se han guardado). */
 export async function fetchPlano() {
@@ -63,7 +67,10 @@ export async function fetchMesasPlano() {
       grupo: m.grupo || '',
       capacidad: typeof m.capacidad === 'number' ? m.capacidad : 8,
       comensales: Array.isArray(m.comensales)
-        ? m.comensales.map((c) => ({ key: String(c.key || ''), nombre: String(c.nombre || '') }))
+        ? m.comensales.map((c) => ({
+          key: String(c.key || ''), nombre: String(c.nombre || ''),
+          estrella: c.estrella === true, nota: typeof c.nota === 'string' ? c.nota.slice(0, NOTA_MAX) : '',
+        }))
         : [],
       presidencial: m.presidencial === true,
       numero: numeroValido(m.numero),
@@ -73,6 +80,7 @@ export async function fetchMesasPlano() {
       rot: typeof m.rot === 'number' ? m.rot : 0,
       icono: typeof m.icono === 'string' ? m.icono : '',
       asientos: Array.isArray(m.asientos) ? m.asientos.map(String) : null,
+      asientoInicio: Number.isInteger(m.asientoInicio) && m.asientoInicio >= 0 ? m.asientoInicio : 0,
     };
   });
 }
@@ -85,6 +93,24 @@ export async function updateMesaPlano(id, cambios) {
   });
   if ('numero' in limpio && limpio.numero == null) limpio.numero = deleteField();
   await updateDoc(doc(db, 'mesas', id), { ...limpio, updatedAt: serverTimestamp() });
+}
+
+/**
+ * ★ y nota de UN comensal (por su key). Transacción: lee la mesa, cambia
+ * solo esos dos campos de ese comensal (estrella false / nota vacía = se
+ * quitan) y conserva el resto de la lista tal cual (preboda, núcleo…).
+ * Devuelve false si el comensal ya no está en la mesa.
+ */
+export async function guardaDestacado(mesaId, key, { estrella, nota }) {
+  const ref = doc(db, 'mesas', mesaId);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const lista = snap.exists() && Array.isArray(snap.data().comensales) ? snap.data().comensales : [];
+    const nueva = conDestacado(lista, key, { estrella, nota });
+    if (!nueva) return false;
+    tx.update(ref, { comensales: nueva, updatedAt: serverTimestamp() });
+    return true;
+  });
 }
 
 /** Marca UNA mesa como presidencial (desmarca la que lo fuera antes). */

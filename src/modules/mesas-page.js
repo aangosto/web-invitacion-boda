@@ -510,8 +510,10 @@ async function initApp(root) {
       const info = el('div', 'mes-comensal__info');
       const nombre = el('p', 'mes-comensal__nombre');
       nombre.appendChild(chipEstado(c, estados));
+      if (c.estrella) nombre.appendChild(el('span', 'mes-estrella', '★'));
       nombre.appendChild(document.createTextNode(c.nombre));
       info.appendChild(nombre);
+      if (c.nota) info.appendChild(el('p', 'mes-comensal__nota', c.nota));
       info.appendChild(el('p', 'mes-comensal__meta',
         c.manual ? 'añadido a mano' : `${c.nucleo} · ${LADO_LABEL[c.lado]}`));
       row.appendChild(info);

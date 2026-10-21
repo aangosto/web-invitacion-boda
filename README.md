@@ -35,6 +35,12 @@ cinematográfica (el sobre se abre) como pieza central. Datos en **Firebase
   scroll). Dibujos de las mesas: **un solo sitio**,
   `src/modules/mesas-iconos.js` (copia el PNG a `public/` y pon su nombre).
   Pruebas de geometría: `node scripts/test-plano.mjs`.
+  En el detalle de mesa: «Elegir asiento 1» (`asientoInicio`: solo cambia
+  la numeración, nadie se mueve) e invitados ★ con nota (campos
+  `estrella`/`nota` del comensal; se escriben con una transacción que no
+  toca nada más). Cada ★ dice si queda de cara, de lado o de espaldas a la
+  presidencial (mira al centro de su mesa; <60°, 60-120°, >120°). Pruebas:
+  `node scripts/test-destacados.mjs`.
   Reparto definitivo: `scripts/inspeccionar-mesas.mjs` (solo lectura) y
   `scripts/reconciliar-mesas.mjs` (idempotente) sobre
   `datos/mesas-banquete.txt` (no se sube al repo).

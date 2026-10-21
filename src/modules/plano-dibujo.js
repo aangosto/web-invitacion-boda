@@ -9,7 +9,10 @@
 
 import { iconoMesa } from './mesas-iconos.js';
 import {
-  SILLA_R, numPuestos, tamanoMesa, puestosLocales, semiCaja, ordenPuestos,
+  ESTRELLA, NBSP, ICONO_ORIENT, trozosEtiqueta,
+} from './mesa-etiquetas.js';
+import {
+  SILLA_R, numPuestos, tamanoMesa, puestosLocales, semiCaja, ordenPuestos, numAsiento, ORIENTACION_LABEL,
   FINCA_ZONA_CLARA, FINCA_SALIDAS, SALIDA_ANCHO,
 } from './plano-geom.js';
 
@@ -116,8 +119,11 @@ export function dibujaSalon(svg, plano) {
  *   avisos:    colorear "s/n", números repetidos y sobreaforo (en pantalla sí)
  *   repetidos: Map de numerosRepetidos()
  *   extra(giro, {w, h, n}): añade elementos al grupo girado (tirador)
+ *   espaldas:  alguna ★ queda de espaldas a los novios (marca discreta)
  */
-export function dibujaMesa(mesa, { px, clase = '', avisos = true, repetidos = new Map(), idPre, extra } = {}) {
+export function dibujaMesa(mesa, {
+  px, clase = '', avisos = true, repetidos = new Map(), idPre, extra, espaldas = false,
+} = {}) {
   const n = numPuestos(mesa);
   const { w, h } = tamanoMesa(mesa.forma, n);
   const ocupadas = mesa.comensales.length;
@@ -194,6 +200,17 @@ export function dibujaMesa(mesa, { px, clase = '', avisos = true, repetidos = ne
   g.appendChild(sv('text', {
     x: 0, y: yN + fNombre * 0.55 + fOcupa * 0.6, class: claseOcupa, 'font-size': fOcupa, 'data-ajusta': anchoRotulo,
   }, ocupa));
+  // ★ de espaldas a los novios: estrellita en la esquina de la mesa
+  if (espaldas) {
+    const { hx, hy } = semiCaja(mesa.forma, n, mesa.rot || 0);
+    const r = Math.max(0.12, px(5.5));
+    const xa = hx * 0.72; const ya = -hy * 0.72;
+    const m = sv('g', { class: 'pla-espaldas' });
+    m.appendChild(sv('title', null, 'Alguna ★ queda de espaldas a los novios'));
+    m.appendChild(sv('circle', { cx: xa, cy: ya, r }));
+    m.appendChild(sv('text', { x: xa, y: ya, 'font-size': r * 1.3 }, ESTRELLA));
+    g.appendChild(m);
+  }
   return g;
 }
 
@@ -265,13 +282,15 @@ export function medirPantalla(texto, fs) {
 
 /**
  * SVG del detalle a partir del diseño (disenaMesa).
- *   mesa, nombres ([nombre|''] por asiento), marcado (índice o null),
+ *   mesa, nombres ([etiqueta|''] por silla física: etiquetaPuesto),
+ *   marcado (índice o null), elegirUno: modo «Elegir asiento 1»,
  *   onPuesto(i): toque en una silla o en su nombre
+ * El número de cada silla sale de numAsiento (asiento 1 elegido).
  */
-export function svgPuestos(d, { mesa, nombres, marcado = null, onPuesto }) {
+export function svgPuestos(d, { mesa, nombres, marcado = null, elegirUno = false, onPuesto }) {
   const svg = sv('svg', {
     viewBox: `0 0 ${d.ancho} ${d.alto}`, width: d.ancho, height: d.alto,
-    class: 'pla-puestos', role: 'img', 'aria-label': 'Dibujo de la mesa con sus puestos',
+    class: `pla-puestos${elegirUno ? ' is-eligeuno' : ''}`, role: 'img', 'aria-label': 'Dibujo de la mesa con sus puestos',
   });
   const fig = (o, clase, estilo) => (o.circ
     ? sv('circle', { cx: o.circ.x, cy: o.circ.y, r: o.circ.r, class: clase, style: estilo || '' })
@@ -303,20 +322,37 @@ export function svgPuestos(d, { mesa, nombres, marcado = null, onPuesto }) {
   const porSilla = new Map(d.etiquetas.map((e) => [e.i, e]));
   d.sillas.forEach((c) => {
     const exceso = c.i >= mesa.capacidad;
+    const num = numAsiento(mesa, c.i);
     const g = sv('g', {
-      class: `pla-puesto${nombres[c.i] ? ' is-ocupada' : ''}${exceso ? ' is-exceso' : ''}${marcado === c.i ? ' is-marcado' : ''}`,
-      'data-puesto': c.i, role: 'button', tabindex: 0,
-      'aria-label': `Puesto ${c.i + 1}: ${nombres[c.i] || 'vacío'}`,
+      class: `pla-puesto${nombres[c.i] ? ' is-ocupada' : ''}${exceso ? ' is-exceso' : ''}${marcado === c.i ? ' is-marcado' : ''}${num === 1 ? ' is-uno' : ''}`,
+      'data-puesto': c.i, 'data-num': num, role: 'button', tabindex: 0,
+      'aria-label': elegirUno ? `Hacer de esta silla el asiento 1 (ahora es el ${num})`
+        : `Puesto ${num}: ${nombres[c.i] ? trozosEtiqueta(nombres[c.i]).texto : 'vacío'}`,
     });
     g.appendChild(sv('circle', { cx: c.x, cy: c.y, r: c.r }));
-    g.appendChild(sv('text', { x: c.x, y: c.y, class: 'pla-puesto__num', 'font-size': numFs }, String(c.i + 1)));
+    g.appendChild(sv('text', { x: c.x, y: c.y, class: 'pla-puesto__num', 'font-size': numFs }, String(num)));
     const e = porSilla.get(c.i);
     if (e) {
       const t = sv('text', {
         x: e.x, y: e.caja.y0, class: 'pla-puesto__nombre', 'font-size': e.fs,
         'text-anchor': e.align === 'left' ? 'start' : 'end', 'data-nombre': c.i,
       });
-      e.lineas.forEach((l, k) => t.appendChild(sv('tspan', { x: e.x, y: e.caja.y0 + e.lh * (k + 0.5) }, l)));
+      e.lineas.forEach((l, k) => {
+        const linea = sv('tspan', { x: e.x, y: e.caja.y0 + e.lh * (k + 0.5) });
+        const { estrella, texto, orient } = trozosEtiqueta(l);
+        if (estrella) {
+          linea.appendChild(sv('tspan', { class: 'pla-puesto__estrella' }, ESTRELLA));
+          linea.appendChild(document.createTextNode(NBSP));
+        }
+        linea.appendChild(document.createTextNode(texto));
+        if (orient) {
+          linea.appendChild(document.createTextNode(NBSP));
+          const ic = sv('tspan', { class: `pla-orient pla-orient--${orient}` }, ICONO_ORIENT[orient]);
+          ic.appendChild(sv('title', null, `${ORIENTACION_LABEL[orient]} a los novios`));
+          linea.appendChild(ic);
+        }
+        t.appendChild(linea);
+      });
       g.appendChild(t);
     }
     if (onPuesto) {

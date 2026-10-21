@@ -25,7 +25,7 @@
        (26 personas por bloque). Tipo: " ", "niño/a", "hueco", "trona".
    ================================================================= */
 
-import { ordenPuestos } from './plano-geom.js';
+import { puestosNumerados } from './plano-geom.js';
 
 export const HOJA = 'distribucion de mesas';
 export const HOJA_AYUDA = 'Ayuda';
@@ -136,14 +136,14 @@ export function planificar(mesas, nucleos = []) {
       + `${sinMesa.map((p) => p.nombre).join(', ')}.`);
   }
 
-  // Personas de cada bloque: orden de asientos del plano (si lo hay) o
+  // Personas de cada bloque: orden de asientos del plano desde el asiento 1 (si lo hay) o
   // el de la lista; los puestos vacíos no ocupan sitio en el Excel
   const bloques = [];
   let comensales = 0;
   let numNinos = 0;
   [...destino].sort((a, b) => a[1] - b[1]).forEach(([id, n]) => {
     const mesa = mesas.find((m) => m.id === id);
-    const personas = ordenPuestos(mesa).filter(Boolean).map((c) => {
+    const personas = puestosNumerados(mesa).map((p) => p.c).filter(Boolean).map((c) => {
       const tipo = esNino(c, ninos) ? TIPO_NINO : '';
       return { nombre: String(c.nombre || '').trim() || '(sin nombre)', tipo };
     });

@@ -26,6 +26,38 @@ import {
   numPuestos, tamanoMesa, puestosLocales, semiCaja, haciaMesa,
 } from './plano-geom.js';
 
+/* ---------- ★ e icono de orientación en las etiquetas ---------- */
+export const ESTRELLA = '★';
+export const NBSP = ' ';
+/** Icono de "hacia los novios" de cada estrella (pantalla). */
+export const ICONO_ORIENT = { cara: '◉', lado: '◑', espaldas: '○' };
+const ORIENT_DE_ICONO = Object.fromEntries(Object.entries(ICONO_ORIENT).map(([k, v]) => [v, k]));
+
+/**
+ * Texto de la etiqueta de un asiento: "★ Nombre" para las estrellas (con
+ * espacio duro: la ★ nunca se queda sola en una línea) y, si se pasa
+ * `orient`, el icono pegado al final. Así se mide y se parte el texto
+ * real, y cada dibujo pinta la ★ (y el icono) a su manera.
+ */
+export function etiquetaPuesto(c, orient = null) {
+  if (!c) return '';
+  if (!c.estrella) return c.nombre;
+  return `${ESTRELLA}${NBSP}${c.nombre}${orient && ICONO_ORIENT[orient] ? `${NBSP}${ICONO_ORIENT[orient]}` : ''}`;
+}
+/** Parte una línea de etiqueta en { estrella, texto, orient }. */
+export function trozosEtiqueta(l) {
+  let texto = l;
+  const estrella = texto.startsWith(`${ESTRELLA}${NBSP}`);
+  if (estrella) texto = texto.slice(2);
+  let orient = null;
+  const ult = texto.slice(-1);
+  if (texto.length >= 2 && texto.slice(-2, -1) === NBSP && ORIENT_DE_ICONO[ult]) {
+    orient = ORIENT_DE_ICONO[ult];
+    texto = texto.slice(0, -2);
+  }
+  return { estrella, texto, orient };
+}
+
 /* ---------- Texto ---------- */
 /**
  * Líneas de un nombre: una si cabe en `max`; si no, dos partiendo por el

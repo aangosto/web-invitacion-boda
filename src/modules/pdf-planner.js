@@ -12,10 +12,14 @@
         finca) e índice con enlaces.
      2. Plano del salón (A4 HORIZONTAL): la imagen a todo el ancho útil
         y una leyenda.
-     3. Mesa por mesa (vertical, dos fichas por página; la que no cabe
+     3. Invitados destacados (vertical): todas las ★ por mesa, con su
+        asiento, nota y si quedan de cara, de lado o de espaldas a los
+        novios (de espaldas, resaltado).
+     4. Mesa por mesa (vertical, dos fichas por página; la que no cabe
         en media, página entera): dibujo con el nombre de cada comensal
-        junto a su asiento y la flecha hacia los novios, y la lista en
-        orden de asiento.
+        (★ en los destacados) junto a su asiento y la flecha hacia los
+        novios, y la lista en orden de asiento desde el asiento 1 elegido
+        (con nota y orientación de las ★).
 
    Documento de COLOCACIÓN: sin confirmaciones, preboda, núcleos,
    alergias ni importes.
@@ -30,12 +34,17 @@ import {
 import {
   ordenPuestos, haciaMesa, rumbo,
   recortePlano, FORMA_LABEL,
+  puestosNumerados, numAsiento, orientacionSilla, ORIENTACION_LABEL,
 } from './plano-geom.js';
 import { planificar, clavesNinos, esNino, TIPO_NINO } from './excel-finca.js';
-import { disenaMesa } from './mesa-etiquetas.js';
+import {
+  disenaMesa, etiquetaPuesto, trozosEtiqueta, ESTRELLA, NBSP,
+} from './mesa-etiquetas.js';
 
 const A4 = { corto: 210, largo: 297 };
 const PT = 25.4 / 72;            // mm por punto tipográfico
+const ROJO = [140, 47, 47];       // ★ de espaldas a los novios
+const ROJO_FONDO = [248, 232, 232];
 
 /* ---------- Colores del dibujo (los de plano.html) ---------- */
 const C = {
@@ -65,13 +74,43 @@ export function ordenFichas(mesas) {
     || String(a.nombre).localeCompare(String(b.nombre), 'es'));
 }
 
-/** Puestos de una mesa para la lista: [{ n, nombre, tipo }] ('' | niño/a | hueco). */
-export function puestosMesa(mesa, ninos) {
-  return ordenPuestos(mesa).map((c, i) => ({
-    n: i + 1,
+/**
+ * Puestos de una mesa para la lista, en orden de NÚMERO (desde el asiento
+ * 1 elegido): [{ n, i (silla física), nombre, tipo ('' | niño/a | hueco),
+ * estrella, nota, orient ('cara' | 'lado' | 'espaldas', solo ★) }].
+ */
+export function puestosMesa(mesa, ninos, pres = null) {
+  return puestosNumerados(mesa).map(({ i, n, c }) => ({
+    n, i,
     nombre: c ? String(c.nombre || '').trim() || '(sin nombre)' : '',
     tipo: c ? (esNino(c, ninos) ? TIPO_NINO : '') : 'hueco',
+    estrella: Boolean(c && c.estrella),
+    nota: c && c.nota ? String(c.nota) : '',
+    orient: c && c.estrella ? orientacionSilla(mesa, i, pres) : null,
   }));
+}
+
+/**
+ * Invitados destacados (★) de todas las mesas, ordenados por mesa (como
+ * las fichas) y asiento: [{ mesa, titulo, n, nombre, nota, orient }].
+ */
+export function destacados(mesas) {
+  const pres = mesas.find((m) => m.presidencial) || null;
+  return ordenFichas(mesas).flatMap((m) => puestosMesa(m, new Set(), pres)
+    .filter((p) => p.estrella)
+    .map((p) => ({ mesa: m, titulo: tituloMesa(m), n: p.n, nombre: p.nombre, nota: p.nota, orient: p.orient })));
+}
+
+/** Estrella de 5 puntas rellena (las fuentes estándar del PDF no la tienen). */
+export function estrellaPdf(doc, cx, cy, r, color = BURDEOS) {
+  const pts = Array.from({ length: 10 }, (_, k) => {
+    const a = -Math.PI / 2 + (k * Math.PI) / 5;
+    const rr = k % 2 ? r * 0.45 : r;
+    return [cx + rr * Math.cos(a), cy + rr * Math.sin(a)];
+  });
+  doc.setFillColor(...color);
+  const segs = pts.slice(1).map(([x, y], k) => [x - pts[k][0], y - pts[k][1]]);
+  doc.lines(segs, pts[0][0], pts[0][1], [1, 1], 'F', true);
 }
 
 /**
@@ -107,7 +146,8 @@ function opcionesPdf(doc) {
     medir: (t, fs) => {
       doc.setFont(SANS, 'normal');
       doc.setFontSize(fs);
-      return doc.getTextWidth(txt(t));
+      // La ★ se dibuja aparte: ocupa lo que una «M»
+      return doc.getTextWidth(txt(String(t).replace(ESTRELLA, 'M')));
     },
     unidad: 0.35,
     separacion: 1.6,
@@ -143,6 +183,7 @@ function poligono(doc, pts, estilo) {
 }
 
 function pintaDibujo(doc, mesa, puestos, d) {
+  const porSilla = new Map(puestos.map((p) => [p.i, p]));
   // Tablero
   doc.setLineWidth(mesa.presidencial ? 0.5 : 0.35);
   doc.setDrawColor(...(mesa.presidencial ? BURDEOS : C.tableroBorde));
@@ -180,7 +221,7 @@ function pintaDibujo(doc, mesa, puestos, d) {
   // Sillas con su número
   const numFs = Math.min(8, Math.max(5, d.rS * 2.1));
   d.sillas.forEach((c) => {
-    const ocupada = Boolean(puestos[c.i].nombre);
+    const ocupada = Boolean(porSilla.get(c.i)?.nombre);
     const exceso = c.i >= mesa.capacidad;
     const [fill, borde] = exceso ? [C.exceso, C.excesoBorde] : ocupada ? [C.ocupada, C.ocupadaBorde] : [C.silla, C.sillaBorde];
     doc.setFillColor(...fill);
@@ -190,16 +231,29 @@ function pintaDibujo(doc, mesa, puestos, d) {
     doc.setFont(SANS, 'bold');
     doc.setFontSize(numFs);
     doc.setTextColor(...(ocupada ? INK : GRIS));
-    doc.text(String(c.i + 1), c.x, c.y + numFs * PT * 0.35, { align: 'center' });
+    doc.text(String(numAsiento(mesa, c.i)), c.x, c.y + numFs * PT * 0.35, { align: 'center' });
   });
 
-  // Nombres completos, en una o dos líneas
+  // Nombres completos, en una o dos líneas; la ★ de los destacados se
+  // dibuja en el hueco de una «M» delante del nombre
   doc.setFont(SANS, 'normal');
   doc.setTextColor(...INK);
   d.etiquetas.forEach((e) => {
     doc.setFontSize(e.fs);
     e.lineas.forEach((l, k) => {
-      doc.text(txt(l), e.x, e.caja.y0 + e.lh * (k + 0.5) + e.fs * PT * 0.35, { align: e.align });
+      const yc = e.caja.y0 + e.lh * (k + 0.5);
+      const yb = yc + e.fs * PT * 0.35;
+      const { estrella, texto } = trozosEtiqueta(l);
+      if (!estrella) {
+        doc.text(txt(l), e.x, yb, { align: e.align });
+        return;
+      }
+      const wM = doc.getTextWidth('M');
+      const pre = wM + doc.getTextWidth(NBSP);
+      const wT = doc.getTextWidth(txt(texto));
+      const x0 = e.align === 'left' ? e.x : e.x - wT - pre;
+      estrellaPdf(doc, x0 + wM / 2, yc - e.fs * PT * 0.04, wM * 0.5);
+      doc.text(txt(texto), x0 + pre, yb);
     });
   });
 }
@@ -215,26 +269,46 @@ const DIBUJO_MIN = 55;    // alto mínimo del dibujo en media página
 
 /** Opciones de la lista en orden de asiento (una o dos columnas). */
 function listaOpciones(puestos, x, ancho, y) {
-  const fila = (p) => [String(p.n), p.nombre || '', p.tipo];
-  const cols = puestos.length > 6 ? 2 : 1;
+  const fila = (p) => [String(p.n), p.nombre || '', p.tipo, p.nota || '',
+    p.estrella && p.orient ? ORIENTACION_LABEL[p.orient] : ''];
+  // Con notas o ★ la lista va a una columna (para que quepan)
+  const extra = puestos.some((p) => p.estrella || p.nota);
+  const cols = puestos.length > 6 && !extra ? 2 : 1;
   const mitad = Math.ceil(puestos.length / cols);
   const trozos = cols === 2 ? [puestos.slice(0, mitad), puestos.slice(mitad)] : [puestos];
   const hueco = 4;
   const w = cols === 2 ? (ancho - hueco) / 2 : ancho;
   return trozos.map((t, k) => ({
     startY: y,
-    head: [['Nº', 'Nombre', 'Tipo']],
+    head: [['Nº', 'Nombre', 'Tipo', 'Nota', 'Hacia los novios']],
     body: t.map(fila).map((f) => f.map(txt)),
     margin: { left: x + k * (w + hueco), right: A4.corto - (x + k * (w + hueco) + w), top: M.top, bottom: M.bottom },
     tableWidth: w,
     ...estiloTabla({ fontSize: 8.5 }),
     styles: { ...estiloTabla({ fontSize: 8.5 }).styles, cellPadding: { top: 1.1, bottom: 1.1, left: 1.6, right: 1.6 } },
-    columnStyles: { 0: { cellWidth: 8, halign: 'right' }, 2: { cellWidth: 15 } },
+    columnStyles: cols === 2
+      ? { 0: { cellWidth: 8, halign: 'right' }, 2: { cellWidth: 13 }, 3: { cellWidth: 11 }, 4: { cellWidth: 15 } }
+      : { 0: { cellWidth: 8, halign: 'right' }, 1: { cellWidth: 58 }, 2: { cellWidth: 15 }, 4: { cellWidth: 29 } },
     rowPageBreak: 'avoid',
     didParseCell(data) {
-      if (data.section !== 'body' || data.column.index !== 2) return;
+      if (data.section !== 'body') return;
+      const p = t[data.row.index];
+      if (data.column.index === 1 && p.estrella) {
+        data.cell.styles.cellPadding = { top: 1.1, bottom: 1.1, left: 5, right: 1.6 };
+        data.cell.styles.fontStyle = 'bold';
+      }
+      if (data.column.index === 3) { data.cell.styles.fontStyle = 'italic'; data.cell.styles.textColor = SOFT; }
+      if (data.column.index === 4 && p.orient === 'espaldas') {
+        data.cell.styles.textColor = ROJO;
+        data.cell.styles.fontStyle = 'bold';
+      }
+      if (data.column.index !== 2) return;
       if (data.cell.raw === 'hueco') { data.cell.styles.textColor = GRIS; data.cell.styles.fontStyle = 'italic'; }
       if (data.cell.raw === txt(TIPO_NINO)) { data.cell.styles.textColor = BURDEOS; data.cell.styles.fontStyle = 'bold'; }
+    },
+    didDrawCell(data) {
+      if (data.section !== 'body' || data.column.index !== 1 || !t[data.row.index].estrella) return;
+      estrellaPdf(data.doc, data.cell.x + 2.8, data.cell.y + 1.1 + 8.5 * PT * 0.55, 1.35);
     },
   }));
 }
@@ -252,10 +326,12 @@ function altoLista(medidor, puestos) {
 
 /** Diseña la ficha: media página si el dibujo cabe; si no, entera. */
 function planFicha(doc, medidor, mesa, ninos, pres) {
-  const puestos = puestosMesa(mesa, ninos);
+  const puestos = puestosMesa(mesa, ninos, pres);
   const lista = altoLista(medidor, puestos);
   const W = A4.corto - M.left - M.right;
-  const nombres = puestos.map((p) => p.nombre);
+  // Etiqueta de cada silla FÍSICA ("★ Nombre" en los destacados)
+  const nombres = new Array(puestos.length).fill('');
+  puestos.forEach((p) => { nombres[p.i] = p.nombre ? etiquetaPuesto({ nombre: p.nombre, estrella: p.estrella }) : ''; });
   let d;
   for (const alto of ['mitad', 'util']) {
     const H = ALTO[alto] - CAB - NOTA - lista - 3;
@@ -316,6 +392,7 @@ function pintaFicha(doc, f, y0, pres, meseros) {
     const { ang, dist } = haciaMesa(mesa, pres);
     nota = `La flecha señala hacia los novios (${rumbo(ang)} en el plano, a ${dist.toLocaleString('es-ES', { maximumFractionDigits: 1 })} m).`;
   } else nota = 'No hay mesa presidencial marcada.';
+  if (puestos.some((p) => p.estrella)) nota += ' Estrella: invitado destacado.';
   doc.setFont(SANS, 'italic');
   doc.setFontSize(8);
   doc.setTextColor(...SOFT);
@@ -377,7 +454,9 @@ function portada(doc, r, generado, indice) {
   };
   linea('1.  Plano del salón', indice.plano, 35, 175);
   y += 6;
-  linea('2.  Mesa por mesa', indice.fichas[0]?.pagina ?? indice.plano + 1, 35, 175);
+  linea('2.  Invitados destacados', indice.destacados, 35, 175);
+  y += 6;
+  linea('3.  Mesa por mesa', indice.fichas[0]?.pagina ?? indice.destacados + 1, 35, 175);
   y += 5.5;
   // Las mesas, en dos columnas
   const mitad = Math.ceil(indice.fichas.length / 2);
@@ -455,6 +534,64 @@ function paginaPlano(doc, plano, imagen) {
 }
 
 /* =================================================================
+   Invitados destacados (★): todas las estrellas, por mesa
+   ================================================================= */
+function paginaDestacados(doc, mesas) {
+  doc.addPage('a4', 'portrait');
+  const lista = destacados(mesas);
+  const W = A4.corto - M.left - M.right;
+  let y = M.top + 6;
+  doc.setFont(SERIF, 'bold');
+  doc.setFontSize(17);
+  doc.setTextColor(...BURDEOS);
+  doc.text('Invitados destacados', M.left, y);
+  y += 6;
+  const espaldas = lista.filter((d) => d.orient === 'espaldas').length;
+  doc.setFont(SANS, 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...SOFT);
+  const sub = lista.length
+    ? `${pl(lista.length, 'invitado marcado', 'invitados marcados')} con estrella, por mesa y asiento.`
+      + `${espaldas ? ` ${pl(espaldas, 'queda', 'quedan')} de espaldas a los novios (resaltado).` : ''}`
+    : 'No hay invitados marcados con estrella.';
+  doc.text(doc.splitTextToSize(txt(sub), W), M.left, y);
+  y += 3;
+  doc.setDrawColor(...LINE);
+  doc.setLineWidth(0.2);
+  doc.line(M.left, y, M.left + W, y);
+  if (!lista.length) return { filas: [], espaldas: 0 };
+  const filas = lista.map((d) => [txt(d.titulo.replace(/^Mesa /, '')), String(d.n), txt(d.nombre), txt(d.nota),
+    txt(d.orient ? ORIENTACION_LABEL[d.orient] : (d.mesa.presidencial ? 'presidencial' : '-'))]);
+  autoTable(doc, {
+    startY: y + 4,
+    head: [['Mesa', 'Asiento', 'Nombre', 'Nota', 'Hacia los novios']],
+    body: filas,
+    margin: { left: M.left, right: M.right, top: M.top, bottom: M.bottom },
+    ...estiloTabla({ fontSize: 9 }),
+    columnStyles: { 0: { cellWidth: 36 }, 1: { cellWidth: 18, halign: 'right' }, 2: { cellWidth: 46 }, 4: { cellWidth: 31 } },
+    rowPageBreak: 'avoid',
+    didParseCell(data) {
+      if (data.section !== 'body') return;
+      const d = lista[data.row.index];
+      if (data.column.index === 2) {
+        data.cell.styles.cellPadding = { top: 1.6, bottom: 1.6, left: 5.4, right: 2 };
+        data.cell.styles.fontStyle = 'bold';
+      }
+      if (data.column.index === 3) data.cell.styles.fontStyle = 'italic';
+      if (d.orient === 'espaldas') {
+        data.cell.styles.fillColor = ROJO_FONDO;
+        if (data.column.index === 4) { data.cell.styles.textColor = ROJO; data.cell.styles.fontStyle = 'bold'; }
+      }
+    },
+    didDrawCell(data) {
+      if (data.section !== 'body' || data.column.index !== 2) return;
+      estrellaPdf(data.doc, data.cell.x + 2.8, data.cell.y + 1.6 + 9 * PT * 0.55, 1.4);
+    },
+  });
+  return { filas: lista.map((d) => ({ mesa: d.mesa.id, n: d.n, nombre: d.nombre, nota: d.nota, orient: d.orient })), espaldas };
+}
+
+/* =================================================================
    API
    ================================================================= */
 /** Pasos de progreso: portada + plano + una por mesa + cabeceras. */
@@ -484,7 +621,12 @@ export async function construirPdfPlanner(datos, {
   onPaso('Plano del salón');
   await tick();
 
-  // 3 · fichas
+  // 3 · invitados destacados (★), justo después del plano
+  const pagDest = doc.getNumberOfPages() + 1;
+  const dest = paginaDestacados(doc, mesas);
+  const finDest = doc.getNumberOfPages();
+
+  // 4 · fichas
   const fichas = [];
   let libre = null; // y de la media página libre en la página actual
   for (const mesa of ordenFichas(mesas)) {
@@ -512,12 +654,19 @@ export async function construirPdfPlanner(datos, {
   }
 
   const resumen = resumenPlanner(mesas, nucleos);
-  portada(doc, resumen, generado, { plano: 2, fichas });
+  portada(doc, resumen, generado, { plano: 2, destacados: pagDest, fichas });
   onPaso('Portada');
   cabecerasYPies(doc, {
     pie: `Plano de mesas · generado el ${fechaHumana(generado)}`,
-    derecha: (i) => (i === 2 ? 'Plano del salón' : i > 2 ? 'Mesa por mesa' : ''),
+    derecha: (i) => (i === 2 ? 'Plano del salón'
+      : i >= pagDest && i <= finDest ? 'Invitados destacados' : i > 2 ? 'Mesa por mesa' : ''),
   });
   onPaso('Listo');
-  return { doc, informe: { resumen, fichas, paginas: doc.getNumberOfPages() } };
+  return {
+    doc,
+    informe: {
+      resumen, fichas, paginas: doc.getNumberOfPages(),
+      destacados: { pagina: pagDest, ...dest },
+    },
+  };
 }

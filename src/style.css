@@ -2510,6 +2510,8 @@ a { color: inherit; }
   overflow-wrap: anywhere;
 }
 .mes-comensal__meta { font-family: var(--font-sans); font-size: 0.72rem; color: var(--ink-soft); }
+.mes-estrella { color: var(--burgundy); margin-right: -0.15rem; }
+.mes-comensal__nota { font-family: var(--font-sans); font-size: 0.72rem; font-style: italic; color: var(--burgundy); overflow-wrap: anywhere; }
 .mes-comensal__acciones { display: flex; gap: 0.3rem; flex: 0 0 auto; }
 .mes-mini { min-height: 40px; min-width: 40px; padding: 0.2rem; }
 
@@ -2840,6 +2842,28 @@ html.pla-modal, html.pla-modal body { overflow: hidden; overscroll-behavior: non
 .pla-girar { display: flex; gap: 0.5rem; margin: 0.4rem 0 0.2rem; }
 .pla-girar__btn { flex: 1 1 0; min-height: 44px; }
 .pla-girar__hint { margin-top: 0.2rem; }
+/* Asiento 1, invitados ★ y orientación hacia los novios */
+.pla-uno__btn { width: 100%; min-height: 44px; margin: 0.3rem 0 0.1rem; }
+.pla-uno__btn.is-on { background: var(--burgundy); color: #fff; border-color: var(--burgundy); }
+.pla-uno__hint { color: var(--burgundy); font-weight: 500; }
+.pla-puestos.is-eligeuno .pla-puesto circle { stroke: var(--burgundy); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.pla-puesto.is-uno circle { stroke: var(--burgundy); stroke-width: 2; }
+.pla-puesto__estrella { fill: var(--burgundy); }
+.pla-orient--cara { fill: #2f6b3a; color: #2f6b3a; }
+.pla-orient--lado { fill: #8a5a00; color: #8a5a00; }
+.pla-orient--espaldas { fill: #8c2f2f; color: #8c2f2f; }
+.pla-orient-ley { margin: 0.2rem 0; }
+.pla-aviso-espaldas { font-weight: 500; }
+.pla-espaldas circle { fill: #fff; stroke: #8c2f2f; stroke-width: 0.05; }
+.pla-espaldas text { fill: #8c2f2f; text-anchor: middle; dominant-baseline: central; }
+.pla-orden__fila { flex-wrap: wrap; }
+.pla-orden__fila.is-estrella .pla-orden__nombre { border-color: rgba(110,36,53,0.45); }
+.pla-orden__estrella { color: var(--burgundy); }
+.pla-orden__orient { display: block; font-family: var(--font-sans); font-weight: 400; font-size: 0.72rem; }
+.pla-estrella { color: var(--burgundy); font-size: 1.15rem; }
+.pla-nota { flex: 1 0 100%; min-height: 40px; font-size: 0.85rem; margin-bottom: 0.25rem; }
+.pla-orden__fila.is-marcado .pla-orden__estrella,
+.pla-orden__fila.is-marcado .pla-orden__orient { color: #fff; }
 .pla-intercon { margin: 0.2rem 0 0.8rem; }
 .pla-intercon__btn { width: 100%; min-height: 44px; }
 .pla-intercon__lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.4rem; margin-top: 0.4rem; }

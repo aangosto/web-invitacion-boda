@@ -4,10 +4,13 @@
 
    Unidades: METROS. Origen en la esquina superior izquierda del salón,
    x hacia la derecha, y hacia abajo (como el SVG). `rot` en grados,
-   sentido horario. En coordenadas locales de la mesa el puesto 1 está
-   ARRIBA (cabecera) y la mesa "mira" hacia ABAJO: la presidencial con
+   sentido horario. En coordenadas locales de la mesa la silla 0 está
+   ARRIBA (cabecera); el NÚMERO 1 lo lleva la silla `asientoInicio` (0 por
+   defecto) y la mesa "mira" hacia ABAJO: la presidencial con
    rot 0 tiene la cabecera contra la pared de arriba y mira al salón.
    ================================================================= */
+
+import { NOTA_MAX } from './comensal.js';
 
 export const FORMAS = ['redonda', 'cuadrada', 'rectangular'];
 export const FORMA_LABEL = { redonda: 'Redonda', cuadrada: 'Cuadrada', rectangular: 'Rectangular' };
@@ -645,6 +648,97 @@ export function giraPuestos(mesa, paso) {
   const nuevo = new Array(n);
   slots.forEach((c, i) => { nuevo[(i + k) % n] = c ? c.key : ''; });
   return nuevo;
+}
+
+/* =================================================================
+   ASIENTO 1 Y ORIENTACIÓN HACIA LA PRESIDENCIAL
+   ================================================================= */
+
+/** Silla (índice físico, 0 = cabecera) que lleva el número 1. Se guarda
+    en la mesa como `asientoInicio`; fuera de rango, la que toque módulo n. */
+export function inicioAsientos(mesa) {
+  const n = numPuestos(mesa);
+  const s = Number.isInteger(mesa.asientoInicio) ? mesa.asientoInicio : 0;
+  return ((s % n) + n) % n;
+}
+
+/** Número (1..n) del asiento de la silla física i. La numeración sigue
+    el sentido de siempre (agujas del reloj) a partir del asiento 1. */
+export function numAsiento(mesa, i) {
+  const n = numPuestos(mesa);
+  return ((i - inicioAsientos(mesa) + n) % n) + 1;
+}
+
+/** Puestos en orden de NÚMERO: [{ i (silla física), n (nº), c (comensal|null) }]. */
+export function puestosNumerados(mesa) {
+  const slots = ordenPuestos(mesa);
+  const s = inicioAsientos(mesa);
+  return slots.map((_, k) => {
+    const i = (s + k) % slots.length;
+    return { i, n: k + 1, c: slots[i] };
+  });
+}
+
+/** Largo máximo de la nota (comensal.js). */
+export { NOTA_MAX };
+
+/**
+ * Lista de comensales con ★/nota cambiados SOLO en el de `key` (estrella
+ * false o nota vacía = el campo se quita); el resto, intacto. null si no
+ * está en la lista.
+ */
+export function conDestacado(lista, key, { estrella, nota }) {
+  let hecho = false;
+  const nueva = lista.map((c) => {
+    if (hecho || String(c.key || '') !== key) return c;
+    hecho = true;
+    const { estrella: _e, nota: _n, ...resto } = c;
+    const n = String(nota || '').trim().slice(0, NOTA_MAX);
+    return { ...resto, ...(estrella ? { estrella: true } : {}), ...(n ? { nota: n } : {}) };
+  });
+  return hecho ? nueva : null;
+}
+
+export const ORIENTACION_LABEL ={ cara: 'de cara', lado: 'de lado', espaldas: 'de espaldas' };
+
+/** Posición real (m) en el salón de la silla física i (con giro de la mesa). */
+export function posSilla(mesa, i) {
+  const p = puestosLocales(mesa.forma, numPuestos(mesa))[i];
+  const a = ((mesa.rot || 0) * Math.PI) / 180;
+  return {
+    x: mesa.x + p.x * Math.cos(a) - p.y * Math.sin(a),
+    y: mesa.y + p.x * Math.sin(a) + p.y * Math.cos(a),
+  };
+}
+
+/**
+ * Hacia dónde queda la presidencial para quien se sienta en la silla i:
+ * mira hacia el centro de su mesa; ángulo entre esa dirección y la de su
+ * silla → centro de la presidencial: < 60° 'cara', 60-120° 'lado',
+ * > 120° 'espaldas'. null si no aplica (sin presidencial, es la propia
+ * presidencial o falta la posición).
+ */
+export function orientacionSilla(mesa, i, pres) {
+  if (!pres || mesa.presidencial || pres.id === mesa.id) return null;
+  if (![mesa.x, mesa.y, pres.x, pres.y].every((v) => typeof v === 'number')) return null;
+  const s = posSilla(mesa, i);
+  const mx = mesa.x - s.x; const my = mesa.y - s.y;
+  const px = pres.x - s.x; const py = pres.y - s.y;
+  const d = Math.hypot(mx, my) * Math.hypot(px, py);
+  if (!d) return null;
+  const ang = (Math.acos(Math.max(-1, Math.min(1, (mx * px + my * py) / d))) * 180) / Math.PI;
+  return ang < 60 ? 'cara' : ang <= 120 ? 'lado' : 'espaldas';
+}
+
+/** Comensales ★ de una mesa: [{ i, n, c, orient }] en orden de número. */
+export function estrellasMesa(mesa, pres) {
+  return puestosNumerados(mesa).filter((p) => p.c && p.c.estrella)
+    .map((p) => ({ ...p, orient: orientacionSilla(mesa, p.i, pres) }));
+}
+
+/** ¿Alguna estrella de la mesa queda de espaldas a la presidencial? */
+export function hayEstrellaDeEspaldas(mesa, pres) {
+  return estrellasMesa(mesa, pres).some((p) => p.orient === 'espaldas');
 }
 
 /** Cuerpo de colisión de una mesa: centro, semiejes y si es circular. */

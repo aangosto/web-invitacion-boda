@@ -24,7 +24,7 @@
 import { initGate } from './panel-gate.js';
 import {
   fetchPlano, savePlano, fetchMesasPlano, updateMesaPlano, setPresidencial,
-  guardaPosiciones, crearCopia, fetchCopias, borraCopia,
+  guardaPosiciones, crearCopia, fetchCopias, borraCopia, guardaDestacado,
 } from './plano-data.js';
 import { iconoMesa } from './mesas-iconos.js';
 import { initExportFinca } from './export-finca.js';
@@ -33,13 +33,15 @@ import {
   sv, fmtM, rotulo, dibujaSalon, dibujaMesa as dibujaMesaComun, ajustaRotulos,
   OPCIONES_PANTALLA, medirPantalla, svgPuestos,
 } from './plano-dibujo.js';
-import { disenaMesa } from './mesa-etiquetas.js';
+import { disenaMesa, etiquetaPuesto, ICONO_ORIENT } from './mesa-etiquetas.js';
 import {
   FORMAS, FORMA_LABEL,
   semiCaja, limitaDentro, imanta, cm, normAng, haciaMesa, cercania, rumbo,
   ordenPuestos, colocacionInicial, distribuir,
   NUMERO_MAX, numerosRepetidos,
   colocarFincaSinSolapes, separarActual, mesasQueSePisan, intercambio, giraPuestos,
+  puestosNumerados, numAsiento, orientacionSilla, estrellasMesa, hayEstrellaDeEspaldas,
+  ORIENTACION_LABEL, NOTA_MAX,
 } from './plano-geom.js';
 
 const CAPACIDADES_RAPIDAS = [6, 8, 10, 13];
@@ -164,6 +166,7 @@ async function initApp(root) {
   let detalleId = null;
   let marcado = null;            // índice de puesto marcado para intercambiar
   let detalleInter = false;      // lista «Intercambiar con…» abierta
+  let eligeUno = false;          // modo «Elegir asiento 1» del detalle
   let inter = null;              // modo «Intercambiar mesas»: { primera: id | null }
   const undo = [];
   const cam = { x: 0, y: 0, w: 20, h: 20 };
@@ -287,7 +290,7 @@ async function initApp(root) {
   function dibujaMesa(mesa) {
     const clase = `${mesa.id === selId && editando ? ' is-sel' : ''}${mesa.provisional ? ' is-prov' : ''}${inter && inter.primera === mesa.id ? ' is-inter' : ''}`;
     return dibujaMesaComun(mesa, {
-      px, clase, repetidos,
+      px, clase, repetidos, espaldas: hayEstrellaDeEspaldas(mesa, presidencial()),
       // Tirador de giro (solo la seleccionada, en edición)
       extra: editando && mesa.id === selId ? (giro, { w, h, n }) => {
         const { hx, hy } = semiCaja(mesa.forma, n, 0);
@@ -573,6 +576,7 @@ async function initApp(root) {
     detalleId = id;
     marcado = null;
     detalleInter = false;
+    eligeUno = false;
     detalleMsg = '';
     detalleEl.hidden = false;
     document.documentElement.classList.add('pla-modal');
@@ -605,9 +609,46 @@ async function initApp(root) {
     guardarDetalle(mesa, { asientos: mesa.asientos }, 'Orden guardado');
   }
   function tocaPuesto(mesa, i) {
+    if (eligeUno) { ponAsientoUno(mesa, i); return; }
     if (marcado == null) { marcado = i; renderDetalle(); return; }
     if (marcado === i) { marcado = null; renderDetalle(); return; }
     intercambia(mesa, marcado, i);
+  }
+
+  /** La silla física i pasa a ser el asiento 1: solo cambian los NÚMEROS
+      (nadie se mueve; girar después mueve personas, no la numeración). */
+  function ponAsientoUno(mesa, i) {
+    eligeUno = false;
+    if (i === mesa.asientoInicio) { renderDetalle(); return; }
+    mesa.asientoInicio = i;
+    guardarDetalle(mesa, { asientoInicio: i }, 'Asiento 1 cambiado');
+  }
+
+  /** ★ y nota de un comensal (solo esos dos campos, en una transacción). */
+  async function guardaEstrellaNota(mesa, c, cambios) {
+    const antes = { estrella: c.estrella, nota: c.nota };
+    Object.assign(c, cambios);
+    c.nota = String(c.nota || '').trim().slice(0, NOTA_MAX);
+    detalleMsg = 'Guardando…';
+    renderDetalle();
+    renderPlano();
+    guardado.pendientes += 1;
+    renderEstado();
+    try {
+      const ok = await guardaDestacado(mesa.id, c.key, { estrella: c.estrella, nota: c.nota });
+      if (!ok) throw new Error('El comensal ya no está en la mesa (recarga la página).');
+      guardado.ultimo = new Date();
+      detalleMsg = `${c.nombre}: ${'nota' in cambios ? 'nota guardada' : c.estrella ? '★ destacado' : 'sin ★'} ✓`;
+    } catch (err) {
+      console.error(err);
+      Object.assign(c, antes);
+      detalleMsg = `⚠ No se ha podido guardar. ${String(err.message || '').startsWith('El comensal') ? err.message : 'Inténtalo de nuevo.'}`;
+    } finally {
+      guardado.pendientes -= 1;
+      renderEstado();
+    }
+    if (detalleId === mesa.id) renderDetalle();
+    renderPlano();
   }
 
   /** Flecha hacia la mesa presidencial (o el motivo de no poder darla). */
@@ -661,9 +702,10 @@ async function initApp(root) {
     const ancho = Math.floor(box.clientWidth);
     if (!ancho) return;
     anchoPuestos = ancho;
-    const nombres = ordenPuestos(mesa).map((c) => (c ? c.nombre : ''));
-    const d = disenaMesa(mesa, presidencial(), nombres, { ...OPCIONES_PANTALLA, ancho, medir: medirPantalla });
-    box.replaceChildren(svgPuestos(d, { mesa, nombres, marcado, onPuesto: (i) => tocaPuesto(mesa, i) }));
+    const pres = presidencial();
+    const nombres = ordenPuestos(mesa).map((c, i) => etiquetaPuesto(c, c && c.estrella ? orientacionSilla(mesa, i, pres) : null));
+    const d = disenaMesa(mesa, pres, nombres, { ...OPCIONES_PANTALLA, ancho, medir: medirPantalla });
+    box.replaceChildren(svgPuestos(d, { mesa, nombres, marcado, elegirUno: eligeUno, onPuesto: (i) => tocaPuesto(mesa, i) }));
   }
   // Las medidas del texto dependen de la fuente: al terminar de cargar,
   // y si cambia el ancho (girar el móvil), se vuelve a calcular
@@ -811,6 +853,11 @@ async function initApp(root) {
         `⚠ Sobreaforo: ${mesa.comensales.length} comensales para ${mesa.capacidad} plazas (se dibujan los puestos de más en rojo).`));
     }
     if (detalleMsg) panel.appendChild(el('p', `pla-detalle__msg${detalleMsg.startsWith('⚠') ? ' is-error' : ''}`, detalleMsg));
+    const estrellas = estrellasMesa(mesa, presidencial());
+    estrellas.filter((p) => p.orient === 'espaldas').forEach((p) => {
+      panel.appendChild(el('p', 'mes-aviso mes-aviso--warn pla-aviso-espaldas',
+        `★ ${p.c.nombre} queda de espaldas a los novios — gira la mesa`));
+    });
 
     // Hacia los novios
     panel.appendChild(bloqueNovios(mesa));
@@ -827,25 +874,74 @@ async function initApp(root) {
         'Girar a todos un puesto en el sentido de las agujas del reloj'));
       panel.appendChild(giro);
       panel.appendChild(el('p', 'adm-hint pla-girar__hint',
-        'Mueve a todos un asiento a la vez, sin cambiar el orden entre ellos. Gira hasta que quien quieras quede mirando hacia la flecha de los novios.'));
+        'Mueve a todos un asiento a la vez, sin cambiar el orden entre ellos. Gira hasta que quien quieras quede mirando hacia la flecha de los novios. El asiento 1 sigue siendo la misma silla.'));
     }
-    panel.appendChild(el('p', 'adm-hint',
-      marcado == null
-        ? 'Para cambiar a alguien de sitio, toca su nombre y luego el de otra persona (o un puesto vacío): se intercambian. También puedes usar ↑ ↓.'
-        : `Puesto ${marcado + 1} marcado: toca otro puesto para intercambiarlos (o el mismo para cancelar).`));
+    const uno = btn(`btn btn--ghost pla-uno__btn${eligeUno ? ' is-on' : ''}`,
+      eligeUno ? '✕ Cancelar «Elegir asiento 1»' : '① Elegir asiento 1', () => {
+        eligeUno = !eligeUno;
+        marcado = null;
+        renderDetalle();
+      });
+    uno.setAttribute('aria-pressed', String(eligeUno));
+    panel.appendChild(uno);
+    if (estrellas.some((p) => p.orient)) {
+      const ley = el('p', 'adm-hint pla-orient-ley');
+      ['cara', 'lado', 'espaldas'].forEach((o) => {
+        ley.appendChild(el('span', `pla-orient pla-orient--${o}`, ICONO_ORIENT[o]));
+        ley.appendChild(document.createTextNode(` ${ORIENTACION_LABEL[o]} · `));
+      });
+      ley.appendChild(document.createTextNode('a los novios (solo ★)'));
+      panel.appendChild(ley);
+    }
+    panel.appendChild(el('p', `adm-hint${eligeUno ? ' pla-uno__hint' : ''}`,
+      eligeUno
+        ? 'Toca en el dibujo la silla que será el asiento 1. Nadie cambia de sitio: solo cambian los números, que siguen en el mismo sentido.'
+        : marcado == null
+          ? 'Para cambiar a alguien de sitio, toca su nombre y luego el de otra persona (o un puesto vacío): se intercambian. También puedes usar ↑ ↓. ☆ destaca a un invitado; la nota es opcional.'
+          : `Puesto ${numAsiento(mesa, marcado)} marcado: toca otro puesto para intercambiarlos (o el mismo para cancelar).`));
     const lista = el('ol', 'pla-orden');
-    const slots = ordenPuestos(mesa);
-    slots.forEach((c, i) => {
-      const li = el('li', `pla-orden__fila${marcado === i ? ' is-marcado' : ''}${i >= mesa.capacidad ? ' is-exceso' : ''}`);
+    const filas = puestosNumerados(mesa);
+    const presDet = presidencial();
+    filas.forEach(({ i, n, c }, k) => {
+      const li = el('li', `pla-orden__fila${marcado === i ? ' is-marcado' : ''}${i >= mesa.capacidad ? ' is-exceso' : ''}${c && c.estrella ? ' is-estrella' : ''}`);
       const nombre = btn('pla-orden__nombre', '', () => tocaPuesto(mesa, i));
-      nombre.appendChild(el('span', 'pla-orden__num', String(i + 1)));
-      nombre.appendChild(el('span', c ? 'pla-orden__quien' : 'pla-orden__quien is-vacio', c ? c.nombre : 'puesto vacío'));
+      nombre.appendChild(el('span', 'pla-orden__num', String(n)));
+      const quien = el('span', c ? 'pla-orden__quien' : 'pla-orden__quien is-vacio');
+      if (c && c.estrella) quien.appendChild(el('span', 'pla-orden__estrella', '★ '));
+      quien.appendChild(document.createTextNode(c ? c.nombre : 'puesto vacío'));
+      const orient = c && c.estrella ? orientacionSilla(mesa, i, presDet) : null;
+      if (orient) {
+        quien.appendChild(el('span', `pla-orden__orient pla-orient--${orient}`,
+          `${ICONO_ORIENT[orient]} ${ORIENTACION_LABEL[orient]}`));
+      }
+      nombre.appendChild(quien);
       li.appendChild(nombre);
-      const sube = btn('pla-ico', '↑', () => intercambia(mesa, i, i - 1), `Subir al puesto ${i}`);
-      sube.disabled = i === 0;
-      const baja = btn('pla-ico', '↓', () => intercambia(mesa, i, i + 1), `Bajar al puesto ${i + 2}`);
-      baja.disabled = i === slots.length - 1;
+      if (c) {
+        const est = btn(`pla-ico pla-estrella${c.estrella ? ' is-on' : ''}`, c.estrella ? '★' : '☆',
+          () => guardaEstrellaNota(mesa, c, { estrella: !c.estrella }),
+          c.estrella ? `Quitar ★ a ${c.nombre}` : `Marcar a ${c.nombre} como invitado estrella`);
+        est.setAttribute('aria-pressed', String(Boolean(c.estrella)));
+        li.appendChild(est);
+      }
+      const sube = btn('pla-ico', '↑', () => intercambia(mesa, i, filas[k - 1].i), `Subir al puesto ${n - 1}`);
+      sube.disabled = k === 0;
+      const baja = btn('pla-ico', '↓', () => intercambia(mesa, i, filas[k + 1].i), `Bajar al puesto ${n + 1}`);
+      baja.disabled = k === filas.length - 1;
       li.append(sube, baja);
+      if (c) {
+        const nota = el('input', 'field__input pla-nota');
+        nota.type = 'text';
+        nota.maxLength = NOTA_MAX;
+        nota.value = c.nota || '';
+        nota.placeholder = 'Nota (opcional)';
+        nota.setAttribute('aria-label', `Nota de ${c.nombre} (máx. ${NOTA_MAX} caracteres)`);
+        nota.addEventListener('change', () => {
+          const v = nota.value.trim().slice(0, NOTA_MAX);
+          if (v !== (c.nota || '')) guardaEstrellaNota(mesa, c, { nota: v });
+        });
+        nota.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') nota.blur(); });
+        li.appendChild(nota);
+      }
       lista.appendChild(li);
     });
     panel.appendChild(lista);
