@@ -41,6 +41,14 @@ cinematográfica (el sobre se abre) como pieza central. Datos en **Firebase
   toca nada más). Cada ★ dice si queda de cara, de lado o de espaldas a la
   presidencial (mira al centro de su mesa; <60°, 60-120°, >120°). Pruebas:
   `node scripts/test-destacados.mjs`.
+  Tipo y menú de cada comensal (`tipo`: '' adulto, niño/a, trona, hueco;
+  `menu`: adulto, infantil, infantil reducido, sin menú), editables en
+  mesas.html y en el detalle de mesa. Sin guardar se deducen (niño/a si lo
+  es en invitados; infantil para niños y tronas). Un único recuento
+  (`src/modules/comensal.js`) para mesas.html, el Excel de la finca y los
+  dos PDF. Toda escritura de un comensal (preboda, ★, nota, tipo, menú) va
+  en transacción (`guardaComensal`). Pruebas: `node scripts/test-menus.mjs`;
+  con datos reales (solo lectura): `node scripts/recuento-real.mjs`.
   Reparto definitivo: `scripts/inspeccionar-mesas.mjs` (solo lectura) y
   `scripts/reconciliar-mesas.mjs` (idempotente) sobre
   `datos/mesas-banquete.txt` (no se sube al repo).

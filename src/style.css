@@ -2515,6 +2515,39 @@ a { color: inherit; }
 .mes-comensal__acciones { display: flex; gap: 0.3rem; flex: 0 0 auto; }
 .mes-mini { min-height: 40px; min-width: 40px; padding: 0.2rem; }
 
+/* Tipo y menú del comensal: etiqueta junto al nombre (solo si no es
+   adulto con menú de adulto) y dos selectores pequeños, cómodos al toque */
+.mes-tipo {
+  flex: 0 0 auto;
+  font-family: var(--font-sans); font-size: 0.68rem; font-weight: 600;
+  color: var(--burgundy); background: rgba(110,36,53,0.08);
+  border: 1px solid rgba(110,36,53,0.25); border-radius: 999px;
+  padding: 0.05rem 0.45rem; white-space: nowrap;
+}
+.mes-comensal .mes-comensal__info { flex: 1 1 0; }
+.mes-comensal__nombre { flex-wrap: wrap; row-gap: 0.15rem; }
+.mes-comensal { flex-wrap: wrap; }
+.mes-tm { display: flex; gap: 0.4rem; flex: 1 0 100%; margin: 0 0 0.35rem; }
+/* 16px: iOS no hace zoom al tocar el selector */
+.mes-sel {
+  flex: 1 1 0; min-width: 0; width: auto;
+  min-height: 40px; padding: 0.2rem 0.5rem;
+  font-size: 16px;
+}
+.pla-tm { flex: 1 0 100%; margin: 0 0 0.3rem; }
+.pla-orden__quien .mes-tipo { margin-left: 0.35rem; font-weight: 500; }
+.mes-recuento { display: grid; gap: 0.4rem; margin-bottom: 0.6rem; }
+.mes-recuento__fila { display: grid; grid-template-columns: 2.6rem repeat(4, 1fr); gap: 0.3rem; align-items: stretch; }
+.mes-recuento__titulo { align-self: center; font-family: var(--font-sans); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+.mes-recuento__item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 0.35rem 0.2rem; border: 1px solid rgba(122,107,84,0.3); border-radius: 8px; background: rgba(255,255,255,0.5);
+  text-align: center; min-width: 0;
+}
+.mes-recuento__item.is-cero { opacity: 0.55; }
+.mes-recuento__num { font-family: var(--font-serif); font-size: 1.15rem; font-weight: 600; color: var(--ink); line-height: 1.1; }
+.mes-recuento__label { font-family: var(--font-sans); font-size: 0.66rem; color: var(--ink-soft); line-height: 1.15; overflow-wrap: anywhere; }
+
 /* Chips de estado: C confirmado, P pendiente, ✗ no asiste, ? borrado, ✍ a mano */
 .mes-estado {
   flex: 0 0 auto;

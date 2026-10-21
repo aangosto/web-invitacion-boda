@@ -17,8 +17,11 @@ import { fetchNucleos } from './invitados-data.js';
 import { initExportFinca } from './export-finca.js';
 import { initExportPlanner } from './export-planner.js';
 import {
-  fetchMesas, updateMesa, createMesa, deleteMesa,
+  fetchMesas, updateMesa, createMesa, deleteMesa, guardaComensal,
 } from './mesas-data.js';
+import {
+  TIPOS, TIPO_LABEL, MENUS, clavesNinos, tipoDe, menuDe, etiquetaTipoMenu, recuentoMesas,
+} from './comensal.js';
 
 /* ---------- Utilidades ---------- */
 function el(tag, className, text) {
@@ -35,6 +38,7 @@ function norm(s) {
 
 const LADO_LABEL = { novia: 'María', novio: 'Alberto', ambos: 'Ambos', '': '—' };
 const ESTADO_CORTO = { confirmado: 'C', pendiente: 'P' };
+const MENU_CORTO = { adulto: 'adulto', infantil: 'infantil', 'infantil reducido': 'inf. reducido', 'sin menú': 'sin menú' };
 
 /* =================================================================
    App (tras pasar la puerta)
@@ -52,6 +56,8 @@ async function initApp(root) {
 
     <div id="mes-stats" class="res-stats"></div>
     <div id="mes-statdetail"></div>
+    <h3 class="adm-subtitle">Banquete: tipos y menús</h3>
+    <div id="mes-recuento" class="mes-recuento"></div>
     <h3 class="adm-subtitle">Preboda</h3>
     <div id="mes-preboda" class="res-stats res-stats--two"></div>
     <div id="mes-prebodanota"></div>
@@ -97,6 +103,7 @@ async function initApp(root) {
   initExportPlanner(root.querySelector('#mes-planner'));
   const statsEl = root.querySelector('#mes-stats');
   const statDetailEl = root.querySelector('#mes-statdetail');
+  const recuentoEl = root.querySelector('#mes-recuento');
   const prebodaEl = root.querySelector('#mes-preboda');
   const prebodaNotaEl = root.querySelector('#mes-prebodanota');
   const prebodaDetailEl = root.querySelector('#mes-prebodadetail');
@@ -115,6 +122,7 @@ async function initApp(root) {
 
   let mesas = [];
   let nucleos = [];
+  let ninos = new Set();     // keys de los marcados como niño en invitados
   let editandoMesa = null;   // id de mesa en edición, 'nueva' o null
   let modoMesa = null;       // mesa a la que se están añadiendo comensales
   let statAbierta = false;   // desplegable de "sin asignar"
@@ -461,22 +469,58 @@ async function initApp(root) {
     render();
   }
 
-  /** Activa/desactiva la preboda de un comensal y lo guarda al momento.
-      Se muta el propio objeto (mover/quitar lo localizan por identidad)
-      y se pinta ya; si falla el guardado se deshace. */
-  async function cambiaPreboda(mesa, comensal, valor) {
-    comensal.preboda = valor;
+  /** Cambia campos de UN comensal (preboda, tipo, menú) en una
+      transacción (no pisa lo que otra persona cambie a la vez en la
+      misma mesa). Se pinta ya; si falla se deshace. Al guardar, la mesa
+      queda con la lista que hay en Firestore (con los cambios de otros). */
+  async function cambiaComensal(mesa, comensal, cambios, okMsg) {
+    const antes = Object.fromEntries(Object.keys(cambios).map((k) => [k, comensal[k]]));
+    Object.assign(comensal, cambios);
     render();
     setFeedback('Guardando…');
     try {
-      await updateMesa(mesa.id, { comensales: mesa.comensales });
-      setFeedback(`${comensal.nombre}: ${valor ? 'viene' : 'no viene'} a la preboda ✓`, 'is-ok');
+      const lista = await guardaComensal(mesa.id, comensal.key, cambios);
+      if (!lista) throw new Error('ya-no-esta');
+      mesa.comensales = lista;
+      setFeedback(okMsg, 'is-ok');
     } catch (err) {
       console.error(err);
-      comensal.preboda = !valor;
-      setFeedback('No se ha podido guardar. Inténtalo de nuevo.', 'is-error');
-      render();
+      Object.keys(antes).forEach((k) => { if (antes[k] === undefined) delete comensal[k]; else comensal[k] = antes[k]; });
+      setFeedback(err.message === 'ya-no-esta'
+        ? `${comensal.nombre} ya no está en "${mesa.nombre}": recarga la página.`
+        : 'No se ha podido guardar. Inténtalo de nuevo.', 'is-error');
     }
+    render();
+  }
+
+  function cambiaPreboda(mesa, comensal, valor) {
+    return cambiaComensal(mesa, comensal, { preboda: valor },
+      `${comensal.nombre}: ${valor ? 'viene' : 'no viene'} a la preboda ✓`);
+  }
+
+  /** Selector pequeño (nativo: cómodo en el móvil). */
+  function selector(clase, valores, etiquetas, actual, aria, onChange) {
+    const sel = el('select', `field__input mes-sel ${clase}`);
+    sel.setAttribute('aria-label', aria);
+    valores.forEach((v) => {
+      const opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = etiquetas[v];
+      sel.appendChild(opt);
+    });
+    sel.value = actual;
+    sel.addEventListener('change', () => onChange(sel.value));
+    return sel;
+  }
+
+  /** Tipo y menú de un comensal: dos selectores (valor guardado o deducido). */
+  function selectoresTipoMenu(mesa, c) {
+    const box = el('div', 'mes-tm');
+    box.appendChild(selector('mes-sel--tipo', TIPOS, TIPO_LABEL, tipoDe(c, ninos), `Tipo de ${c.nombre}`,
+      (v) => cambiaComensal(mesa, c, { tipo: v }, `${c.nombre}: ${TIPO_LABEL[v]} ✓`)));
+    box.appendChild(selector('mes-sel--menu', MENUS, MENU_CORTO, menuDe(c, ninos), `Menú de ${c.nombre}`,
+      (v) => cambiaComensal(mesa, c, { menu: v }, `${c.nombre}: menú ${v} ✓`)));
+    return box;
   }
 
   /** Comensal escrito a mano (no está en la lista de invitados). */
@@ -512,6 +556,8 @@ async function initApp(root) {
       nombre.appendChild(chipEstado(c, estados));
       if (c.estrella) nombre.appendChild(el('span', 'mes-estrella', '★'));
       nombre.appendChild(document.createTextNode(c.nombre));
+      const etiqueta = etiquetaTipoMenu(c, ninos);
+      if (etiqueta) nombre.appendChild(el('span', 'mes-tipo', etiqueta));
       info.appendChild(nombre);
       if (c.nota) info.appendChild(el('p', 'mes-comensal__nota', c.nota));
       info.appendChild(el('p', 'mes-comensal__meta',
@@ -538,6 +584,7 @@ async function initApp(root) {
       quitarBtn.addEventListener('click', () => quitar(mesa, c));
       acciones.append(moverBtn, quitarBtn);
       row.appendChild(acciones);
+      row.appendChild(selectoresTipoMenu(mesa, c)); // línea propia, a todo el ancho
       lista.appendChild(row);
     });
     return lista;
@@ -763,6 +810,28 @@ async function initApp(root) {
     }
   }
 
+  /* ---------- Recuento de tipos y menús (sobre los SENTADOS) ----------
+     La misma función que el Excel de la finca y los dos PDF (comensal.js). */
+  function renderRecuento() {
+    const r = recuentoMesas(mesas, ninos);
+    recuentoEl.innerHTML = '';
+    const grupo = (titulo, items) => {
+      const fila = el('div', 'mes-recuento__fila');
+      fila.appendChild(el('span', 'mes-recuento__titulo', titulo));
+      items.forEach(([label, num]) => {
+        const it = el('span', `mes-recuento__item${num ? '' : ' is-cero'}`);
+        it.append(el('span', 'mes-recuento__num', String(num)), el('span', 'mes-recuento__label', label));
+        fila.appendChild(it);
+      });
+      recuentoEl.appendChild(fila);
+    };
+    grupo('Tipo', [['adultos', r.tipos.adulto], ['niños', r.tipos.nino], ['tronas', r.tipos.trona], ['huecos', r.tipos.hueco]]);
+    grupo('Menú', [['adulto', r.menus.adulto], ['infantil', r.menus.infantil],
+      ['inf. reducido', r.menus['infantil reducido']], ['sin menú', r.menus['sin menú']]]);
+    recuentoEl.appendChild(el('p', 'tot-note', `Sobre ${r.total} persona${r.total === 1 ? '' : 's'} sentada${r.total === 1 ? '' : 's'}. `
+      + 'Sin tipo indicado, cuenta como niño/a quien lo es en invitados; sin menú, infantil para niños y tronas.'));
+  }
+
   /* ---------- Recuento de preboda (sobre los SENTADOS) ---------- */
   function renderPreboda() {
     const sentados = mesas.flatMap((m) => m.comensales.map((c) => ({ c, m })));
@@ -885,6 +954,7 @@ async function initApp(root) {
   /* ---------- Render general ---------- */
   function render() {
     renderStats();
+    renderRecuento();
     renderPreboda();
     renderAvisos();
     listEl.innerHTML = '';
@@ -924,6 +994,7 @@ async function initApp(root) {
   const [mesasCargadas, nucleosCargados] = await Promise.all([fetchMesas(), fetchNucleos()]);
   mesas = mesasCargadas;
   nucleos = nucleosCargados;
+  ninos = clavesNinos(nucleos);
   rellenaFiltros();
   render();
 

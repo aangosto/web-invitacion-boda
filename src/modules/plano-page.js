@@ -24,8 +24,13 @@
 import { initGate } from './panel-gate.js';
 import {
   fetchPlano, savePlano, fetchMesasPlano, updateMesaPlano, setPresidencial,
-  guardaPosiciones, crearCopia, fetchCopias, borraCopia, guardaDestacado,
+  guardaPosiciones, crearCopia, fetchCopias, borraCopia,
 } from './plano-data.js';
+import { guardaComensal } from './mesas-data.js';
+import { fetchNucleos } from './invitados-data.js';
+import {
+  TIPOS, TIPO_LABEL, MENUS, clavesNinos, tipoDe, menuDe, etiquetaTipoMenu,
+} from './comensal.js';
 import { iconoMesa } from './mesas-iconos.js';
 import { initExportFinca } from './export-finca.js';
 import { initExportPlanner } from './export-planner.js';
@@ -172,6 +177,7 @@ async function initApp(root) {
   const cam = { x: 0, y: 0, w: 20, h: 20 };
   const guardado = { pendientes: 0, errores: new Set(), ultimo: null };
   let detalleMsg = '';
+  let ninos = new Set(); // marcados como niño en invitados (solo lectura)
 
   const porId = (id) => mesas.find((m) => m.id === id);
   const presidencial = () => mesas.find((m) => m.presidencial) || null;
@@ -624,9 +630,9 @@ async function initApp(root) {
     guardarDetalle(mesa, { asientoInicio: i }, 'Asiento 1 cambiado');
   }
 
-  /** ★ y nota de un comensal (solo esos dos campos, en una transacción). */
+  /** ★, nota, tipo o menú de un comensal (solo esos campos, en una transacción). */
   async function guardaEstrellaNota(mesa, c, cambios) {
-    const antes = { estrella: c.estrella, nota: c.nota };
+    const antes = Object.fromEntries(['estrella', 'nota', 'tipo', 'menu'].map((k) => [k, c[k]]));
     Object.assign(c, cambios);
     c.nota = String(c.nota || '').trim().slice(0, NOTA_MAX);
     detalleMsg = 'Guardando…';
@@ -635,13 +641,15 @@ async function initApp(root) {
     guardado.pendientes += 1;
     renderEstado();
     try {
-      const ok = await guardaDestacado(mesa.id, c.key, { estrella: c.estrella, nota: c.nota });
+      const ok = await guardaComensal(mesa.id, c.key, cambios);
       if (!ok) throw new Error('El comensal ya no está en la mesa (recarga la página).');
       guardado.ultimo = new Date();
-      detalleMsg = `${c.nombre}: ${'nota' in cambios ? 'nota guardada' : c.estrella ? '★ destacado' : 'sin ★'} ✓`;
+      detalleMsg = `${c.nombre}: ${'tipo' in cambios ? TIPO_LABEL[cambios.tipo]
+        : 'menu' in cambios ? `menú ${cambios.menu}`
+          : 'nota' in cambios ? 'nota guardada' : c.estrella ? '★ destacado' : 'sin ★'} ✓`;
     } catch (err) {
       console.error(err);
-      Object.assign(c, antes);
+      Object.entries(antes).forEach(([k, v]) => { if (v === undefined) delete c[k]; else c[k] = v; });
       detalleMsg = `⚠ No se ha podido guardar. ${String(err.message || '').startsWith('El comensal') ? err.message : 'Inténtalo de nuevo.'}`;
     } finally {
       guardado.pendientes -= 1;
@@ -649,6 +657,30 @@ async function initApp(root) {
     }
     if (detalleId === mesa.id) renderDetalle();
     renderPlano();
+  }
+
+  /** Tipo y menú de un comensal: dos selectores nativos (valor guardado o deducido). */
+  function selectoresTipoMenu(mesa, c) {
+    const box = el('div', 'mes-tm pla-tm');
+    const sel = (clase, valores, etiquetas, actual, aria, campo) => {
+      const s = el('select', `field__input mes-sel ${clase}`);
+      s.setAttribute('aria-label', aria);
+      valores.forEach((v) => {
+        const o = document.createElement('option');
+        o.value = v;
+        o.textContent = etiquetas[v];
+        s.appendChild(o);
+      });
+      s.value = actual;
+      s.addEventListener('change', () => guardaEstrellaNota(mesa, c, { [campo]: s.value }));
+      return s;
+    };
+    const menus = Object.fromEntries(MENUS.map((m) => [m, m === 'infantil reducido' ? 'inf. reducido' : m]));
+    box.append(
+      sel('mes-sel--tipo', TIPOS, TIPO_LABEL, tipoDe(c, ninos), `Tipo de ${c.nombre}`, 'tipo'),
+      sel('mes-sel--menu', MENUS, menus, menuDe(c, ninos), `Menú de ${c.nombre}`, 'menu'),
+    );
+    return box;
   }
 
   /** Flecha hacia la mesa presidencial (o el motivo de no poder darla). */
@@ -909,6 +941,8 @@ async function initApp(root) {
       const quien = el('span', c ? 'pla-orden__quien' : 'pla-orden__quien is-vacio');
       if (c && c.estrella) quien.appendChild(el('span', 'pla-orden__estrella', '★ '));
       quien.appendChild(document.createTextNode(c ? c.nombre : 'puesto vacío'));
+      const etiqueta = c ? etiquetaTipoMenu(c, ninos) : '';
+      if (etiqueta) quien.appendChild(el('span', 'mes-tipo', etiqueta));
       const orient = c && c.estrella ? orientacionSilla(mesa, i, presDet) : null;
       if (orient) {
         quien.appendChild(el('span', `pla-orden__orient pla-orient--${orient}`,
@@ -941,6 +975,7 @@ async function initApp(root) {
         });
         nota.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') nota.blur(); });
         li.appendChild(nota);
+        li.appendChild(selectoresTipoMenu(mesa, c));
       }
       lista.appendChild(li);
     });
@@ -1396,9 +1431,13 @@ async function initApp(root) {
   }
 
   /* ---------- Carga inicial ---------- */
-  [plano, mesas, copias] = await Promise.all([
+  let nucleos;
+  [plano, mesas, copias, nucleos] = await Promise.all([
     fetchPlano(), fetchMesasPlano(), fetchCopias().catch((err) => { console.error(err); return []; }),
+    // Solo para deducir quién es niño/a (sin tipo guardado); si falla, todos adultos
+    fetchNucleos().catch((err) => { console.error(err); return []; }),
   ]);
+  ninos = clavesNinos(nucleos);
   mesas.forEach((m) => { m.orig = { x: m.x, y: m.y, rot: m.rot, forma: m.forma }; });
   colocaPendientes();
   rellenaSalon();

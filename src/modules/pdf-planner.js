@@ -36,7 +36,8 @@ import {
   recortePlano, FORMA_LABEL,
   puestosNumerados, numAsiento, orientacionSilla, ORIENTACION_LABEL,
 } from './plano-geom.js';
-import { planificar, clavesNinos, esNino, TIPO_NINO } from './excel-finca.js';
+import { planificar, clavesNinos } from './excel-finca.js';
+import { tipoDe, menuDe, etiquetaTipoMenu, filasRecuento } from './comensal.js';
 import {
   disenaMesa, etiquetaPuesto, trozosEtiqueta, ESTRELLA, NBSP,
 } from './mesa-etiquetas.js';
@@ -76,14 +77,18 @@ export function ordenFichas(mesas) {
 
 /**
  * Puestos de una mesa para la lista, en orden de NÚMERO (desde el asiento
- * 1 elegido): [{ n, i (silla física), nombre, tipo ('' | niño/a | hueco),
- * estrella, nota, orient ('cara' | 'lado' | 'espaldas', solo ★) }].
+ * 1 elegido): [{ n, i (silla física), nombre, tipo ('' | niño/a | trona |
+ * hueco; silla vacía = hueco), menu, etiqueta ("trona · sin menú"; vacía si
+ * es adulto con menú de adulto), estrella, nota, orient ('cara' | 'lado' |
+ * 'espaldas', solo ★) }].
  */
 export function puestosMesa(mesa, ninos, pres = null) {
   return puestosNumerados(mesa).map(({ i, n, c }) => ({
     n, i,
     nombre: c ? String(c.nombre || '').trim() || '(sin nombre)' : '',
-    tipo: c ? (esNino(c, ninos) ? TIPO_NINO : '') : 'hueco',
+    tipo: c ? tipoDe(c, ninos) : 'hueco',
+    menu: c ? menuDe(c, ninos) : '',
+    etiqueta: c ? etiquetaTipoMenu(c, ninos) : 'hueco',
     estrella: Boolean(c && c.estrella),
     nota: c && c.nota ? String(c.nota) : '',
     orient: c && c.estrella ? orientacionSilla(mesa, i, pres) : null,
@@ -114,23 +119,23 @@ export function estrellaPdf(doc, cx, cy, r, color = BURDEOS) {
 }
 
 /**
- * Resumen de la portada. Comensales, niños y adultos con los MISMOS
- * criterios que el Excel de la finca (planificar): comensales = sillas
- * ocupadas; niño/a = marcado como niño en la lista de invitados;
- * adultos = comensales − niños − tronas. Tronas: no hay ninguna marcada
- * (el Excel también pone 0). Huecos: sillas libres de cada mesa.
+ * Resumen de la portada: el MISMO recuento que el Excel de la finca
+ * (planificar → comensal.js): comensales = sillas ocupadas; tipo y menú
+ * de cada uno, guardados o deducidos; adultos = comensales − niños −
+ * tronas − huecos. Aparte, las sillas libres de cada mesa.
  */
 export function resumenPlanner(mesas, nucleos) {
   const { resumen } = planificar(mesas, nucleos);
-  const huecos = mesas.reduce((s, m) => s + ordenPuestos(m).filter((c) => !c).length, 0);
-  const tronas = 0;
+  const sillasLibres = mesas.reduce((s, m) => s + ordenPuestos(m).filter((c) => !c).length, 0);
   return {
     mesas: mesas.length,
     comensales: resumen.comensales,
+    adultos: resumen.adultos,
     ninos: resumen.ninos,
-    adultos: resumen.comensales - resumen.ninos - tronas,
-    tronas,
-    huecos,
+    tronas: resumen.tronas,
+    huecos: resumen.huecos,
+    menus: resumen.menus,
+    sillasLibres,
   };
 }
 
@@ -269,10 +274,10 @@ const DIBUJO_MIN = 55;    // alto mínimo del dibujo en media página
 
 /** Opciones de la lista en orden de asiento (una o dos columnas). */
 function listaOpciones(puestos, x, ancho, y) {
-  const fila = (p) => [String(p.n), p.nombre || '', p.tipo, p.nota || '',
+  const fila = (p) => [String(p.n), p.nombre || '', p.etiqueta, p.nota || '',
     p.estrella && p.orient ? ORIENTACION_LABEL[p.orient] : ''];
   // Con notas o ★ la lista va a una columna (para que quepan)
-  const extra = puestos.some((p) => p.estrella || p.nota);
+  const extra = puestos.some((p) => p.estrella || p.nota || (p.nombre && p.etiqueta));
   const cols = puestos.length > 6 && !extra ? 2 : 1;
   const mitad = Math.ceil(puestos.length / cols);
   const trozos = cols === 2 ? [puestos.slice(0, mitad), puestos.slice(mitad)] : [puestos];
@@ -280,7 +285,7 @@ function listaOpciones(puestos, x, ancho, y) {
   const w = cols === 2 ? (ancho - hueco) / 2 : ancho;
   return trozos.map((t, k) => ({
     startY: y,
-    head: [['Nº', 'Nombre', 'Tipo', 'Nota', 'Hacia los novios']],
+    head: [['Nº', 'Nombre', 'Tipo · menú', 'Nota', 'Hacia los novios']],
     body: t.map(fila).map((f) => f.map(txt)),
     margin: { left: x + k * (w + hueco), right: A4.corto - (x + k * (w + hueco) + w), top: M.top, bottom: M.bottom },
     tableWidth: w,
@@ -288,7 +293,7 @@ function listaOpciones(puestos, x, ancho, y) {
     styles: { ...estiloTabla({ fontSize: 8.5 }).styles, cellPadding: { top: 1.1, bottom: 1.1, left: 1.6, right: 1.6 } },
     columnStyles: cols === 2
       ? { 0: { cellWidth: 8, halign: 'right' }, 2: { cellWidth: 13 }, 3: { cellWidth: 11 }, 4: { cellWidth: 15 } }
-      : { 0: { cellWidth: 8, halign: 'right' }, 1: { cellWidth: 58 }, 2: { cellWidth: 15 }, 4: { cellWidth: 29 } },
+      : { 0: { cellWidth: 8, halign: 'right' }, 1: { cellWidth: 52 }, 2: { cellWidth: 30 }, 4: { cellWidth: 27 } },
     rowPageBreak: 'avoid',
     didParseCell(data) {
       if (data.section !== 'body') return;
@@ -304,7 +309,7 @@ function listaOpciones(puestos, x, ancho, y) {
       }
       if (data.column.index !== 2) return;
       if (data.cell.raw === 'hueco') { data.cell.styles.textColor = GRIS; data.cell.styles.fontStyle = 'italic'; }
-      if (data.cell.raw === txt(TIPO_NINO)) { data.cell.styles.textColor = BURDEOS; data.cell.styles.fontStyle = 'bold'; }
+      if (data.cell.raw && data.cell.raw !== 'hueco') { data.cell.styles.textColor = BURDEOS; data.cell.styles.fontStyle = 'bold'; }
     },
     didDrawCell(data) {
       if (data.section !== 'body' || data.column.index !== 1 || !t[data.row.index].estrella) return;
@@ -418,15 +423,18 @@ function portada(doc, r, generado, indice) {
   doc.setPage(1);
   let y = portadaCabecera(doc, 'PLANO DE MESAS', generado);
   const fila = (label, valor) => [txt(label), String(valor)];
+  const { tipos, menus } = filasRecuento({ tipos: { adulto: r.adultos, nino: r.ninos, trona: r.tronas, hueco: r.huecos }, menus: r.menus });
+  const cab = (t) => [{ content: txt(t), colSpan: 2, styles: { fontStyle: 'bold', textColor: BURDEOS, fontSize: 9 } }];
   autoTable(doc, {
     startY: y,
     body: [
       fila('Mesas', r.mesas),
       fila('Comensales', r.comensales),
-      fila('Adultos', r.adultos),
-      fila('Niños', r.ninos),
-      fila('Tronas', r.tronas),
-      fila('Huecos (sillas libres)', r.huecos),
+      cab('Por tipo'),
+      ...tipos.map(([l, v]) => fila(l, v)),
+      cab('Por menú'),
+      ...menus.map(([l, v]) => fila(l, v)),
+      fila('Sillas libres', r.sillasLibres),
     ],
     margin: { left: 35, right: 35 },
     theme: 'plain',
@@ -472,8 +480,9 @@ function portada(doc, r, generado, indice) {
   doc.setFontSize(8);
   doc.setTextColor(...SOFT);
   doc.text(doc.splitTextToSize(txt(
-    'Niños según la lista de invitados y tronas como en el Excel de la finca (no hay ninguna marcada). '
-    + 'Huecos: sillas que quedan libres en cada mesa.'), A4.corto - 70), 35, y);
+    'Mismo recuento que el Excel de la finca. Tipo y menú de cada comensal: el indicado en el reparto o, si no hay, '
+    + 'niño/a según la lista de invitados y menú infantil para niños y tronas. Sillas libres: las que quedan sin nadie en cada mesa.'),
+  A4.corto - 70), 35, y);
 }
 
 /** Hueco del plano en el A4 horizontal (mm): todo el ancho útil, salvo

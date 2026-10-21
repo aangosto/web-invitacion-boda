@@ -10,7 +10,7 @@
    rot 0 tiene la cabecera contra la pared de arriba y mira al salón.
    ================================================================= */
 
-import { NOTA_MAX } from './comensal.js';
+import { NOTA_MAX, conCambiosComensal } from './comensal.js';
 
 export const FORMAS = ['redonda', 'cuadrada', 'rectangular'];
 export const FORMA_LABEL = { redonda: 'Redonda', cuadrada: 'Cuadrada', rectangular: 'Rectangular' };
@@ -688,15 +688,7 @@ export { NOTA_MAX };
  * está en la lista.
  */
 export function conDestacado(lista, key, { estrella, nota }) {
-  let hecho = false;
-  const nueva = lista.map((c) => {
-    if (hecho || String(c.key || '') !== key) return c;
-    hecho = true;
-    const { estrella: _e, nota: _n, ...resto } = c;
-    const n = String(nota || '').trim().slice(0, NOTA_MAX);
-    return { ...resto, ...(estrella ? { estrella: true } : {}), ...(n ? { nota: n } : {}) };
-  });
-  return hecho ? nueva : null;
+  return conCambiosComensal(lista, key, { estrella, nota });
 }
 
 export const ORIENTACION_LABEL ={ cara: 'de cara', lado: 'de lado', espaldas: 'de espaldas' };

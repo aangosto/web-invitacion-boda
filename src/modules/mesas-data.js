@@ -12,8 +12,11 @@
          manual,             // true = escrito a mano, no está en invitados
          preboda,            // true = viene a la preboda (por defecto
                              // true; viaja con el comensal al moverlo)
-         estrella, nota }],  // invitado destacado (★) y nota corta
+         estrella, nota,     // invitado destacado (★) y nota corta
                              // (≤60); opcionales, se ponen en plano.html
+         tipo, menu }],      // '' | niño/a | trona | hueco y adulto |
+                             // infantil | infantil reducido | sin menú;
+                             // opcionales: sin ellos se deducen (comensal.js)
        asientoInicio,        // silla que lleva el nº 1 (plano.html)
        orden, createdAt, updatedAt,
        numero }              // nº de mesa (1-15) del plano de la finca;
@@ -28,9 +31,9 @@
 import { db } from '../firebase.js';
 import {
   collection, doc, getDocs, addDoc, updateDoc, deleteDoc,
-  orderBy, query, serverTimestamp,
+  orderBy, query, serverTimestamp, runTransaction,
 } from 'firebase/firestore';
-import { toComensal } from './comensal.js';
+import { toComensal, cambiaComensalEnTx } from './comensal.js';
 
 /** Todas las mesas, por orden de creación. */
 export async function fetchMesas() {
@@ -59,6 +62,18 @@ export async function updateMesa(id, cambios) {
     ...cambios,
     updatedAt: serverTimestamp(),
   });
+}
+
+/**
+ * Cambia campos de UN comensal (preboda, ★, nota, tipo, menú) en una
+ * TRANSACCIÓN: lee la mesa y reescribe la lista con solo ese cambio, así
+ * dos personas editando la misma mesa a la vez no se pisan. Devuelve la
+ * lista guardada (normalizada) o null si el comensal ya no está.
+ */
+export async function guardaComensal(mesaId, key, cambios) {
+  const ref = doc(db, 'mesas', mesaId);
+  const nueva = await runTransaction(db, (tx) => cambiaComensalEnTx(tx, ref, key, cambios, { updatedAt: serverTimestamp() }));
+  return nueva ? nueva.map(toComensal) : null;
 }
 
 /** Crea una mesa nueva. Devuelve su id (autogenerado). */

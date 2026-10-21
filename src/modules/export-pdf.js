@@ -25,6 +25,7 @@ import { splitResubmissions } from './rsvp-dedupe.js';
 import { aggregate, MENU_LABELS } from './totales-logic.js';
 import { buildCronologia, formatDia, describeEntrada } from './crono-logic.js';
 import { TIPO_LABEL } from './habitaciones-precios.js';
+import { clavesNinos, recuentoMesas, filasRecuento, etiquetaTipoMenu } from './comensal.js';
 
 import {
   BURDEOS, INK, SOFT, HEAD_FILL, VERDE, AMBAR, GRIS, SERIF, SANS, M,
@@ -73,8 +74,14 @@ function preparar(datos) {
     }));
   }
 
+  // Niños de la lista de invitados (tipo deducido de los comensales sin tipo)
+  p.ninos = datos.invitados?.ok ? clavesNinos(datos.invitados.data) : new Set();
+
   // Mesa de cada nombre (para poner la mesa junto a cada alergia)
   if (datos.mesas?.ok) {
+    // Tipos y menús del banquete: el MISMO recuento que mesas.html, el
+    // Excel de la finca y el PDF de la wedding planner (comensal.js)
+    p.recuento = recuentoMesas(datos.mesas.data, p.ninos);
     p.mesaDeNombre = new Map();
     datos.mesas.data.forEach((m) => m.comensales.forEach((c) => {
       const k = norm(c.nombre);
@@ -191,6 +198,21 @@ function tabla(ctx, { head, body, columnStyles, fontSize = 9, filasTotal = [], c
   ctx.y = ctx.doc.lastAutoTable.finalY + 6;
 }
 
+/** Recuento del banquete por tipo y por menú (comensales sentados). */
+function recuentoBanquete(ctx, p) {
+  subtitulo(ctx, 'Banquete: comensales por tipo y por menú', pl(p.recuento.total, 'comensal sentado', 'comensales sentados'));
+  const { tipos, menus } = filasRecuento(p.recuento);
+  const total = ['Total', p.recuento.total];
+  tabla(ctx, {
+    head: ['Tipo', 'Personas', 'Menú', 'Personas'],
+    body: [...tipos.map((t, i) => [...t, ...menus[i]]), [...total, ...total]],
+    fontSize: 10,
+    filasTotal: [tipos.length],
+    columnStyles: { 1: { halign: 'right', cellWidth: 25 }, 3: { halign: 'right', cellWidth: 25 } },
+  });
+  if (!p.invitados?.ok) aviso(ctx, 'No se ha podido leer la lista de invitados: los niños sin tipo indicado en la mesa cuentan como adultos.');
+}
+
 /* =================================================================
    1 · INVITADOS
    ================================================================= */
@@ -267,7 +289,9 @@ function secCatering(ctx, p) {
   seccion(ctx, 2, 'Alergias y menús',
     'Para el catering. Datos de las confirmaciones recibidas por la web '
     + '(solo el último envío de cada persona). La columna "Mesa" se rellena '
-    + 'cuando la persona ya está sentada en el plano de mesas.');
+    + 'cuando la persona ya está sentada en el plano de mesas. El recuento del '
+    + 'banquete (tipo y menú de cada comensal) sale del reparto de mesas.');
+  if (p.recuento) recuentoBanquete(ctx, p);
   if (!p.rsvp?.ok) return avisoError(ctx, 'las confirmaciones', p.rsvp);
   const t = p.totales;
   if (!t.asisten.length) return aviso(ctx, 'Todavía no hay confirmaciones de asistencia.');
@@ -472,6 +496,7 @@ function secMesas(ctx, p) {
       filasTotal: [body.length - 1],
       columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
     });
+    recuentoBanquete(ctx, p);
 
     mesas.forEach((m) => {
       const si = m.comensales.filter((c) => c.preboda).length;
@@ -484,7 +509,8 @@ function secMesas(ctx, p) {
       tabla(ctx, {
         head: ['#', 'Comensal', 'Núcleo', 'Estado', 'Preboda'],
         body: m.comensales.map((c, i) => [
-          i + 1, c.nombre, c.manual ? '(añadido a mano)' : c.nucleo, estadoDe(c),
+          i + 1, etiquetaTipoMenu(c, p.ninos) ? `${c.nombre} (${etiquetaTipoMenu(c, p.ninos)})` : c.nombre,
+          c.manual ? '(añadido a mano)' : c.nucleo, estadoDe(c),
           { content: c.preboda ? 'Sí' : 'No', styles: { fontStyle: 'bold', textColor: c.preboda ? VERDE : GRIS } },
         ]),
         colorCol: 3,
@@ -613,6 +639,10 @@ function portada(ctx, p, generado) {
     const sentados = p.mesas.data.flatMap((m) => m.comensales);
     dato('Mesas · plazas', `${p.mesas.data.length} · ${p.mesas.data.reduce((s, m) => s + m.capacidad, 0)}`);
     dato('Sentados · vienen a la preboda', `${sentados.length} · ${sentados.filter((c) => c.preboda).length}`);
+    const r = p.recuento;
+    dato('Adultos · niños · tronas · huecos', `${r.tipos.adulto} · ${r.tipos.nino} · ${r.tipos.trona} · ${r.tipos.hueco}`);
+    dato('Menú adulto · infantil · inf. reducido · sin menú',
+      `${r.menus.adulto} · ${r.menus.infantil} · ${r.menus['infantil reducido']} · ${r.menus['sin menú']}`);
   } else dato('Mesas', noLeido);
 
   titulo('Hotel');

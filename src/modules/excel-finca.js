@@ -26,6 +26,9 @@
    ================================================================= */
 
 import { puestosNumerados } from './plano-geom.js';
+import { clavesNinos, esNino, tipoDe, recuentoMesas, TIPO_NINO } from './comensal.js';
+
+export { clavesNinos, esNino, TIPO_NINO };
 
 export const HOJA = 'distribucion de mesas';
 export const HOJA_AYUDA = 'Ayuda';
@@ -34,7 +37,6 @@ export const FILAS_BLOQUE = 13;
 export const MAX_POR_BLOQUE = FILAS_BLOQUE * 2;
 /** Primer bloque para las mesas sin número (las numeradas van del 1 al 15). */
 export const PRIMER_LIBRE = 16;
-export const TIPO_NINO = 'niño/a';
 
 /** Fila de la cabecera del bloque n (0 = Presidencia, 1..30 = Mesa n). */
 export function filaCabecera(n) {
@@ -53,28 +55,17 @@ export function nombreArchivo(fecha = new Date()) {
   return `Distribucion_mesas_Alberto_Maria_${fecha.getFullYear()}-${p(fecha.getMonth() + 1)}-${p(fecha.getDate())}.xlsx`;
 }
 
-/** Niños: keys '<nucleoId>|<nombre>' (la misma que usa mesas.html) de
-    las personas marcadas como niño en la lista de invitados. */
-export function clavesNinos(nucleos = []) {
-  const ninos = new Set();
-  nucleos.forEach((n) => (n.personas || []).forEach((p) => {
-    if (p.nino === true) ninos.add(`${n.id}|${p.nombre}`);
-  }));
-  return ninos;
-}
-/** ¿Es niño/a este comensal? (los añadidos a mano nunca lo son) */
-export function esNino(c, ninos) {
-  return !String(c.key).startsWith('manual|') && ninos.has(c.key);
-}
-
 /**
  * Prepara el reparto en bloques, sin tocar ningún Excel.
  *   mesas:   [{ id, nombre, numero, presidencial, capacidad,
- *              comensales: [{ key, nombre }], asientos }]   (orden de mesas.html)
+ *              comensales: [{ key, nombre, tipo?, menu? }], asientos }]   (orden de mesas.html)
  *   nucleos: colección invitados ([{ id, personas: [{ nombre, nino, estado }] }])
+ * Tipo de cada persona: el guardado en el comensal o, si no hay, niño/a
+ * si lo es en invitados (comensal.js: tipoDe).
  * Devuelve { bloques: [{ n, mesa, cabecera, personas: [{ nombre, tipo }] }],
  *            avisos: [texto], errores: [texto],
- *            resumen: { mesas, comensales, ninos } }.
+ *            resumen: { mesas, comensales, ninos, tronas, huecos, adultos,
+ *                       menus } }  (recuento de comensal.js).
  * `errores` no vacío = no se puede generar el archivo.
  */
 export function planificar(mesas, nucleos = []) {
@@ -139,19 +130,15 @@ export function planificar(mesas, nucleos = []) {
   // Personas de cada bloque: orden de asientos del plano desde el asiento 1 (si lo hay) o
   // el de la lista; los puestos vacíos no ocupan sitio en el Excel
   const bloques = [];
-  let comensales = 0;
-  let numNinos = 0;
   [...destino].sort((a, b) => a[1] - b[1]).forEach(([id, n]) => {
     const mesa = mesas.find((m) => m.id === id);
     const personas = puestosNumerados(mesa).map((p) => p.c).filter(Boolean).map((c) => {
-      const tipo = esNino(c, ninos) ? TIPO_NINO : '';
+      const tipo = tipoDe(c, ninos);
       return { nombre: String(c.nombre || '').trim() || '(sin nombre)', tipo };
     });
     if (personas.length > MAX_POR_BLOQUE) {
       errores.push(`«${mesa.nombre}» tiene ${personas.length} comensales y en el Excel de la finca caben ${MAX_POR_BLOQUE} por mesa.`);
     }
-    comensales += personas.length;
-    numNinos += personas.filter((p) => p.tipo === TIPO_NINO).length;
     // En un bloque que no es el suyo, se dice por qué (sin número / repetido)
     let nota = '';
     if (n !== 0 && mesa.numero !== n) nota = Number.isInteger(mesa.numero) ? ` (nº ${mesa.numero} repetido)` : ' (sin número)';
@@ -159,7 +146,15 @@ export function planificar(mesas, nucleos = []) {
     bloques.push({ n, mesa, cabecera, personas });
   });
 
-  return { bloques, avisos, errores, resumen: { mesas: bloques.length, comensales, ninos: numNinos } };
+  // Recuento con la misma función que mesas.html y los PDF (sobre las mesas que van al Excel)
+  const r = recuentoMesas(bloques.map((b) => b.mesa), ninos);
+  return {
+    bloques, avisos, errores,
+    resumen: {
+      mesas: bloques.length, comensales: r.total, ninos: r.tipos.nino, tronas: r.tipos.trona,
+      huecos: r.tipos.hueco, adultos: r.tipos.adulto, menus: r.menus,
+    },
+  };
 }
 
 /* ---------- Escritura en el .xlsx (zip de XML) ---------- */
@@ -278,13 +273,16 @@ export async function rellenarXlsx(JSZip, plantilla, plan) {
     total += c;
     if (n > 0 && c > 0) mesasConGente += 1;
   }
-  const ninos = plan.bloques.reduce((s, b) => s + b.personas.filter((p) => p.tipo === TIPO_NINO).length, 0);
+  const cuentaTipo = (t) => plan.bloques.reduce((s, b) => s + b.personas.filter((p) => p.tipo === t).length, 0);
+  const ninos = cuentaTipo(TIPO_NINO);
+  const huecos = cuentaTipo('hueco');
+  const tronas = cuentaTipo('trona');
   ponCache('I5', mesasConGente);   // mesas (sin Presidencia) con alguien
   ponCache('I7', total);           // invitados
-  ponCache('I8', total - ninos);   // adultos (= I7 - niños - huecos - tronas)
+  ponCache('I8', total - ninos - huecos - tronas); // adultos (= I7 - I9 - I10 - I11)
   ponCache('I9', ninos);
-  ponCache('I10', 0);              // huecos
-  ponCache('I11', 0);              // tronas
+  ponCache('I10', huecos);
+  ponCache('I11', tronas);
   zip.file(ruta, xml);
 
   // Excel recalcula cabeceras y Resumen al abrir

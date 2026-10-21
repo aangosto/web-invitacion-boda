@@ -11,7 +11,7 @@
 
    Flujo pensado para el móvil:
    1) Toque → se leen los datos y se muestra un RESUMEN previo (mesas,
-      comensales, niños y avisos). Los avisos no bloquean; una mesa de
+      comensales, niños, tronas y avisos). Los avisos no bloquean; una mesa de
       más de 26 personas, sí (no cabe en el bloque de la finca).
    2) Mientras se lee el resumen, el Excel se genera en segundo plano.
    3) "Descargar Excel" dispara la descarga en el MISMO toque (el
@@ -102,6 +102,8 @@ export function initExportFinca(container) {
       { num: plan.resumen.mesas, label: 'mesas' },
       { num: plan.resumen.comensales, label: 'comensales' },
       { num: plan.resumen.ninos, label: plan.resumen.ninos === 1 ? 'niño/a' : 'niños/as' },
+      { num: plan.resumen.tronas, label: plan.resumen.tronas === 1 ? 'trona' : 'tronas' },
+      ...(plan.resumen.huecos ? [{ num: plan.resumen.huecos, label: plan.resumen.huecos === 1 ? 'hueco' : 'huecos' }] : []),
     ].forEach((s) => {
       const card = el('div', 'res-stat');
       card.append(el('span', 'res-stat__num', String(s.num)), el('span', 'res-stat__label', s.label));
